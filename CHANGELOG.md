@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.4
+
+- Added CI validation of the Caddyfile with the official Caddy container image.
+
 ## v0.2.3
 
 - Moved the GitHub Actions workflow to Node 24-based official actions to remove the Node 20 runtime deprecation warning.

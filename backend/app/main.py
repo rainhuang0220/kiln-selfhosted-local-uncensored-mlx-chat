@@ -125,7 +125,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.2.3",
+        version="0.2.4",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",

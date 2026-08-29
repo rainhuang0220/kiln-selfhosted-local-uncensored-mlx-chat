@@ -28,4 +28,5 @@ jobs:
       - run: .venv/bin/python -m pip install -e "./backend[dev]"
       - run: npm test
       - run: npm run build
+      - run: docker run --rm -e KILN_DOMAIN=chat.example.com -e ACME_EMAIL=ops@example.com -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - run: bash scripts/check-public-tree.sh
