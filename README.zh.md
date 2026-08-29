@@ -59,7 +59,7 @@ docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
 
 ## 怎么启动
 
-必须用 **Python 3.12**，不要用 3.14。  
+必须用 **Python 3.12**，不要用 3.14。
 3.14 会在导入 MLX 时因重复 OpenMP 直接闪退（系统弹「Python 意外退出」）。
 
 ```bash

@@ -1,7 +1,7 @@
 # 推理基准
 
-硬件：Apple M4，24 GB 统一内存。  
-模型：Qwen3.8-27B 4bit MLX。  
+硬件：Apple M4，24 GB 统一内存。
+模型：Qwen3.8-27B 4bit MLX。
 服务：Python 3.12 虚拟环境里的 `mlx_lm.server`，`127.0.0.1:8081`。
 
 测试脚本：`benchmarks/run_inference.py`（走 HTTP，**不会再加载一份 14GB 权重**）。
