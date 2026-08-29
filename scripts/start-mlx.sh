@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ACTIVE_MODEL="$ROOT/data/active-model.env"
+if [[ -f "$ACTIVE_MODEL" ]]; then
+  # Produced only by activate-model.sh; it is shell-escaped and mode 0600.
+  set -a
+  source "$ACTIVE_MODEL"
+  set +a
+fi
 # Public 8081 default: HauhauCS Aggressive 9B mxfp4. Local 27B: MODEL_PATH=$ROOT/../qwen3.8-27b
 MODEL="${MODEL_PATH:-$ROOT/../qwen3.5-9b-hauhau-aggressive-mxfp4}"
 PY="${ROOT}/.venv/bin/python"

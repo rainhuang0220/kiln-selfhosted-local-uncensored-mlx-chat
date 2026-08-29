@@ -14,7 +14,15 @@ npm run start:mlx
 
 The downloader fetches the pinned revision and verifies both weight shards with SHA-256. The upstream Hauhau model card lists Apache-2.0; retain its attribution and review both model cards before redistribution.
 
-## Switch models
+## Model Workbench (recommended)
+
+Open **Model library** in the sidebar (or **Models** in the chat header). Kiln searches the live Hugging Face catalogue without sending your conversations or filesystem paths to the Hub. Each result opens the upstream model card in a new tab.
+
+Only repositories marked **MLX-ready** can be installed directly: the server checks this again before a job is created. A completed download is stored under `MODEL_LIBRARY_PATH` (default: `../models`, outside this repository), with its provenance in a local `kiln-model.json`. **Download + use** writes the active selection under private runtime data, restarts the Mac LaunchAgent, and preserves the choice across API restarts.
+
+The public deployment profile is deliberately read-only: it cannot download or switch models from the Internet-facing API. Keep model management on the private Apple Silicon host.
+
+## Switch models manually
 
 Point `MODEL_PATH` at a compatible local MLX checkpoint before starting the server:
 

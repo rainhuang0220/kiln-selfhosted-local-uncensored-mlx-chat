@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
 import { Markdown } from "./components/Markdown";
+import { ModelWorkbench } from "./components/ModelWorkbench";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
@@ -29,6 +31,7 @@ export function App() {
     window.addEventListener("kiln:unauthorized", onUnauth);
     void store.loadHealth();
     void store.loadConversations();
+    void store.loadModels();
     const t = window.setInterval(() => void store.loadHealth(), 10000);
     const onVis = () => {
       if (document.visibilityState === "visible") void store.loadHealth();
@@ -85,6 +88,10 @@ export function App() {
   const [gatePass, setGatePass] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.localStorage.getItem("kiln.sidebar") === "collapsed",
+  );
+  const [modelWorkbenchOpen, setModelWorkbenchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches,
   );
@@ -118,6 +125,13 @@ export function App() {
   }, [sidebarOpen]);
 
   const closeSidebar = () => setSidebarOpen(false);
+  const toggleSidebar = () => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      window.localStorage.setItem("kiln.sidebar", next ? "collapsed" : "open");
+      return next;
+    });
+  };
   if (store.authRequired && !store.authOk) {
     return (
       <div className="auth-gate">
@@ -169,6 +183,7 @@ export function App() {
         "shell",
         store.inspectorOpen ? "" : "inspector-closed",
         sidebarOpen ? "sidebar-open" : "",
+        sidebarCollapsed ? "sidebar-collapsed" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -181,8 +196,17 @@ export function App() {
       />
       <aside className="sidebar" aria-label="Conversations">
         <div className="brand">
-          <h1>Kiln</h1>
+          <div className="brand-lockup"><h1>Kiln</h1>
           <span>local fire</span>
+          </div>
+          <button
+            type="button"
+            className="icon-btn desktop-sidebar-toggle"
+            aria-label={sidebarCollapsed ? "Expand conversations" : "Collapse conversations"}
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
           <button
             type="button"
             className="icon-btn mobile-only sidebar-close"
@@ -202,7 +226,10 @@ export function App() {
               closeSidebar();
             }}
           >
-            New chat
+            <Plus size={15} /> New chat
+          </button>
+          <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+            <LibraryBig size={15} /> Model library
           </button>
           <input
             className="search"
@@ -232,6 +259,9 @@ export function App() {
                       closeSidebar();
                     }}
                     onRename={(title) => void store.rename(c.id, title)}
+                    onRemove={() => {
+                      if (window.confirm(`Delete “${c.title || "Untitled"}”?`)) void store.remove(c.id);
+                    }}
                   />
                 ))}
               </div>
@@ -264,7 +294,7 @@ export function App() {
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen(true)}
           >
-            <span className="icon-bars" />
+            <Menu size={18} />
           </button>
           <h2>{title}</h2>
           <div className="head-actions">
@@ -277,9 +307,12 @@ export function App() {
                   navigate("/");
                 }}
               >
-                Delete
+                <Trash2 size={15} /> Delete
               </button>
             ) : null}
+            <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+              Models
+            </button>
             <button
               className="btn ghost desktop-only"
               aria-expanded={store.inspectorOpen}
@@ -371,6 +404,40 @@ export function App() {
                           ) : null}
                         </>
                       ) : null}
+                      <button
+                        className="btn ghost"
+                        onClick={() => store.setDraft(`> ${m.content.replace(/\n/g, "\n> ")}\n\n`)}
+                      >
+                        <Quote size={14} /> Quote
+                      </button>
+                      {m.id && !m.id.startsWith("local-") ? (
+                        <button
+                          className="btn ghost danger"
+                          onClick={() => {
+                            if (window.confirm("Delete this response?")) void store.removeMessage(m.id);
+                          }}
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {m.role === "user" && m.id && !m.id.startsWith("local-") ? (
+                    <div className="msg-actions user-actions">
+                      <button
+                        className="btn ghost"
+                        onClick={() => store.setDraft(`> ${m.content.replace(/\n/g, "\n> ")}\n\n`)}
+                      >
+                        <Quote size={14} /> Quote
+                      </button>
+                      <button
+                        className="btn ghost danger"
+                        onClick={() => {
+                          if (window.confirm("Delete this turn and its response?")) void store.removeMessage(m.id);
+                        }}
+                      >
+                        <Trash2 size={14} /> Delete turn
+                      </button>
                     </div>
                   ) : null}
                   {m.error ? <div className="banner">{m.error}</div> : null}
@@ -498,6 +565,7 @@ export function App() {
         </div>
         <Inspector />
       </aside>
+      <ModelWorkbench open={modelWorkbenchOpen} onClose={() => setModelWorkbenchOpen(false)} />
     </div>
   );
 }
@@ -560,12 +628,14 @@ function ConversationRow({
   meta,
   onOpen,
   onRename,
+  onRemove,
 }: {
   active: boolean;
   title: string;
   meta: string;
   onOpen: () => void;
   onRename: (title: string) => void;
+  onRemove: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title);
@@ -586,10 +656,15 @@ function ConversationRow({
           }}
         />
       ) : (
-        <button type="button" className="conv-open" onClick={onOpen} onDoubleClick={() => setEditing(true)}>
-          <strong>{title}</strong>
-          <em>{meta}</em>
-        </button>
+        <>
+          <button type="button" className="conv-open" onClick={onOpen} onDoubleClick={() => setEditing(true)}>
+            <strong>{title}</strong>
+            <em>{meta}</em>
+          </button>
+          <button type="button" className="conv-delete" onClick={onRemove} aria-label={`Delete ${title}`}>
+            <Trash2 size={14} />
+          </button>
+        </>
       )}
     </div>
   );

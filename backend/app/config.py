@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +24,11 @@ class Settings(BaseSettings):
 
     model_name: str = DEFAULT_MODEL_NAME
     model_path: str = ""
+    model_library_path: str = str(ROOT.parent / "models")
+    model_selection_state_path: str = str(ROOT / "data" / "active-model.json")
+    model_switch_enabled: bool = sys.platform == "darwin"
+    model_downloads_enabled: bool = sys.platform == "darwin"
+    model_switch_script: str = str(ROOT / "scripts" / "activate-model.sh")
 
     context_window: int = 262144
     # Prompt-only. Do not subtract max_tokens from this (Qwen3.5-9B hybrid KV is ~1GB @ 32k).

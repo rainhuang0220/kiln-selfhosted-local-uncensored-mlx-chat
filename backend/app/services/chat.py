@@ -183,6 +183,79 @@ class ChatService:
         conn.commit()
         return cur.rowcount > 0
 
+    def delete_message(
+        self, conversation_id: str, message_id: str, owner_id: str | None = None
+    ) -> bool:
+        conn = self._conn()
+        if owner_id:
+            conversation = conn.execute(
+                "SELECT id FROM conversations WHERE id=? AND user_id=?",
+                (conversation_id, owner_id),
+            ).fetchone()
+            if conversation is None:
+                return False
+        row = conn.execute(
+            "SELECT seq, role FROM messages WHERE id=? AND conversation_id=?",
+            (message_id, conversation_id),
+        ).fetchone()
+        if row is None:
+            return False
+        if row["role"] == "user":
+            next_user = conn.execute(
+                """
+                SELECT MIN(seq) AS seq FROM messages
+                WHERE conversation_id=? AND role='user' AND seq>?
+                """,
+                (conversation_id, row["seq"]),
+            ).fetchone()["seq"]
+            if next_user is None:
+                conn.execute("DELETE FROM messages WHERE conversation_id=? AND seq>=?", (conversation_id, row["seq"]))
+            else:
+                conn.execute(
+                    "DELETE FROM messages WHERE conversation_id=? AND seq>=? AND seq<?",
+                    (conversation_id, row["seq"], next_user),
+                )
+        else:
+            conn.execute("DELETE FROM messages WHERE id=?", (message_id,))
+        stats = conn.execute(
+            """
+            SELECT COUNT(*) AS count,
+                   COALESCE(SUM(prompt_tokens), 0) AS prompt,
+                   COALESCE(SUM(completion_tokens), 0) AS completion,
+                   COALESCE(SUM(total_tokens), 0) AS total
+            FROM messages WHERE conversation_id=?
+            """,
+            (conversation_id,),
+        ).fetchone()
+        preview = conn.execute(
+            """
+            SELECT content FROM messages
+            WHERE conversation_id=? AND role='user'
+            ORDER BY seq DESC LIMIT 1
+            """,
+            (conversation_id,),
+        ).fetchone()
+        conn.execute("DELETE FROM context_snapshots WHERE conversation_id=?", (conversation_id,))
+        conn.execute(
+            """
+            UPDATE conversations
+            SET message_count=?, prompt_tokens_total=?, completion_tokens_total=?, total_tokens=?,
+                last_message_preview=?, updated_at=?
+            WHERE id=?
+            """,
+            (
+                stats["count"],
+                stats["prompt"],
+                stats["completion"],
+                stats["total"],
+                preview["content"][:240] if preview else None,
+                now_ms(),
+                conversation_id,
+            ),
+        )
+        conn.commit()
+        return True
+
     def rename_conversation(
         self, conversation_id: str, title: str, owner_id: str | None = None
     ) -> bool:

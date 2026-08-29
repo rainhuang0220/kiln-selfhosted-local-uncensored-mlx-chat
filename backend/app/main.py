@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
+import logging
+import re
 import sqlite3
+import subprocess
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.auth import AuthRateMiddleware
 from app.config import Settings, settings as default_settings
@@ -19,7 +23,10 @@ from app.providers.mlx import MlxProvider
 from app.services import accounts
 from app.services.chat import ChatService
 from app.services.memory import MemoryService
+from app.services.models import ModelManager
 from app.services.tokens import TokenEstimator
+
+logger = logging.getLogger(__name__)
 
 
 class ChatBody(BaseModel):
@@ -55,6 +62,19 @@ class LoginBody(BaseModel):
 class RegisterBody(BaseModel):
     username: str = Field(min_length=1, max_length=32)
     password: str = Field(min_length=1, max_length=128)
+
+
+class ModelDownloadBody(BaseModel):
+    repo_id: str = Field(min_length=3, max_length=200)
+    revision: str | None = Field(default=None, max_length=120)
+    activate: bool = False
+
+    @field_validator("repo_id")
+    @classmethod
+    def validate_repo_id(cls, value: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*", value):
+            raise ValueError("repo_id must be an owner/name Hugging Face repository")
+        return value
 
 
 class OpenAIChatBody(BaseModel):
@@ -100,6 +120,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         init_db(cfg.sqlite_path)
+        ModelManager.restore_active_selection(cfg)
         if cfg.bootstrap_username and cfg.bootstrap_password:
             try:
                 accounts.ensure_bootstrap(cfg.bootstrap_username, cfg.bootstrap_password)
@@ -113,6 +134,10 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         else:
             app.state.chat = chat
             app.state.provider = getattr(chat, "provider", None)
+        app.state.models = ModelManager(
+            cfg,
+            on_activated=lambda: setattr(app.state.chat, "tokenizer", TokenEstimator(cfg.model_path)),
+        )
         app.state.settings = cfg
         try:
             yield
@@ -125,7 +150,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.3.0",
+        version="0.4.0",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",
@@ -235,6 +260,68 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.get("/context")
     async def global_context(request: Request):
         return request.app.state.chat.global_context()
+
+    @app.get("/models/local")
+    async def list_local_models(request: Request):
+        return request.app.state.models.list_local()
+
+    @app.get("/models/catalog")
+    async def search_model_catalog(
+        request: Request,
+        q: str = Query("", max_length=120),
+        limit: int = Query(24, ge=1, le=48),
+        mlx_only: bool = Query(False),
+    ):
+        try:
+            return await asyncio.to_thread(
+                request.app.state.models.search_catalog, q.strip(), limit, mlx_only
+            )
+        except Exception:  # The Hub error can contain request details; keep them server-side.
+            return error_body(
+                "Hugging Face catalog is temporarily unavailable",
+                "api_error",
+                "model_catalog_unavailable",
+                status=503,
+            )
+
+    @app.post("/models/download", status_code=202)
+    async def download_model(body: ModelDownloadBody, request: Request):
+        try:
+            queued = request.app.state.models.queue_download(
+                body.repo_id, body.revision, body.activate
+            )
+            return await queued if inspect.isawaitable(queued) else queued
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "model_not_mlx", status=400)
+        except RuntimeError as exc:
+            return error_body(str(exc), "api_error", "model_download_unavailable", status=409)
+        except Exception:  # Hub/network errors may include transport details.
+            return error_body(
+                "Hugging Face is temporarily unavailable",
+                "api_error",
+                "model_download_unavailable",
+                status=503,
+            )
+
+    @app.get("/models/download")
+    async def list_model_downloads(request: Request):
+        return request.app.state.models.list_jobs()
+
+    @app.post("/models/{model_id}/activate", status_code=202)
+    async def activate_model(model_id: str, request: Request):
+        try:
+            result = await asyncio.to_thread(request.app.state.models.activate, model_id)
+        except ValueError as exc:
+            return error_body("model is not installed", "not_found_error", "model_not_found", status=404)
+        except (RuntimeError, subprocess.CalledProcessError) as exc:
+            logger.exception("Model activation failed")
+            return error_body(
+                "Model activation failed. Check server logs.",
+                "api_error",
+                "model_switch_failed",
+                status=409,
+            )
+        return result
 
     @app.get("/memory")
     async def list_memories(
@@ -416,6 +503,22 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "conversation not found",
                 "not_found_error",
                 "conversation_not_found",
+                status=404,
+            )
+        from fastapi import Response
+
+        return Response(status_code=204)
+
+    @app.delete("/conversation/{conversation_id}/message/{message_id}")
+    async def delete_message(conversation_id: str, message_id: str, request: Request):
+        ok = request.app.state.chat.delete_message(
+            conversation_id, message_id, owner_id=_owner(request)
+        )
+        if not ok:
+            return error_body(
+                "message not found",
+                "not_found_error",
+                "message_not_found",
                 status=404,
             )
         from fastapi import Response

@@ -5,7 +5,7 @@ const KEY = "kiln-theme";
 export function readThemePref(): ThemePref {
   const v = localStorage.getItem(KEY);
   if (v === "dark" || v === "light" || v === "system") return v;
-  return "light";
+  return "dark";
 }
 
 export function applyTheme(pref: ThemePref): void {

@@ -12,7 +12,10 @@ services:
       APP_HOST: 127.0.0.1
       APP_PORT: 8787
       SQLITE_PATH: /data/chat.db
+      MODEL_SELECTION_STATE_PATH: /data/active-model.json
       MLX_BASE_URL: http://127.0.0.1:8081
+      MODEL_DOWNLOADS_ENABLED: "false"
+      MODEL_SWITCH_ENABLED: "false"
     network_mode: host
     volumes:
       - kiln-public-data:/data

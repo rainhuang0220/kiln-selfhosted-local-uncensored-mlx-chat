@@ -101,3 +101,33 @@ export interface Health {
   max_tokens_cap?: number;
   enable_thinking: boolean;
 }
+
+export interface LocalModel {
+  id: string;
+  name: string;
+  source: "configured" | "huggingface" | "local";
+  status: "active" | "ready" | "queued" | "downloading" | "restarting" | "error";
+  repo_id?: string;
+  revision?: string;
+}
+
+export interface HubModel {
+  id: string;
+  name: string;
+  downloads: number;
+  likes: number;
+  updated_at: string | null;
+  pipeline_tag: string | null;
+  tags: string[];
+  mlx_compatible: boolean;
+}
+
+export interface ModelDownloadJob {
+  id: string;
+  repo_id: string;
+  revision: string | null;
+  status: "queued" | "downloading" | "ready" | "error";
+  activate: boolean;
+  model_id?: string;
+  error?: string;
+}

@@ -1,13 +1,13 @@
 {
   "name": "kiln",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "cd backend && ../.venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8787",
     "dev:web": "npm run dev --prefix web",
     "build": "npm run build --prefix web",
-    "test": "bash tests/test_fetch_model.sh && cd backend && ../.venv/bin/pytest -q",
+    "test": "bash tests/test_fetch_model.sh && bash tests/test_activate_model.sh && cd backend && ../.venv/bin/pytest -q",
     "start:mlx": "bash scripts/start-mlx.sh",
     "fetch:model": "bash scripts/fetch-model.sh",
     "start:mtplx": "bash scripts/start-mtplx.sh"

@@ -8,7 +8,10 @@ import type {
   ConversationSummary,
   GenerationParams,
   Health,
+  HubModel,
+  LocalModel,
   Message,
+  ModelDownloadJob,
   TokenUsage,
 } from "../types/chat";
 
@@ -39,7 +42,16 @@ interface ChatState {
   authSetup: boolean;
   authSignup: boolean;
   username: string | null;
+  localModels: LocalModel[];
+  activeModelId: string | null;
+  modelCatalog: HubModel[];
+  modelJobs: ModelDownloadJob[];
   loadHealth: () => Promise<void>;
+  loadModels: () => Promise<void>;
+  searchModelCatalog: (query: string, mlxOnly?: boolean) => Promise<void>;
+  queueModelDownload: (repoId: string, activate?: boolean) => Promise<boolean>;
+  activateModel: (modelId: string) => Promise<boolean>;
+  loadModelJobs: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -54,6 +66,7 @@ interface ChatState {
   send: (mode?: "regenerate") => Promise<void>;
   stop: () => void;
   remove: (id: string) => Promise<void>;
+  removeMessage: (messageId: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   setSearch: (q: string) => void;
   setTheme: (t: "light" | "dark" | "system") => void;
@@ -79,6 +92,63 @@ export const useChatStore = create<ChatState>((set, get) => ({
   authSetup: false,
   authSignup: false,
   username: null,
+  localModels: [],
+  activeModelId: null,
+  modelCatalog: [],
+  modelJobs: [],
+
+  loadModels: async () => {
+    const response = await apiFetch("/models/local");
+    if (!response.ok) return;
+    const body = await response.json();
+    set({ localModels: body.data || [], activeModelId: body.active_id || null });
+  },
+
+  searchModelCatalog: async (query, mlxOnly = false) => {
+    const params = new URLSearchParams({ q: query, mlx_only: String(mlxOnly) });
+    const response = await apiFetch(`/models/catalog?${params.toString()}`);
+    if (!response.ok) {
+      set({ error: "无法读取 Hugging Face 模型目录" });
+      return;
+    }
+    const body = await response.json();
+    set({ modelCatalog: body.data || [] });
+  },
+
+  loadModelJobs: async () => {
+    const response = await apiFetch("/models/download");
+    if (!response.ok) return;
+    const body = await response.json();
+    set({ modelJobs: body.data || [] });
+  },
+
+  queueModelDownload: async (repoId, activate = false) => {
+    const response = await apiFetch("/models/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_id: repoId, activate }),
+    });
+    if (!response.ok) {
+      set({ error: "模型下载任务未能创建" });
+      return false;
+    }
+    const job = await response.json();
+    set((state) => ({ modelJobs: [job, ...state.modelJobs] }));
+    return true;
+  },
+
+  activateModel: async (modelId) => {
+    const response = await apiFetch(`/models/${encodeURIComponent(modelId)}/activate`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      set({ error: body?.error?.message || "模型切换未能启动" });
+      return false;
+    }
+    await Promise.all([get().loadModels(), get().loadHealth()]);
+    return true;
+  },
 
   login: async (username: string, password: string) => {
     const r = await apiFetch("/auth/login", {
@@ -172,7 +242,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         health: {
           status: "down",
           provider: { name: "mlx", reachable: false, base_url: "" },
-          model: "qwen3.8-27b",
+          model: "qwen3.5-9b-hauhau-aggressive-mxfp4",
           context_window: 262144,
           practical_prompt_budget: 32768,
           default_max_tokens: 8192,
@@ -318,6 +388,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await get().loadConversations();
   },
 
+  removeMessage: async (messageId) => {
+    const conversationId = get().activeId;
+    if (!conversationId) return;
+    const response = await apiFetch(
+      `/conversation/${encodeURIComponent(conversationId)}/message/${encodeURIComponent(messageId)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      set({ error: "删除消息失败" });
+      return;
+    }
+    await Promise.all([get().openConversation(conversationId), get().loadConversations()]);
+  },
+
   rename: async (id, title) => {
     await apiFetch(`/conversation/${id}`, {
       method: "PATCH",
@@ -415,7 +499,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const summary: ConversationSummary = {
               id: data.conversation_id,
               title: heuristicTitle(text),
-              model: "qwen3.8-27b",
+              model: get().health?.model || "qwen3.5-9b-hauhau-aggressive-mxfp4",
               created_at: Date.now(),
               updated_at: Date.now(),
               message_count: 2,

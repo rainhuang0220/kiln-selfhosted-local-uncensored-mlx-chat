@@ -4,7 +4,7 @@
 
 Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.3.0**.
+Current release: **v0.4.0**.
 
 ```
 browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
@@ -14,8 +14,10 @@ browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 
 - Multi-turn chat with streaming
 - Sidebar history (SQLite)
+- Collapsible history, conversation delete, and message quote/delete
 - Context inspector: exact payload sent to the model
 - Token stats: input / output / total / occupancy
+- Model Workbench: search Hugging Face in-app, inspect a repository, download an MLX-ready checkpoint, and select it locally
 - OpenAI-compatible `POST /v1/chat/completions`
 - Memory tables ready (retrieve stubbed; no auto-write)
 
@@ -23,7 +25,7 @@ browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 
 Kiln uses **5173** (UI), **8787** (API), and **8081** (MLX inference). The verified default is Qwen3.5-9B Uncensored Aggressive in MLX mxfp4. Set `MODEL_PATH` before `npm run start:mlx` to use another compatible local model.
 
-See [MODEL.md](MODEL.md) for the pinned 9B download, checksum verification, and switching models. The former Qwen3.8-27B profile remains documented as a larger-model benchmark, not a runtime requirement.
+See [MODEL.md](MODEL.md) for the pinned 9B download, checksum verification, the local Model Workbench, and switching models. The former Qwen3.8-27B profile remains documented as a larger-model benchmark, not a runtime requirement.
 
 ## Run
 
@@ -58,6 +60,8 @@ npm test
 
 `docker compose up --build` starts **API + nginx UI only**. `mlx_lm.server` must keep running on the Mac host (`npm run start:mlx`). Compose cannot put MLX inside Linux VM — there is no Metal there.
 
+The local Compose profile mounts `MODEL_LIBRARY_HOST` at `/models`, so checkpoints remain outside Git and are visible to the API. One-click downloads and LaunchAgent switching run only in the native macOS setup above: a Linux container cannot control the host's Metal process. The Internet-facing Compose profile intentionally disables model management altogether; it is a read-only gateway to its separately managed inference host.
+
 ```bash
 docker compose up --build
 ```
@@ -89,6 +93,10 @@ The Caddy ingress obtains and renews TLS certificates automatically. Public depl
 | GET | `/memory` | Long-term memory (empty stub) |
 | POST | `/v1/chat/completions` | OpenAI compatible |
 | GET | `/health` | mlx reachability |
+| GET | `/models/local` | local model inventory (no paths) |
+| GET | `/models/catalog` | live Hugging Face search |
+| POST | `/models/download` | queue an MLX-ready local download |
+| POST | `/models/{id}/activate` | select a downloaded model locally |
 
 ## Security
 

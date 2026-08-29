@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const api = {
-  target: "http://127.0.0.1:8787",
+  target: process.env.VITE_API_TARGET || "http://127.0.0.1:8787",
   changeOrigin: true,
   timeout: 0,
   proxyTimeout: 0,
@@ -36,6 +36,7 @@ export default defineConfig({
       "/context": api,
       "/health": api,
       "/memory": api,
+      "/models": api,
       "/v1": api,
     },
   },

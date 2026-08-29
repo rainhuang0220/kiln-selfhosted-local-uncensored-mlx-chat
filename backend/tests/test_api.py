@@ -127,6 +127,20 @@ def test_chat_non_stream_roundtrip(client):
     assert len(user_msgs) == 2
 
 
+def test_delete_message_removes_a_complete_turn(client):
+    created = client.post("/chat", json={"message": "remove this turn", "stream": False})
+    assert created.status_code == 200, created.text
+    conversation_id = created.json()["conversation_id"]
+    messages = client.get(f"/conversation/{conversation_id}").json()["messages"]
+    user_id = next(message["id"] for message in messages if message["role"] == "user")
+
+    removed = client.delete(f"/conversation/{conversation_id}/message/{user_id}")
+
+    assert removed.status_code == 204
+    remaining = client.get(f"/conversation/{conversation_id}").json()["messages"]
+    assert remaining == []
+
+
 def test_chat_stream_sse(client):
     with client.stream("POST", "/chat", json={"message": "stream me", "stream": True}) as r:
         assert r.status_code == 200

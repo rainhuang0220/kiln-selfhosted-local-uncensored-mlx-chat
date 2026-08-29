@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0
+
+- Added the Model Workbench: browse the live Hugging Face catalogue in Kiln, inspect repositories, download MLX-ready checkpoints into a private local library, and select the active model.
+- Rebuilt the conversation surface around a compact kiln-room visual system: generated background art, collapsible history, per-conversation delete, message quote/delete, and a context-budget inspector.
+- Made model selection restart-safe on the local host and added server-side MLX validation, safe Hub outage handling, activation checks, and deployment safeguards that keep public instances read-only.
+
 ## v0.3.0
 
 - Made Kiln model-flexible while making the verified Qwen3.5-9B MLX profile the default.

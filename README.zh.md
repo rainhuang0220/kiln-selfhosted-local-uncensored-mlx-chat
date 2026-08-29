@@ -23,11 +23,12 @@
 ## 现在能做什么
 
 - 连续多轮对话（不是问完就结束）
-- 左侧历史：今天 / 昨天 / 更早，搜索、双击改名、删除
-- 中间聊天：Markdown、代码高亮、复制、再生成、停止
+- 左侧历史：今天 / 昨天 / 更早，搜索、双击改名、删除、收起/展开
+- 中间聊天：Markdown、代码高亮、复制、引用、删除单条、再生成、停止
 - 右侧 Context：真正发给模型的 system + 历史 + token 占用条
+- Model Workbench：不离开 Kiln 检索 Hugging Face，查看仓库，下载 MLX-ready 权重到本机模型库并切换
 - 每条消息的 ↑输入 / ↓输出 token
-- 默认**白底黑字粉强调**，左下角可切 Light / Dark / System
+- 默认深色窑炉界面，左下角可切 Light / Dark / System
 - 长期记忆接口已接 SQLite（不会自动把模型胡话写进记忆）
 
 ---
@@ -43,7 +44,9 @@
 | 模型 mlx_lm.server | **8081**（当前默认 9B MLX mxfp4） |
 | 可选 MTPLX | **8082**（默认 4B，本机 ~52 tok/s） |
 
-模型由 LaunchAgent `com.kiln.mlx` 常驻（登录后自动拉起，崩溃会重启）。当前验证默认是 Qwen3.5-9B Uncensored Aggressive MLX mxfp4；在启动前设置 `MODEL_PATH` 即可换用其他兼容本地模型。详见 [MODEL.md](MODEL.md)。
+模型由 LaunchAgent `com.kiln.mlx` 常驻（登录后自动拉起，崩溃会重启）。当前验证默认是 Qwen3.5-9B Uncensored Aggressive MLX mxfp4；也可以在左侧 **Model library** 里搜索并安装 MLX-ready 模型，下载后选择即可切换。权重保存在 `MODEL_LIBRARY_PATH`（默认仓库相邻的 `../models`）而非 Git。详见 [MODEL.md](MODEL.md)。
+
+一键下载/切换需要按上面的原生 macOS 方式启动，因为它会控制宿主机的 Metal LaunchAgent；Docker 的 Linux 容器不能替宿主机切模型。Docker 仅挂载模型库并连接已运行的推理服务。
 
 公网部署使用独立账号：密码只以 Argon2id 哈希保存，浏览器持有随机 session，数据库中同样只保存其哈希；对话按账号隔离。首次账号由私有 `deploy/.env` 中的 `BOOTSTRAP_USERNAME` 与 `BOOTSTRAP_PASSWORD` 创建，默认禁止开放注册。
 
@@ -111,6 +114,10 @@ npm run dev
 | GET/POST | `/memory` | 长期记忆 |
 | POST | `/v1/chat/completions` | OpenAI 兼容（给以后的 Agent） |
 | GET | `/health` | 模型是否在线 |
+| GET | `/models/local` | 本机模型清单（不暴露路径） |
+| GET | `/models/catalog` | Hugging Face 实时检索 |
+| POST | `/models/download` | 排队下载 MLX-ready 模型 |
+| POST | `/models/{id}/activate` | 本机切换已下载模型 |
 
 ---
 
