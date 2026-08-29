@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+- Moved the GitHub Actions workflow to Node 24-based official actions to remove the Node 20 runtime deprecation warning.
+
 ## v0.2.2
 
 - Made CI create the virtual environment expected by the test command, so clean runners verify the same workflow as local development.

@@ -1,7 +1,7 @@
 {
   "name": "kiln",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "cd backend && ../.venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8787",

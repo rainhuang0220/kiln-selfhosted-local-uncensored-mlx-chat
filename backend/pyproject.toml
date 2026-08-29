@@ -7,7 +7,7 @@ include = ["app*"]
 
 [project]
 name = "kiln-backend"
-version = "0.2.2"
+version = "0.2.3"
 description = "Kiln BFF — local Qwen chat orchestrator"
 requires-python = ">=3.11,<3.14"
 dependencies = [
