@@ -1,0 +1,122 @@
+{
+  "hardware": "Apple M4 24GB",
+  "server": "mtplx 2.9.1 turbo MTP 4B",
+  "model": "youssofal-qwen3.5-4b-mtplx-optimized-speed",
+  "A_server_decode_tok_s": {
+    "n": 3,
+    "mean": 52.05731455756187,
+    "min": 51.04117290974813,
+    "max": 53.19982189505383
+  },
+  "A_server_prefill_tok_s": {
+    "n": 3,
+    "mean": 326.902002988325,
+    "min": 324.03063195413364,
+    "max": 328.9003577244591
+  },
+  "A_ttft_s": {
+    "n": 3,
+    "mean": 0.412730708407859,
+    "min": 0.3937626250553876,
+    "max": 0.44083829200826585
+  },
+  "B_server_decode_tok_s": {
+    "n": 1,
+    "mean": 48.645816974330295,
+    "min": 48.645816974330295,
+    "max": 48.645816974330295
+  },
+  "B_server_prefill_tok_s": {
+    "n": 1,
+    "mean": 396.5183184510774,
+    "min": 396.5183184510774,
+    "max": 396.5183184510774
+  },
+  "rows": [
+    {
+      "ok": true,
+      "ttft_s": 0.3429823329206556,
+      "total_s": 1.0482199580874294,
+      "client_decode_tok_s": 45.37477703693514,
+      "prompt_tokens": 44,
+      "completion_tokens": 32,
+      "server_decode_tok_s": 44.24377292820857,
+      "server_prefill_tok_s": 207.75234792282612,
+      "mtp_depth": 3,
+      "accepted_by_depth": [
+        8,
+        5,
+        3
+      ],
+      "name": "warmup"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.44083829200826585,
+      "total_s": 2.244641249999404,
+      "client_decode_tok_s": 53.22089066031548,
+      "prompt_tokens": 112,
+      "completion_tokens": 96,
+      "server_decode_tok_s": 51.93094886788365,
+      "server_prefill_tok_s": 328.9003577244591,
+      "mtp_depth": 3,
+      "accepted_by_depth": [
+        27,
+        21,
+        9
+      ],
+      "name": "A1"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.40359120815992355,
+      "total_s": 2.26517775002867,
+      "client_decode_tok_s": 53.717620830893736,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "server_decode_tok_s": 53.19982189505383,
+      "server_prefill_tok_s": 324.03063195413364,
+      "mtp_depth": 3,
+      "accepted_by_depth": [
+        31,
+        20,
+        12
+      ],
+      "name": "A2"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.3937626250553876,
+      "total_s": 2.3058332500513643,
+      "client_decode_tok_s": 52.2993234103005,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "server_decode_tok_s": 51.04117290974813,
+      "server_prefill_tok_s": 327.77501928638225,
+      "mtp_depth": 3,
+      "accepted_by_depth": [
+        28,
+        21,
+        11
+      ],
+      "name": "A3"
+    },
+    {
+      "ok": true,
+      "ttft_s": 2.6657287089619786,
+      "total_s": 4.692272666841745,
+      "client_decode_tok_s": 49.34509296537693,
+      "prompt_tokens": 1012,
+      "completion_tokens": 100,
+      "server_decode_tok_s": 48.645816974330295,
+      "server_prefill_tok_s": 396.5183184510774,
+      "mtp_depth": 3,
+      "accepted_by_depth": [
+        29,
+        19,
+        10
+      ],
+      "name": "B1"
+    }
+  ]
+}

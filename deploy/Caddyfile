@@ -1,0 +1,33 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$KILN_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 12MB
+	}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), geolocation=(), microphone=()"
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+	}
+
+	@api path /auth* /chat* /conversation* /context* /memory* /v1/*
+	reverse_proxy @api 127.0.0.1:8787 {
+		flush_interval -1
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	@health path /health
+	respond @health 404
+
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

@@ -1,0 +1,193 @@
+{
+  "hardware": "Apple M4 24GB",
+  "server": "mtplx 2.9.1 :8082 sustained MTP depth 2",
+  "model": "Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed",
+  "A_server_decode_tok_s": {
+    "n": 3,
+    "mean": 24.20027775949703,
+    "min": 23.66887021033369,
+    "max": 25.049021485683948
+  },
+  "A_client_decode_tok_s": {
+    "n": 3,
+    "mean": 24.72633496858015,
+    "min": 24.002291499396758,
+    "max": 25.744089685750524
+  },
+  "A_server_prefill_tok_s": {
+    "n": 3,
+    "mean": 170.63350838303447,
+    "min": 170.413016254362,
+    "max": 170.94488891050221
+  },
+  "A_ttft_s": {
+    "n": 3,
+    "mean": 0.7702209587053707,
+    "min": 0.7507778750732541,
+    "max": 0.8038313339930028
+  },
+  "B_server_decode_tok_s": {
+    "n": 1,
+    "mean": 23.413818478169798,
+    "min": 23.413818478169798,
+    "max": 23.413818478169798
+  },
+  "B_server_prefill_tok_s": {
+    "n": 1,
+    "mean": 211.5070862311164,
+    "min": 211.5070862311164,
+    "max": 211.5070862311164
+  },
+  "think_server_decode_tok_s": {
+    "n": 1,
+    "mean": 27.669488875286063,
+    "min": 27.669488875286063,
+    "max": 27.669488875286063
+  },
+  "rows": [
+    {
+      "ok": true,
+      "ttft_s": 0.6737112081609666,
+      "total_s": 1.0598133751191199,
+      "client_decode_tok_s": 28.48986859271424,
+      "prompt_tokens": 44,
+      "completion_tokens": 11,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 29.16129464310327,
+      "server_prefill_tok_s": 85.0783114809428,
+      "server_ttft_s": 0.5202922499738634,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        2,
+        2
+      ],
+      "drafted_by_depth": [
+        2,
+        2
+      ],
+      "content_chars": 44,
+      "reasoning_chars": 0,
+      "name": "warmup"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.8038313339930028,
+      "total_s": 4.970100208884105,
+      "client_decode_tok_s": 24.002291499396758,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 23.88294158247345,
+      "server_prefill_tok_s": 170.54261998423922,
+      "server_ttft_s": 0.6591689169872552,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        31,
+        23
+      ],
+      "drafted_by_depth": [
+        42,
+        42
+      ],
+      "content_chars": 414,
+      "reasoning_chars": 0,
+      "name": "A1"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.756053667049855,
+      "total_s": 3.7029332499951124,
+      "client_decode_tok_s": 24.432623720593167,
+      "prompt_tokens": 112,
+      "completion_tokens": 72,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 23.66887021033369,
+      "server_prefill_tok_s": 170.413016254362,
+      "server_ttft_s": 0.6596923330798745,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        25,
+        16
+      ],
+      "drafted_by_depth": [
+        31,
+        31
+      ],
+      "content_chars": 325,
+      "reasoning_chars": 0,
+      "name": "A2"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.7507778750732541,
+      "total_s": 4.052506583975628,
+      "client_decode_tok_s": 25.744089685750524,
+      "prompt_tokens": 112,
+      "completion_tokens": 85,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 25.049021485683948,
+      "server_prefill_tok_s": 170.94488891050221,
+      "server_ttft_s": 0.6575365830212831,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        28,
+        21
+      ],
+      "drafted_by_depth": [
+        36,
+        36
+      ],
+      "content_chars": 338,
+      "reasoning_chars": 0,
+      "name": "A3"
+    },
+    {
+      "ok": true,
+      "ttft_s": 1.0441622908692807,
+      "total_s": 4.278788374969736,
+      "client_decode_tok_s": 30.915474431972825,
+      "prompt_tokens": 110,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 27.669488875286063,
+      "server_prefill_tok_s": 166.57492426355753,
+      "server_ttft_s": 0.6636082080658525,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        33,
+        29
+      ],
+      "drafted_by_depth": [
+        36,
+        36
+      ],
+      "content_chars": 0,
+      "reasoning_chars": 392,
+      "name": "A_think"
+    },
+    {
+      "ok": true,
+      "ttft_s": 4.940069916192442,
+      "total_s": 7.688996250042692,
+      "client_decode_tok_s": 23.645595445607505,
+      "prompt_tokens": 1012,
+      "completion_tokens": 65,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 23.413818478169798,
+      "server_prefill_tok_s": 211.5070862311164,
+      "server_ttft_s": 4.790341541869566,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        23,
+        12
+      ],
+      "drafted_by_depth": [
+        29,
+        29
+      ],
+      "content_chars": 295,
+      "reasoning_chars": 0,
+      "name": "B1"
+    }
+  ]
+}

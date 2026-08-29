@@ -1,0 +1,91 @@
+{
+  "server": "mtplx 2.9.1 turbo MTP D2",
+  "A_server_decode_tok_s": {
+    "n": 3,
+    "mean": 23.91152005056895,
+    "min": 21.86964986725276,
+    "max": 25.811568397449047
+  },
+  "A_server_prefill_tok_s": {
+    "n": 3,
+    "mean": 170.074297698474,
+    "min": 169.37981046497143,
+    "max": 171.3925004895229
+  },
+  "A_ttft_s": {
+    "n": 3,
+    "mean": 0.7740350423846394,
+    "min": 0.7535560841206461,
+    "max": 0.8083689589984715
+  },
+  "rows": [
+    {
+      "ok": true,
+      "ttft_s": 0.6864085840061307,
+      "total_s": 2.064387666992843,
+      "client_decode_tok_s": 23.222413456843864,
+      "prompt_tokens": 44,
+      "completion_tokens": 32,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 22.78473893965427,
+      "server_prefill_tok_s": 89.6044952610357,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        10,
+        4
+      ],
+      "name": "warmup"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.8083689589984715,
+      "total_s": 4.653781916946173,
+      "client_decode_tok_s": 26.00500936923301,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 25.811568397449047,
+      "server_prefill_tok_s": 169.4505821409277,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        33,
+        25
+      ],
+      "name": "A1"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.7601800840348005,
+      "total_s": 4.898930374998599,
+      "client_decode_tok_s": 24.16188292836406,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 24.05334188700504,
+      "server_prefill_tok_s": 169.37981046497143,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        36,
+        19
+      ],
+      "name": "A2"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.7535560841206461,
+      "total_s": 4.544062375091016,
+      "client_decode_tok_s": 22.424445041150424,
+      "prompt_tokens": 112,
+      "completion_tokens": 85,
+      "cached_tokens": 0,
+      "server_decode_tok_s": 21.86964986725276,
+      "server_prefill_tok_s": 171.3925004895229,
+      "mtp_depth": 2,
+      "accepted_by_depth": [
+        28,
+        16
+      ],
+      "name": "A3"
+    }
+  ]
+}

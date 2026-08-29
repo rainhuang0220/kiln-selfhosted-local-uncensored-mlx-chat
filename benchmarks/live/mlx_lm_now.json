@@ -1,0 +1,141 @@
+{
+  "hardware": "Apple M4 24GB",
+  "server": "mlx_lm.server 0.31.3 :8081",
+  "model": "../qwen3.8-27b",
+  "flags": "decode-concurrency=1 prompt-concurrency=1 prefill-step-size=512 prompt-cache-size=3 prompt-cache-bytes=1G",
+  "pid": 28763,
+  "rss_after_mb": 3277.3,
+  "A_decode_tok_s": {
+    "n": 3,
+    "mean": 6.629250251413755,
+    "min": 6.581879606639926,
+    "max": 6.674865403847896
+  },
+  "A_prefill_tok_s": {
+    "n": 3,
+    "mean": 17.56311922374079,
+    "min": 5.354288533491025,
+    "max": 41.91437744094608
+  },
+  "A_ttft_s": {
+    "n": 3,
+    "mean": 1.3856973470343898,
+    "min": 0.7379132080823183,
+    "max": 2.6721141249872744
+  },
+  "B_decode_tok_s": {
+    "n": 1,
+    "mean": 6.614982449154948,
+    "min": 6.614982449154948,
+    "max": 6.614982449154948
+  },
+  "B_prefill_tok_s": {
+    "n": 1,
+    "mean": 62.13173745647207,
+    "min": 62.13173745647207,
+    "max": 62.13173745647207
+  },
+  "warmup_decode_tok_s": {
+    "n": 1,
+    "mean": 7.406614738519761,
+    "min": 7.406614738519761,
+    "max": 7.406614738519761
+  },
+  "rows": [
+    {
+      "ok": true,
+      "ttft_s": 4.036240958143026,
+      "total_s": 6.196472125127912,
+      "prefill_keepalive_first_s": 3.8839927080553025,
+      "prefill_keepalive_last_s": 3.8839927080553025,
+      "decode_s": 2.160231166984886,
+      "decode_tok_s": 7.406614738519761,
+      "prompt_tokens": 44,
+      "completion_tokens": 16,
+      "cached_tokens": 0,
+      "content_chars": 72,
+      "reasoning_chars": 0,
+      "finish": true,
+      "wall_s": 6.196781083010137,
+      "uncached_prompt_tokens": 44,
+      "prefill_tok_s": 10.90123222480833,
+      "name": "warmup"
+    },
+    {
+      "ok": true,
+      "ttft_s": 2.6721141249872744,
+      "total_s": 17.8653424999211,
+      "prefill_keepalive_first_s": 2.5185093339532614,
+      "prefill_keepalive_last_s": 2.5185093339532614,
+      "decode_s": 15.193228374933824,
+      "decode_tok_s": 6.581879606639926,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "content_chars": 423,
+      "reasoning_chars": 0,
+      "finish": true,
+      "wall_s": 17.86544108297676,
+      "uncached_prompt_tokens": 112,
+      "prefill_tok_s": 41.91437744094608,
+      "name": "A1"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.7470647080335766,
+      "total_s": 15.827733292011544,
+      "prefill_keepalive_first_s": 0.593381917104125,
+      "prefill_keepalive_last_s": 0.593381917104125,
+      "decode_s": 15.080668583977968,
+      "decode_tok_s": 6.631005743753443,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 108,
+      "content_chars": 369,
+      "reasoning_chars": 0,
+      "finish": true,
+      "wall_s": 15.827805374981835,
+      "uncached_prompt_tokens": 4,
+      "prefill_tok_s": 5.354288533491025,
+      "name": "A2"
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.7379132080823183,
+      "total_s": 15.719488708069548,
+      "prefill_keepalive_first_s": 0.5836224160157144,
+      "prefill_keepalive_last_s": 0.5836224160157144,
+      "decode_s": 14.98157549998723,
+      "decode_tok_s": 6.674865403847896,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 108,
+      "content_chars": 376,
+      "reasoning_chars": 0,
+      "finish": true,
+      "wall_s": 15.719534208066761,
+      "uncached_prompt_tokens": 4,
+      "prefill_tok_s": 5.420691696785265,
+      "name": "A3"
+    },
+    {
+      "ok": true,
+      "ttft_s": 16.287971999961883,
+      "total_s": 31.40517008304596,
+      "prefill_keepalive_first_s": 16.126343957846984,
+      "prefill_keepalive_last_s": 16.126343957846984,
+      "decode_s": 15.117198083084077,
+      "decode_tok_s": 6.614982449154948,
+      "prompt_tokens": 1012,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "content_chars": 413,
+      "reasoning_chars": 0,
+      "finish": true,
+      "wall_s": 31.40536562516354,
+      "uncached_prompt_tokens": 1012,
+      "prefill_tok_s": 62.13173745647207,
+      "name": "B1"
+    }
+  ]
+}

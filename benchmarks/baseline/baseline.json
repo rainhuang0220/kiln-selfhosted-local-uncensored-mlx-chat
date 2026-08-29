@@ -1,0 +1,31 @@
+{
+  "hardware": "Apple M4 24GB",
+  "model": "../qwen3.8-27b",
+  "server": "127.0.0.1:8081",
+  "thinking": false,
+  "results": [
+    {
+      "ok": true,
+      "ttft_s": 19.441270083887503,
+      "total_s": 39.935691833961755,
+      "prefill_keepalive_first_s": 19.193359500030056,
+      "prefill_keepalive_last_s": 19.193359500030056,
+      "decode_s": 20.494421750074252,
+      "decode_tok_s": 4.879376506421202,
+      "prompt_tokens": 112,
+      "completion_tokens": 100,
+      "cached_tokens": 0,
+      "content_chars": 390,
+      "reasoning_chars": 0,
+      "finish": true,
+      "name": "A",
+      "requested_prompt_tokens": 100,
+      "requested_max_tokens": 100,
+      "enable_thinking": false,
+      "rss_before_mb": 225.4,
+      "rss_after_mb": 167.6,
+      "pid": 13575,
+      "ts": "2026-08-22T17:10:26Z"
+    }
+  ]
+}
