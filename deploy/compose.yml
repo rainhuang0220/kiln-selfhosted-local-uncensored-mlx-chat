@@ -7,7 +7,7 @@ services:
     build:
       context: ../backend
     env_file:
-      - .env
+      - ${KILN_ENV_FILE:-.env}
     environment:
       APP_HOST: 127.0.0.1
       APP_PORT: 8787
@@ -29,7 +29,7 @@ services:
       dockerfile: deploy/Dockerfile
     network_mode: host
     env_file:
-      - .env
+      - ${KILN_ENV_FILE:-.env}
     volumes:
       - kiln-caddy-data:/data
       - kiln-caddy-config:/config

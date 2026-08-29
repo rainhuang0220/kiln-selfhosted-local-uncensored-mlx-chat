@@ -4,7 +4,7 @@
 
 Local ChatGPT-class workbench for **Qwen3.8-27B** on Apple Silicon.
 
-Current release: **v0.2.1**.
+Current release: **v0.2.2**.
 
 ```
 browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  qwen3.8-27b/
