@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.0
+
+- Made Kiln model-flexible while making the verified Qwen3.5-9B MLX profile the default.
+- Added pinned, checksum-verified model download instructions; removed the unused 27B tokenizer from public deployment.
+
 ## v0.2.4
 
 - Added CI validation of the Caddyfile with the official Caddy container image.

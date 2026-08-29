@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL_PATH = ROOT.parent / "qwen3.8-27b"
+DEFAULT_MODEL_NAME = "qwen3.5-9b-hauhau-aggressive-mxfp4"
 
 
 class Settings(BaseSettings):
@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     mlx_timeout_s: float = 600.0
     mlx_connect_timeout_s: float = 5.0
 
-    model_name: str = "qwen3.8-27b"
-    model_path: str = str(DEFAULT_MODEL_PATH)
+    model_name: str = DEFAULT_MODEL_NAME
+    model_path: str = ""
 
     context_window: int = 262144
     # Prompt-only. Do not subtract max_tokens from this (Qwen3.5-9B hybrid KV is ~1GB @ 32k).

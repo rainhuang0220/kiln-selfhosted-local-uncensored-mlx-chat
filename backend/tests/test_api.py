@@ -39,7 +39,7 @@ def test_health(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
-    assert body["model"] == "qwen3.8-27b"
+    assert body["model"] == "qwen3.5-9b-hauhau-aggressive-mxfp4"
     assert body["practical_prompt_budget"] >= 32768
     assert body["default_max_tokens"] >= 8192
     assert body["max_tokens_cap"] >= 32768

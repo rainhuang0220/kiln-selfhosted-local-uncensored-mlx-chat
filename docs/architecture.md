@@ -1,5 +1,7 @@
 # Kiln — Local Qwen Chat Workbench
 
+> Historical 27B architecture profile. Kiln is model-flexible; see [`MODEL.md`](../MODEL.md) for the current 9B default and switching guidance.
+
 Technical selection and architecture for a ChatGPT-class web chat on top of
 the local **Qwen3.8-27B AEON Ultimate Uncensored 4-bit MLX** checkpoint at
 `../qwen3.8-27b`, served by **mlx-lm 0.31.3**.

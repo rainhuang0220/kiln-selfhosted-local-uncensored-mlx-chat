@@ -15,7 +15,7 @@ services:
       - "127.0.0.1:8787:8787"
     volumes:
       - kiln-data:/data
-      - ../qwen3.8-27b:/model:ro
+      - ${MODEL_PATH_HOST:-../qwen3.5-9b-hauhau-aggressive-mxfp4}:/model:ro
   web:
     build:
       context: ./web

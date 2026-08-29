@@ -2,12 +2,12 @@
 
 **中文说明请看 [README.zh.md](README.zh.md)。**
 
-Local ChatGPT-class workbench for **Qwen3.8-27B** on Apple Silicon.
+Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.2.4**.
+Current release: **v0.3.0**.
 
 ```
-browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  qwen3.8-27b/
+browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
 ```
 
 ## What you get
@@ -21,7 +21,9 @@ browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  qwen3.8-27b/
 
 ## Ports on this machine
 
-`:8000`, `:3000`, and `:8080` are already taken by other apps. Kiln uses **5173** (UI), **8787** (API), **8081** (mlx 27B, ~6.6 tok/s). Optional **8082** is MTPLX (`npm run start:mtplx`, 4B ~52 tok/s on this M4); point the API with `MLX_BASE_URL=http://127.0.0.1:8082`.
+Kiln uses **5173** (UI), **8787** (API), and **8081** (MLX inference). The verified default is Qwen3.5-9B Uncensored Aggressive in MLX mxfp4. Set `MODEL_PATH` before `npm run start:mlx` to use another compatible local model.
+
+See [MODEL.md](MODEL.md) for the pinned 9B download, checksum verification, and switching models. The former Qwen3.8-27B profile remains documented as a larger-model benchmark, not a runtime requirement.
 
 ## Run
 

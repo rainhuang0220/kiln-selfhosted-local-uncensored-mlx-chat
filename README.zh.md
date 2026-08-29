@@ -1,9 +1,9 @@
 # Kiln（窑）
 
-在这台 Mac 上跑本地 **Qwen3.8-27B** 的聊天工作台，体验接近 ChatGPT：多轮、历史、流式、Context 面板、token 统计。
+面向 Apple Silicon 的本地优先、自托管模型聊天工作台：多轮、历史、流式、Context 面板、token 统计。
 
 ```
-浏览器 :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  qwen3.8-27b/
+浏览器 :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  选定的本地模型
 ```
 
 打开：**http://127.0.0.1:5173**
@@ -40,10 +40,10 @@
 |---|---|
 | 网页 | **5173** |
 | 后端 API | **8787** |
-| 模型 mlx_lm.server | **8081**（27B，~6.6 tok/s） |
+| 模型 mlx_lm.server | **8081**（当前默认 9B MLX mxfp4） |
 | 可选 MTPLX | **8082**（默认 4B，本机 ~52 tok/s） |
 
-模型由 LaunchAgent `com.kiln.mlx` 常驻（登录后自动拉起，崩溃会重启）。网页和 API 开着、模型还在加载时，左下角会显示「模型离线，正在重连」。
+模型由 LaunchAgent `com.kiln.mlx` 常驻（登录后自动拉起，崩溃会重启）。当前验证默认是 Qwen3.5-9B Uncensored Aggressive MLX mxfp4；在启动前设置 `MODEL_PATH` 即可换用其他兼容本地模型。详见 [MODEL.md](MODEL.md)。
 
 公网部署使用独立账号：密码只以 Argon2id 哈希保存，浏览器持有随机 session，数据库中同样只保存其哈希；对话按账号隔离。首次账号由私有 `deploy/.env` 中的 `BOOTSTRAP_USERNAME` 与 `BOOTSTRAP_PASSWORD` 创建，默认禁止开放注册。
 
@@ -84,7 +84,7 @@ npm run dev
 
 ## 速度预期（M4 24GB）
 
-27B 4bit 权重约 **14 GB**。实测（思考关闭）：
+历史 27B 4bit 档位约 **14 GB**。实测（思考关闭）：
 
 | 指标 | 数字 |
 |---|---|

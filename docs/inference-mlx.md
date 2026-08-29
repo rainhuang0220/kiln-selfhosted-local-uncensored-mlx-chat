@@ -1,4 +1,6 @@
-# mlx-lm 0.31.3 inference notes (Kiln / Qwen3.8-27B)
+# Historical mlx-lm 0.31.3 inference notes (Kiln / Qwen3.8-27B)
+
+> This is a larger-model benchmark profile, not Kiln's default model. See [`MODEL.md`](../MODEL.md) for the current 9B profile and model switching.
 
 What `mlx_lm.server` actually does on this machine versus `mlx_lm.generate` /
 `mlx_lm.cache_prompt`. Read this before claiming a speedup.

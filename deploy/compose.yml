@@ -1,7 +1,7 @@
-# Public Kiln on host :7777. Inference is Mac mlx-lm Qwen3.8-27B via SSH -R 127.0.0.1:8081.
+# Public Kiln with inference supplied by an MLX server through an SSH reverse tunnel.
 # host networking is required so the API can reach the tunnel on loopback
 # (Docker extra_hosts/host-gateway cannot hit 127.0.0.1 binds).
-# Local Mac 27B stack (5173/8787/8081) is untouched.
+# The running model remains on the local MLX host; this deployment stores no weights.
 services:
   api:
     build:
@@ -12,12 +12,10 @@ services:
       APP_HOST: 127.0.0.1
       APP_PORT: 8787
       SQLITE_PATH: /data/chat.db
-      MODEL_PATH: /model
       MLX_BASE_URL: http://127.0.0.1:8081
     network_mode: host
     volumes:
       - kiln-public-data:/data
-      - ./tokenizer:/model:ro
     restart: unless-stopped
     read_only: true
     tmpfs:
