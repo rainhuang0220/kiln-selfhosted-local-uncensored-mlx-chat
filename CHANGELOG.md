@@ -6,6 +6,7 @@
 - Added chat parking/recovery while video generation uses unified memory.
 - Kept the v0.4 Model Workbench and local model activation flow.
 - Standardized the local UI entrypoint at `http://127.0.0.1:7777`.
+- Added optional reverse-proxy Host allowlisting so a public HTTPS front can reach the loopback UI.
 - Documented measured M4 24GB video defaults and scaling limits.
 
 ## v0.4.0

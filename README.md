@@ -49,6 +49,8 @@ npm run start:local
 
 Open http://127.0.0.1:7777
 
+Optional public deployment is a reverse proxy in front of that same local UI (`https://<your-domain>`). The maintainer instance is documented in the v0.5.0 release notes.
+
 `npm run start:local` installs `com.kiln.api` and `com.kiln.web` without replacing the chat LaunchAgent `com.kiln.mlx`. For a foreground session instead, `bash scripts/dev.sh` or `npm run dev`.
 
 ## Tests
