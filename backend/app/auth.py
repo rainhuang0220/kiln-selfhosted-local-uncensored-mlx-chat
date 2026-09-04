@@ -60,7 +60,7 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
     def _rate_ok(self, ip: str, path: str) -> bool:
         if path in {"/auth/login", "/auth/register"}:
             return self._window_ok(self._logins, ip, self.login_per_minute)
-        if path not in {"/chat", "/v1/chat/completions"}:
+        if path not in {"/chat", "/v1/chat/completions", "/generate"}:
             return True
         return self._window_ok(self._hits, ip, self.chat_per_minute)
 

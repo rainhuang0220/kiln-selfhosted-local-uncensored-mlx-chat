@@ -12,7 +12,7 @@ from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from app.auth import AuthRateMiddleware
@@ -22,6 +22,8 @@ from app.errors import error_body, install_error_handlers
 from app.providers.mlx import MlxProvider
 from app.services import accounts
 from app.services.chat import ChatService
+from app.services.chat_lifecycle import parked_http_body
+from app.services.media import MediaService
 from app.services.memory import MemoryService
 from app.services.models import ModelManager
 from app.services.tokens import TokenEstimator
@@ -77,6 +79,20 @@ class ModelDownloadBody(BaseModel):
         return value
 
 
+class GenerateBody(BaseModel):
+    kind: str = Field(pattern="^(image|video)$")
+    prompt: str = Field(min_length=1, max_length=4000)
+    backend: str | None = None
+    width: int | None = Field(default=None, ge=256, le=2048)
+    height: int | None = Field(default=None, ge=256, le=2048)
+    steps: int | None = Field(default=None, ge=1, le=80)
+    seed: int | None = Field(default=None, ge=0)
+    frames: int | None = Field(default=None, ge=17, le=33)
+    fps: int | None = Field(default=None, ge=8, le=30)
+    preset: str | None = None
+    output_resolution: str | None = None
+
+
 class OpenAIChatBody(BaseModel):
     model: str | None = None
     messages: list[dict[str, Any]]
@@ -99,7 +115,7 @@ def _sse(event: str, data: Any) -> bytes:
     return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
 
 
-def create_app(settings: Settings | None = None, chat: ChatService | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, chat: ChatService | None = None, media: MediaService | None = None) -> FastAPI:
     cfg = settings or default_settings
 
     def _owner(request: Request) -> str | None:
@@ -138,7 +154,19 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             cfg,
             on_activated=lambda: setattr(app.state.chat, "tokenizer", TokenEstimator(cfg.model_path)),
         )
+        media_svc = media or MediaService(cfg)
+        media_svc.recover_stale()
+        app.state.media = media_svc
+        app.state.chat_lifecycle = media_svc.lifecycle
         app.state.settings = cfg
+        try:
+            if media is None and cfg.pause_chat_for_video:
+                from app.services.media_runtime import _port_open, restore_mlx
+                if not _port_open(8081):
+                    await asyncio.to_thread(restore_mlx, cfg)
+                    media_svc.lifecycle.state = "running"
+        except Exception:
+            media_svc.lifecycle.state = "recovery_failed"
         try:
             yield
         finally:
@@ -150,7 +178,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.4.0",
+        version="0.5.0",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",
@@ -179,6 +207,8 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if provider is not None:
             reachable = await provider.health()
         base = "" if accounts.user_count() else cfg.mlx_base_url
+        media_svc: MediaService | None = getattr(request.app.state, "media", None)
+        chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
         return {
             "status": "ok",
             "provider": {
@@ -186,6 +216,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "reachable": reachable,
                 "base_url": base,
             },
+            "chat": chat_life,
             "model": cfg.model_name,
             "context_window": cfg.context_window,
             "practical_prompt_budget": cfg.practical_prompt_budget,
@@ -359,8 +390,17 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         )
         return {"id": rec.id, "content": rec.content}
 
+    def _chat_parked_response(request: Request):
+        life = getattr(request.app.state, "chat_lifecycle", None)
+        if life is not None and life.is_unavailable():
+            return JSONResponse(parked_http_body(), status_code=503)
+        return None
+
     @app.post("/chat")
     async def chat_endpoint(body: ChatBody, request: Request):
+        parked = _chat_parked_response(request)
+        if parked is not None:
+            return parked
         svc: ChatService = request.app.state.chat
 
         async def event_stream() -> AsyncIterator[bytes]:
@@ -539,6 +579,57 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             )
         return {"id": conversation_id, "title": body.title}
 
+    @app.get("/generate/backends")
+    async def generate_backends(request: Request):
+        media: MediaService = request.app.state.media
+        return media.backends()
+
+    @app.get("/generate")
+    async def list_generate_jobs(request: Request, limit: int = Query(20, ge=1, le=50)):
+        media: MediaService = request.app.state.media
+        return {"object": "list", "data": media.list_jobs(_owner(request), limit=limit)}
+
+    @app.post("/generate")
+    async def create_generate_job(body: GenerateBody, request: Request):
+        media: MediaService = request.app.state.media
+        params = {k: v for k, v in {
+            "width": body.width, "height": body.height, "steps": body.steps, "seed": body.seed,
+            "frames": body.frames, "fps": body.fps, "preset": body.preset,
+            "output_resolution": body.output_resolution,
+        }.items() if v is not None}
+        try:
+            job = media.enqueue(kind=body.kind, prompt=body.prompt, backend=body.backend, params=params, owner_id=_owner(request))
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_body", status=400)
+        asyncio.create_task(media.pump())
+        return job
+
+    @app.get("/generate/{job_id}")
+    async def get_generate_job(job_id: str, request: Request):
+        media: MediaService = request.app.state.media
+        job = media.get(job_id, _owner(request))
+        if job is None:
+            return error_body("job not found", "not_found_error", "job_not_found", status=404)
+        return job
+
+    @app.post("/generate/{job_id}/cancel")
+    async def cancel_generate_job(job_id: str, request: Request):
+        media: MediaService = request.app.state.media
+        job = media.cancel(job_id, _owner(request))
+        if job is None:
+            return error_body("job not found", "not_found_error", "job_not_found", status=404)
+        asyncio.create_task(media.pump())
+        return job
+
+    @app.get("/generate/{job_id}/file")
+    async def get_generate_file(job_id: str, request: Request):
+        media: MediaService = request.app.state.media
+        path = media.output_path(job_id, _owner(request))
+        if path is None:
+            return error_body("file not found", "not_found_error", "file_not_found", status=404)
+        media_type = "video/mp4" if path.suffix.lower() == ".mp4" else "image/png"
+        return FileResponse(path, media_type=media_type, filename=path.name)
+
     @app.get("/v1/models")
     async def list_models():
         return {
@@ -554,6 +645,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.post("/v1/chat/completions")
     async def openai_chat(body: OpenAIChatBody, request: Request):
+        parked = _chat_parked_response(request)
+        if parked is not None:
+            return parked
         svc: ChatService = request.app.state.chat
         messages = body.messages or []
         if not messages:

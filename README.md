@@ -4,10 +4,10 @@
 
 Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.4.0**.
+Current release: **v0.5.0**.
 
 ```
-browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
+browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
 ```
 
 ## What you get
@@ -23,7 +23,7 @@ browser :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 
 ## Ports on this machine
 
-Kiln uses **5173** (UI), **8787** (API), and **8081** (MLX inference). The verified default is Qwen3.5-9B Uncensored Aggressive in MLX mxfp4. Set `MODEL_PATH` before `npm run start:mlx` to use another compatible local model.
+Kiln uses **7777** (UI), **8787** (API), and **8081** (MLX inference). The verified default is Qwen3.5-9B Uncensored Aggressive in MLX mxfp4. Set `MODEL_PATH` before `npm run start:mlx` to use another compatible local model.
 
 See [MODEL.md](MODEL.md) for the pinned 9B download, checksum verification, the local Model Workbench, and switching models. The former Qwen3.8-27B profile remains documented as a larger-model benchmark, not a runtime requirement.
 
@@ -46,7 +46,7 @@ npm run start:mlx
 npm run dev
 ```
 
-Open http://127.0.0.1:5173
+Open http://127.0.0.1:7777
 
 Or `bash scripts/dev.sh` for API+UI after the venv exists.
 
@@ -66,7 +66,7 @@ The local Compose profile mounts `MODEL_LIBRARY_HOST` at `/models`, so checkpoin
 docker compose up --build
 ```
 
-Then open http://127.0.0.1:5173. Set `MLX_BASE_URL=http://host.docker.internal:8081`.
+Then open http://127.0.0.1:7777. Set `MLX_BASE_URL=http://host.docker.internal:8081`.
 
 ## Authentication and public deployment
 

@@ -91,9 +91,17 @@ export interface ConversationSummary {
   total_tokens: number;
 }
 
+export interface ChatLifecycleInfo {
+  state: string;
+  reason?: string | null;
+  retryable?: boolean;
+  message?: string | null;
+}
+
 export interface Health {
   status: string;
   provider: { name: string; reachable: boolean; base_url: string };
+  chat?: ChatLifecycleInfo | null;
   model: string;
   context_window: number;
   practical_prompt_budget: number;

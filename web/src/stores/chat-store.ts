@@ -469,6 +469,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }),
       });
       if (!res.ok) {
+        if (res.status === 503) {
+          const body = await res.json().catch(() => null);
+          throw new Error(
+            body?.message ||
+              body?.error?.message ||
+              "Chat is temporarily unavailable while local video generation is using system memory.",
+          );
+        }
         const err = await res.text();
         throw new Error(err || `HTTP ${res.status}`);
       }
@@ -543,7 +551,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             ),
           }));
         } else if (ev.event === "error") {
-          const data = ev.data as { error?: { message?: string } };
+          const data = ev.data as { error?: { message?: string; code?: string } };
+          if (data.error?.code === "CHAT_MODEL_PARKED") {
+            throw new Error(
+              data.error.message ||
+                "Chat is temporarily unavailable while local video generation is using system memory.",
+            );
+          }
           throw new Error(data.error?.message || "generation failed");
         } else if (ev.event === "done") {
           const data = ev.data as {

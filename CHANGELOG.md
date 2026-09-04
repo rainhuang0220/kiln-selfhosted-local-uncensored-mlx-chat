@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.0
+
+- Added local image/video generation with persistent jobs, cancellation, and serialized heavy workers.
+- Added chat parking/recovery while video generation uses unified memory.
+- Kept the v0.4 Model Workbench and local model activation flow.
+- Standardized the local UI entrypoint at `http://127.0.0.1:7777`.
+- Documented measured M4 24GB video defaults and scaling limits.
+
 ## v0.4.0
 
 - Added the Model Workbench: browse the live Hugging Face catalogue in Kiln, inspect repositories, download MLX-ready checkpoints into a private local library, and select the active model.

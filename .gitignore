@@ -28,3 +28,6 @@ scripts/com.kiln.mtplx-tunnel.plist
 *.pfx
 secrets/
 *.log
+*.mp4
+benchmarks/video/*
+!benchmarks/video/summary.json

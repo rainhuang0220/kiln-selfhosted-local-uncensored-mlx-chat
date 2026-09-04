@@ -81,6 +81,24 @@ def migrate(conn: sqlite3.Connection) -> None:
         VALUES (2, '0002_users_sessions', CAST(strftime('%s','now') AS INTEGER) * 1000)
         """
     )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS media_jobs (
+          id TEXT PRIMARY KEY, user_id TEXT, kind TEXT NOT NULL CHECK (kind IN ('image', 'video')),
+          backend TEXT NOT NULL, status TEXT NOT NULL, prompt TEXT NOT NULL,
+          params_json TEXT NOT NULL DEFAULT '{}', output_path TEXT, error TEXT,
+          metrics_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          started_at INTEGER, finished_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_media_jobs_user ON media_jobs(user_id, created_at DESC);
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+        VALUES (3, '0003_media_jobs', CAST(strftime('%s','now') AS INTEGER) * 1000)
+        """
+    )
 
 
 def init_db(path: str | None = None) -> sqlite3.Connection:

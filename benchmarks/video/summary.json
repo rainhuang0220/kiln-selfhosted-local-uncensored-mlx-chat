@@ -1,0 +1,98 @@
+{
+  "machine": "Apple M4 MacBook Pro 24GB",
+  "python": "3.12.12",
+  "mlx": "0.32.2",
+  "notes": "Local wall times only. Product default is T5 bfloat16 + TeaCache 0.05, 17 frames, 10 steps, 832x480.",
+  "rows": [
+    {
+      "config": "Original",
+      "frames": 17,
+      "steps": 10,
+      "teacache": false,
+      "wall_s": 328,
+      "peak_ram_gb": 22,
+      "result": "baseline"
+    },
+    {
+      "config": "T5 bf16",
+      "frames": 17,
+      "steps": 10,
+      "teacache": false,
+      "wall_s": 261.7,
+      "peak_ram_gb": 22.2,
+      "result": "pass"
+    },
+    {
+      "config": "Default",
+      "frames": 17,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": 209.7,
+      "peak_ram_gb": 22.2,
+      "result": "winner"
+    },
+    {
+      "config": "CFG off",
+      "frames": 17,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": 165,
+      "peak_ram_gb": 23.1,
+      "result": "rejected: blurry"
+    },
+    {
+      "config": "8-step Fast",
+      "frames": 17,
+      "steps": 8,
+      "teacache": false,
+      "wall_s": 228.7,
+      "peak_ram_gb": 22.2,
+      "result": "Fast preset"
+    },
+    {
+      "config": "25f",
+      "frames": 25,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": 323,
+      "peak_ram_gb": 25.2,
+      "result": "pass"
+    },
+    {
+      "config": "33f",
+      "frames": 33,
+      "steps": 10,
+      "teacache": false,
+      "wall_s": 585,
+      "peak_ram_gb": 25.2,
+      "result": "Long preset"
+    },
+    {
+      "config": "49f",
+      "frames": 49,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": 854,
+      "peak_ram_gb": 27,
+      "result": "not default"
+    },
+    {
+      "config": "81f",
+      "frames": 81,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": null,
+      "peak_ram_gb": null,
+      "result": "stopped; ~185 s/step, projected ~30 min"
+    },
+    {
+      "config": "native 720p",
+      "frames": 17,
+      "steps": 10,
+      "teacache": 0.05,
+      "wall_s": 654,
+      "peak_ram_gb": 23.8,
+      "result": "rejected as default; 480p + ffmpeg scale is faster"
+    }
+  ]
+}

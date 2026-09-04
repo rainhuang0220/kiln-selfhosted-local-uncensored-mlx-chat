@@ -55,6 +55,26 @@ CREATE TABLE IF NOT EXISTS messages (
   UNIQUE (conversation_id, seq)
 );
 
+CREATE TABLE IF NOT EXISTS media_jobs (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT,
+  kind            TEXT NOT NULL CHECK (kind IN ('image', 'video')),
+  backend         TEXT NOT NULL,
+  status          TEXT NOT NULL,
+  prompt          TEXT NOT NULL,
+  params_json     TEXT NOT NULL DEFAULT '{}',
+  output_path     TEXT,
+  error           TEXT,
+  metrics_json    TEXT NOT NULL DEFAULT '{}',
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  started_at      INTEGER,
+  finished_at     INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_jobs_user
+  ON media_jobs(user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS generation_runs (
   id                   TEXT PRIMARY KEY,
   conversation_id      TEXT NOT NULL

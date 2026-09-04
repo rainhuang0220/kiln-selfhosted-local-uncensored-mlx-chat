@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
+import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
 import { groupConversations } from "./lib/groups";
@@ -87,6 +88,7 @@ export function App() {
   const [gateUser, setGateUser] = useState("");
   const [gatePass, setGatePass] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [view, setView] = useState<"chat" | "generate">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.localStorage.getItem("kiln.sidebar") === "collapsed",
@@ -181,9 +183,10 @@ export function App() {
     <div
       className={[
         "shell",
-        store.inspectorOpen ? "" : "inspector-closed",
+        store.inspectorOpen && view === "chat" ? "" : "inspector-closed",
         sidebarOpen ? "sidebar-open" : "",
         sidebarCollapsed ? "sidebar-collapsed" : "",
+        view === "generate" ? "gen-view" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -216,6 +219,10 @@ export function App() {
             <span className="icon-x" />
           </button>
         </div>
+        <div className="mode-tabs" role="tablist" aria-label="Kiln mode">
+          <button type="button" role="tab" aria-selected={view === "chat"} className={view === "chat" ? "on" : ""} onClick={() => setView("chat")}>Chat</button>
+          <button type="button" role="tab" aria-selected={view === "generate"} className={view === "generate" ? "on" : ""} onClick={() => setView("generate")}>Generate</button>
+        </div>
         <div className="side-actions">
           <button
             className="btn primary full"
@@ -223,6 +230,7 @@ export function App() {
               store.stop();
               void store.openConversation(null);
               navigate("/");
+              setView("chat");
               closeSidebar();
             }}
           >
@@ -271,7 +279,11 @@ export function App() {
         <div className="side-foot">
           <span className="pill">
             <span className={store.health?.provider.reachable ? "dot on" : "dot"} />
-            {store.health?.provider.reachable ? "模型在线" : "模型离线，正在重连"}
+            {store.health?.chat?.state && store.health.chat.state !== "running"
+              ? "视频生成中，聊天稍后恢复"
+              : store.health?.provider.reachable
+                ? "模型在线"
+                : "模型离线，正在重连"}
           </span>
           <div className="side-foot-right">
             {store.username ? <span className="who">{store.username}</span> : null}
@@ -286,6 +298,28 @@ export function App() {
       </aside>
 
       <main className="chat">
+        {view === "generate" ? (
+          <>
+            <header className="chat-head">
+              <button type="button" className="icon-btn mobile-only" aria-label="Open conversations" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>
+                <Menu size={18} />
+              </button>
+              <h2>Generate</h2>
+            </header>
+            {store.health?.chat?.state && store.health.chat.state !== "running" ? (
+              <div className="banner" role="status">
+                {store.health.chat.message || "Chat is temporarily unavailable while local video generation is using system memory. It will resume automatically when the job finishes."}
+              </div>
+            ) : null}
+            <GenerateStudio />
+          </>
+        ) : (
+          <>
+            {store.health?.chat?.state && store.health.chat.state !== "running" ? (
+              <div className="banner" role="status">
+                {store.health.chat.message || "Chat is temporarily unavailable while local video generation is using system memory. It will resume automatically when the job finishes."}
+              </div>
+            ) : null}
         <header className="chat-head">
           <button
             type="button"
@@ -556,6 +590,8 @@ export function App() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </main>
 
       <aside className="inspector" id="inspector" aria-label="Context inspector">

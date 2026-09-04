@@ -28,7 +28,8 @@ export default defineConfig({
   ],
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: 7777,
+    strictPort: true,
     proxy: {
       "/auth": api,
       "/chat": api,
@@ -37,6 +38,7 @@ export default defineConfig({
       "/health": api,
       "/memory": api,
       "/models": api,
+      "/generate": api,
       "/v1": api,
     },
   },

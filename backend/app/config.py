@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     app_port: int = 8787
     cors_origins: str = (
         "http://127.0.0.1:5173,http://localhost:5173,"
+        "http://127.0.0.1:5174,http://localhost:5174,"
+        "http://127.0.0.1:7777,http://localhost:7777,"
         "http://127.0.0.1:8787,http://localhost:8787"
     )
     sqlite_path: str = str(ROOT / "data" / "chat.db")
@@ -29,6 +31,21 @@ class Settings(BaseSettings):
     model_switch_enabled: bool = sys.platform == "darwin"
     model_downloads_enabled: bool = sys.platform == "darwin"
     model_switch_script: str = str(ROOT / "scripts" / "activate-model.sh")
+
+    media_python: str = str(ROOT.parent / ".media-venv" / "bin" / "python")
+    image_flux_dir: str = str(ROOT.parent / "image-flux2-klein-4b-mflux-4bit")
+    image_zimage_dir: str = str(ROOT.parent / "image-z-image-turbo-mflux-4bit")
+    video_wan_aux_dir: str = str(ROOT.parent / "video-wan21-t2v-1.3b-aux")
+    video_wan_dit: str = str(ROOT.parent / "video-nsfw-wan-1.3b" / "wan_1.3B_exp_e14.safetensors")
+    video_wan_mlx_dir: str = str(ROOT.parent / "video-nsfw-wan-1.3b-mlx")
+    generations_dir: str = str(ROOT / "data" / "generations")
+    mlx_launch_label: str = "gui/{uid}/com.kiln.mlx"
+    mlx_plist: str = str(Path.home() / "Library" / "LaunchAgents" / "com.kiln.mlx.plist")
+    pause_chat_for_image: bool = False
+    pause_chat_for_video: bool = True
+    default_image_backend: str = "z-image-turbo"
+    default_video_backend: str = "nsfw-wan-1.3b"
+    video_teacache_threshold: float = 0.05
 
     context_window: int = 262144
     # Prompt-only. Do not subtract max_tokens from this (Qwen3.5-9B hybrid KV is ~1GB @ 32k).

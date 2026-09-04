@@ -12,7 +12,7 @@ fi
 if [[ ! -d node_modules ]]; then
   npm install
 fi
-echo "Kiln UI  http://127.0.0.1:5173"
+echo "Kiln UI  http://127.0.0.1:7777"
 echo "Kiln API http://127.0.0.1:8787"
 echo "mlx      http://127.0.0.1:8081  (npm run start:mlx — selected local MLX model)"
 echo "mtplx    http://127.0.0.1:8082  (npm run start:mtplx — 4B ~52 tok/s; then MLX_BASE_URL=http://127.0.0.1:8082)"

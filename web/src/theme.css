@@ -557,6 +557,126 @@ textarea:focus-visible, .btn:focus-visible, .conv-item:focus-visible {
   background: linear-gradient(90deg, var(--copper), var(--copper-2));
 }
 .meter.warn > span { background: #d9cbb8; }
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.mode-tabs button {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mode-tabs button.on {
+  background: var(--bone);
+  color: var(--bg);
+  border-color: var(--bone);
+}
+.gen-studio {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gen-mode {
+  display: flex;
+  gap: 8px;
+}
+.gen-mode button {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.gen-mode button.on {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #fff;
+}
+.gen-lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 62ch;
+}
+.gen-prompt {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 120px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.gen-bar, .gen-adv {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.gen-adv label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.gen-adv input, .gen-bar select {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: inherit;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.gen-check {
+  gap: 8px;
+  max-width: 100%;
+}
+.gen-out {
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--code);
+}
+.gen-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.gen-hist h3 {
+  margin: 8px 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16px;
+}
+.gen-hist-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+  color: inherit;
+  font-size: 13px;
+}
+.gen-hist-item span { margin-left: auto; color: var(--faint); }
 .kv {
   display: grid;
   grid-template-columns: 1fr auto;
