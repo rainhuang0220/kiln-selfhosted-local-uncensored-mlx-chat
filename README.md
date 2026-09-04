@@ -19,6 +19,7 @@ browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 - Token stats: input / output / total / occupancy
 - Model Workbench: search Hugging Face in-app, inspect a repository, download an MLX-ready checkpoint, and select it locally
 - OpenAI-compatible `POST /v1/chat/completions`
+- Local Generate: image (Z-Image Turbo) and short video (Wan 1.3B MLX 4-bit, T5 bfloat16 + TeaCache)
 - Memory tables ready (retrieve stubbed; no auto-write)
 
 ## Ports on this machine
@@ -42,13 +43,13 @@ npm install --prefix web
 # terminal A — model server (Metal, not Docker)
 npm run start:mlx
 
-# terminal B — API + UI
-npm run dev
+# terminal B — persistent local API + UI (LaunchAgents; login keep-alive)
+npm run start:local
 ```
 
 Open http://127.0.0.1:7777
 
-Or `bash scripts/dev.sh` for API+UI after the venv exists.
+`npm run start:local` installs `com.kiln.api` and `com.kiln.web` without replacing the chat LaunchAgent `com.kiln.mlx`. For a foreground session instead, `bash scripts/dev.sh` or `npm run dev`.
 
 ## Tests
 
@@ -92,7 +93,9 @@ The Caddy ingress obtains and renews TLS certificates automatically. Public depl
 | DELETE | `/conversation/{id}` | Hard delete |
 | GET | `/memory` | Long-term memory (empty stub) |
 | POST | `/v1/chat/completions` | OpenAI compatible |
-| GET | `/health` | mlx reachability |
+| GET | `/health` | mlx reachability and chat park state |
+| GET | `/generate/backends` | image/video backends and video presets |
+| POST | `/generate` | enqueue a local image or video job |
 | GET | `/models/local` | local model inventory (no paths) |
 | GET | `/models/catalog` | live Hugging Face search |
 | POST | `/models/download` | queue an MLX-ready local download |

@@ -3,7 +3,7 @@
 面向 Apple Silicon 的本地优先、自托管模型聊天工作台：多轮、历史、流式、Context 面板、token 统计。
 
 ```
-浏览器 :5173  →  FastAPI :8787  →  mlx_lm.server :8081  →  选定的本地模型
+浏览器 :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  选定的本地模型
 ```
 
 打开：**http://127.0.0.1:7777**
@@ -29,6 +29,7 @@
 - Model Workbench：不离开 Kiln 检索 Hugging Face，查看仓库，下载 MLX-ready 权重到本机模型库并切换
 - 每条消息的 ↑输入 / ↓输出 token
 - 默认深色窑炉界面，左下角可切 Light / Dark / System
+- 本机 Generate：默认图 Z-Image Turbo；默认视频 Wan 1.3B MLX 4bit（T5 bf16 + TeaCache）
 - 长期记忆接口已接 SQLite（不会自动把模型胡话写进记忆）
 
 ---
@@ -39,7 +40,7 @@
 
 | 服务 | 端口 |
 |---|---|
-| 网页 | **5173** |
+| 网页 | **7777** |
 | 后端 API | **8787** |
 | 模型 mlx_lm.server | **8081**（当前默认 9B MLX mxfp4） |
 | 可选 MTPLX | **8082**（默认 4B，本机 ~52 tok/s） |

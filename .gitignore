@@ -17,6 +17,9 @@ web/.vite/
 deploy/web-dist/
 scripts/com.kiln.mlx.plist
 scripts/com.kiln.mtplx-tunnel.plist
+scripts/com.kiln.api.plist
+scripts/com.kiln.web.plist
+scripts/com.kiln.web-tunnel.plist
 .DS_Store
 .env
 .env.*

@@ -16,7 +16,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173,http://localhost:5173,"
         "http://127.0.0.1:5174,http://localhost:5174,"
         "http://127.0.0.1:7777,http://localhost:7777,"
-        "http://127.0.0.1:8787,http://localhost:8787"
+        "http://127.0.0.1:8787,http://localhost:8787,"
+        "https://kiln.plainlist.space"
     )
     sqlite_path: str = str(ROOT / "data" / "chat.db")
 

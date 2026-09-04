@@ -161,12 +161,19 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         app.state.settings = cfg
         try:
             if media is None and cfg.pause_chat_for_video:
-                from app.services.media_runtime import _port_open, restore_mlx
-                if not _port_open(8081):
+                from app.services.media_runtime import _health_ok, restore_mlx
+
+                if _health_ok(cfg.mlx_health_url()):
+                    media_svc.lifecycle.state = "running"
+                else:
                     await asyncio.to_thread(restore_mlx, cfg)
                     media_svc.lifecycle.state = "running"
         except Exception:
-            media_svc.lifecycle.state = "recovery_failed"
+            from app.services.media_runtime import _health_ok as _ok
+
+            media_svc.lifecycle.state = (
+                "running" if _ok(cfg.mlx_health_url()) else "recovery_failed"
+            )
         try:
             yield
         finally:

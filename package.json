@@ -9,6 +9,9 @@
     "build": "npm run build --prefix web",
     "test": "bash tests/test_fetch_model.sh && bash tests/test_activate_model.sh && cd backend && ../.venv/bin/pytest -q",
     "start:mlx": "bash scripts/start-mlx.sh",
+    "start:api": "bash scripts/start-api.sh",
+    "start:web": "bash scripts/start-web.sh",
+    "start:local": "bash scripts/install-local-runtime.sh",
     "fetch:model": "bash scripts/fetch-model.sh",
     "start:mtplx": "bash scripts/start-mtplx.sh"
   },
