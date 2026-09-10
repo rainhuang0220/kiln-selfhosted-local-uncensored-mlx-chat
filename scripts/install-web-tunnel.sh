@@ -18,6 +18,10 @@ DOMAIN="gui/${UID_NUM}/${LABEL}"
 mkdir -p "$SUPPORT" "$AGENTS"
 cp "$ROOT/scripts/run-web-tunnel.sh" "$SUPPORT/run-web-tunnel.sh"
 chmod 755 "$SUPPORT/run-web-tunnel.sh"
+if [[ -f "$ROOT/scripts/ensure-vps-direct-route.sh" ]]; then
+  cp "$ROOT/scripts/ensure-vps-direct-route.sh" "$SUPPORT/ensure-vps-direct-route.sh"
+  chmod 755 "$SUPPORT/ensure-vps-direct-route.sh"
+fi
 
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -43,9 +47,15 @@ cat > "$PLIST" <<EOF
 EOF
 
 launchctl bootout "$DOMAIN" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/${UID_NUM}" "$PLIST"
+if ! launchctl bootstrap "gui/${UID_NUM}" "$PLIST" 2>/dev/null; then
+  # Already loaded or bootstrap raced; keep the existing job and reload in place.
+  launchctl enable "$DOMAIN" >/dev/null 2>&1 || true
+fi
 launchctl enable "$DOMAIN" >/dev/null 2>&1 || true
-launchctl kickstart -k "$DOMAIN"
+if ! launchctl kickstart -k "$DOMAIN" 2>/dev/null; then
+  launchctl bootstrap "gui/${UID_NUM}" "$PLIST"
+  launchctl kickstart -k "$DOMAIN"
+fi
 echo "installed $DOMAIN"
 echo "forwards ${LISTEN} -> ${LOCAL} via ${REMOTE}"
 echo "logs: /tmp/kiln-web-tunnel.log /tmp/kiln-web-tunnel.err"

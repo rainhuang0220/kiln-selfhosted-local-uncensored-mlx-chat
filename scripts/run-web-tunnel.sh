@@ -9,6 +9,24 @@ LISTEN="${KILN_TUNNEL_LISTEN:-127.0.0.1:17777}"
 LOCAL="${KILN_TUNNEL_LOCAL:-127.0.0.1:7777}"
 CONTROL="${KILN_TUNNEL_CONTROL:-/tmp/kiln-web-tunnel.sock}"
 LISTEN_PORT="${LISTEN##*:}"
+VPS_IP="${KILN_VPS_IP:-175.24.134.228}"
+ROUTE_HELPER="${KILN_ROUTE_HELPER:-$HOME/Library/Application Support/kiln/ensure-vps-direct-route.sh}"
+
+# Do not open SSH while Clash TUN still owns the VPS host route.
+# A TUN-zombied ESTABLISHED session is exactly how 17777 goes missing.
+if [[ -f "$ROUTE_HELPER" ]]; then
+  if ! bash "$ROUTE_HELPER" --check; then
+    echo "VPS ${VPS_IP} is routed via Clash TUN; refusing to open a zombie forward" >&2
+    exit 1
+  fi
+else
+  vps_iface=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/interface:/{print $2; exit}')
+  vps_gw=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/gateway:/{print $2; exit}')
+  if [[ "$vps_iface" == utun* || "$vps_gw" == 198.18.* ]]; then
+    echo "VPS ${VPS_IP} is routed via Clash TUN; refusing to open a zombie forward" >&2
+    exit 1
+  fi
+fi
 
 if [[ ! "$LISTEN_PORT" =~ ^[0-9]+$ ]]; then
   echo "invalid listen port in $LISTEN" >&2
