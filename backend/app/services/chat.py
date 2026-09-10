@@ -20,6 +20,7 @@ from app.services.thinking import (
     remap_assistant_for_history,
     split_thinking,
     thinking_budget_for,
+    thinking_token_split,
 )
 from app.services.tokens import TokenEstimator
 
@@ -914,9 +915,10 @@ class ChatService:
                     medium=s.thinking_budget_medium,
                     xhigh=s.thinking_budget_xhigh,
                 )
+                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
                 first_max = max_tokens
                 if think_budget and enable_thinking:
-                    first_max = min(max_tokens, think_budget)
+                    first_max = think_max
                 first_req = ChatRequest(
                     messages=sent,
                     temperature=temperature,
@@ -938,7 +940,7 @@ class ChatService:
                     and not content_buf
                     and hasattr(self.provider, "complete_after_think")
                 ):
-                    leftover = max(1, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
                     extra = await self.provider.complete_after_think(
                         first_req, reasoning_buf, leftover
                     )
@@ -966,6 +968,7 @@ class ChatService:
                     medium=s.thinking_budget_medium,
                     xhigh=s.thinking_budget_xhigh,
                 )
+                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
                 think_cut = False
                 agen = self.provider.stream(req)
                 try:
@@ -983,7 +986,7 @@ class ChatService:
                                 think_budget
                                 and enable_thinking
                                 and not content_buf
-                                and self.tokenizer.count_text(reasoning_buf) >= think_budget
+                                and self.tokenizer.count_text(reasoning_buf) >= think_max
                             ):
                                 think_cut = True
                                 break
@@ -1008,7 +1011,7 @@ class ChatService:
                     if closer is not None:
                         await closer()
                 if think_cut and not content_buf and hasattr(self.provider, "stream_after_think"):
-                    leftover = max(1, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
                     async for chunk in self.provider.stream_after_think(req, reasoning_buf, leftover):
                         if chunk.keepalive:
                             yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}

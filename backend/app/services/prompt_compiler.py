@@ -12,7 +12,7 @@ from app.config import Settings, settings as default_settings
 from app.services.constraint_verifier import structured_violations
 
 Kind = Literal["image", "video"]
-Mode = Literal["raw", "enhanced"]
+Mode = Literal["raw", "enhanced", "translate_enhance"]
 CompleteFn = Callable[[str, str], str]
 
 IMAGE_SYSTEM = """You are a prompt compiler, not a creative writer.
@@ -132,6 +132,55 @@ def _local_complete(system: str, user: str, settings: Settings) -> str:
     return text
 
 
+TRANSLATE_SYSTEM = """You are a faithful translator, not a prompt writer.
+
+Translate the user's visual request into precise English.
+Keep every explicit constraint: subject, count, color, spatial relation, pose, action, time, place, camera.
+Do not add objects, do not change numbers, do not flip left/right, do not invent a different scene.
+Do not moralize or soften the request.
+Return only the English translation.
+"""
+
+
+def _facts_lost(original: str, drafted: str) -> list[str]:
+    return preservation_violations(original, drafted) + structured_violations(original, drafted)
+
+
+def translate_visual_prompt(
+    original: str,
+    complete_fn: CompleteFn | None = None,
+    settings: Settings | None = None,
+) -> CompiledPrompt:
+    text = (original or "").strip()
+    if not text:
+        raise ValueError("prompt is required")
+    cfg = settings or default_settings
+    complete = complete_fn or (lambda system, user: _local_complete(system, user, cfg))
+    try:
+        drafted = complete(TRANSLATE_SYSTEM, f"Translate without changing any facts:\n\n{text}").strip()
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"prompt translator unavailable ({exc})") from exc
+    if not drafted:
+        raise RuntimeError("prompt translator returned an empty completion")
+    violations = _facts_lost(text, drafted)
+    if violations:
+        return CompiledPrompt(
+            original=text,
+            effective=text,
+            mode="raw",
+            kind="image",
+            violations=violations,
+            compiler_model=cfg.model_name,
+        )
+    return CompiledPrompt(
+        original=text,
+        effective=drafted,
+        mode="raw",
+        kind="image",
+        compiler_model=cfg.model_name,
+    )
+
+
 def compile_visual_prompt(
     original: str,
     kind: Kind,
@@ -142,8 +191,8 @@ def compile_visual_prompt(
     text = (original or "").strip()
     if not text:
         raise ValueError("prompt is required")
-    if mode not in ("raw", "enhanced"):
-        raise ValueError("prompt_mode must be raw or enhanced")
+    if mode not in ("raw", "enhanced", "translate_enhance"):
+        raise ValueError("prompt_mode must be raw, enhanced, or translate_enhance")
     if kind not in ("image", "video"):
         raise ValueError("kind must be image or video")
     if mode == "raw":
@@ -151,15 +200,29 @@ def compile_visual_prompt(
 
     cfg = settings or default_settings
     complete = complete_fn or (lambda system, user: _local_complete(system, user, cfg))
+    source = text
+    if mode == "translate_enhance":
+        translated = translate_visual_prompt(text, complete_fn=complete, settings=cfg)
+        if translated.violations:
+            return CompiledPrompt(
+                original=text,
+                effective=text,
+                mode=mode,
+                kind=kind,
+                violations=translated.violations,
+                compiler_model=cfg.model_name,
+            )
+        source = translated.effective
+
     system = IMAGE_SYSTEM if kind == "image" else VIDEO_SYSTEM
-    user = f"Compile this {kind} prompt without changing any requested facts:\n\n{text}"
+    user = f"Compile this {kind} prompt without changing any requested facts:\n\n{source}"
     try:
         drafted = complete(system, user).strip()
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"prompt compiler unavailable; retry with Raw mode ({exc})") from exc
     if not drafted:
         raise RuntimeError("prompt compiler returned an empty completion")
-    violations = preservation_violations(text, drafted) + structured_violations(text, drafted)
+    violations = _facts_lost(text, drafted)
     if violations:
         return CompiledPrompt(
             original=text,

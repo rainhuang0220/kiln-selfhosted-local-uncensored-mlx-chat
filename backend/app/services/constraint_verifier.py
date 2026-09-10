@@ -113,8 +113,18 @@ _SPECS: list[dict[str, Any]] = [
     {
         "type": "camera",
         "value": "overhead",
-        "extract": (r"俯视", r"正上方", r"\boverhead\b", r"top-down"),
-        "aliases": ("overhead", "top-down", "top down", "from above", "俯视", "正上方"),
+        "extract": (r"俯视", r"正上方", r"\boverhead\b", r"top-down", r"directly above"),
+        "aliases": (
+            "overhead",
+            "top-down",
+            "top down",
+            "from above",
+            "directly above",
+            "bird's-eye",
+            "bird's eye",
+            "俯视",
+            "正上方",
+        ),
         "conflicts": ("low-angle", "low angle", "仰视"),
     },
     {

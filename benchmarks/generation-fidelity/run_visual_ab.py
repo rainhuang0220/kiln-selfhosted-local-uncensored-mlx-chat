@@ -126,17 +126,20 @@ def write_contact_sheet(rows: list[dict], dest: Path) -> None:
     for item_id, pair in by_id.items():
         raw = pair.get("raw") or {}
         enh = pair.get("enhanced") or {}
+        tr = pair.get("translate_enhance") or {}
         cards.append(
             f"""
 <section>
   <h2>{item_id}</h2>
-  <p><b>Original</b> {raw.get('original_prompt') or enh.get('original_prompt')}</p>
+  <p><b>Original</b> {raw.get('original_prompt') or enh.get('original_prompt') or tr.get('original_prompt')}</p>
   <p><b>Effective (enhanced)</b> {enh.get('effective_prompt')}</p>
-  <p>seed={raw.get('seed') or enh.get('seed')}
-     raw_wall={raw.get('wall_s')}s enhanced_wall={enh.get('wall_s')}s</p>
+  <p><b>Effective (translate+enhance)</b> {tr.get('effective_prompt')}</p>
+  <p>seed={raw.get('seed') or enh.get('seed') or tr.get('seed')}
+     raw_wall={raw.get('wall_s')}s enhanced_wall={enh.get('wall_s')}s translate_wall={tr.get('wall_s')}s</p>
   <div class="pair">
     <figure><img src="{raw.get('output','')}" alt="raw"><figcaption>Raw</figcaption></figure>
     <figure><img src="{enh.get('output','')}" alt="enhanced"><figcaption>Enhanced</figcaption></figure>
+    <figure><img src="{tr.get('output','')}" alt="translate"><figcaption>Translate+Enhance</figcaption></figure>
   </div>
 </section>"""
         )
@@ -175,7 +178,7 @@ def main() -> None:
         else:
             items = items[args.offset : args.offset + args.limit]
         for item in items:
-            for mode in ("raw", "enhanced"):
+            for mode in ("raw", "enhanced", "translate_enhance"):
                 out = RUNS / "image" / f"{item['id']}-{mode}.png"
                 if out.is_file() and out.stat().st_size > 1000:
                     print(f"SKIP IMAGE {item['id']} {mode}", flush=True)

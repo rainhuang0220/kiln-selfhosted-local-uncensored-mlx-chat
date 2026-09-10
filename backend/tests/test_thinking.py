@@ -38,6 +38,19 @@ def test_thinking_budget_low_is_half_or_less_of_medium():
     assert thinking_budget_for("mid") == 1024
 
 
+def test_thinking_split_reserves_visible_tokens():
+    from app.services.thinking import thinking_token_split
+
+    think_max, leftover = thinking_token_split(128, 1024)
+    assert leftover >= 32
+    assert think_max + leftover <= 128
+    assert think_max < 128
+
+    think_max, leftover = thinking_token_split(8192, 1024)
+    assert think_max == 1024
+    assert leftover >= 128
+
+
 def test_remap_uses_reasoning_content():
     out = remap_assistant_for_history(
         {"role": "assistant", "content": "Hi", "reasoning": "I greet"}

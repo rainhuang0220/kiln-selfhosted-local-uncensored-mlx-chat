@@ -383,6 +383,106 @@ def test_video_enhances_before_parking_chat(tmp_settings, chat_service, tmp_path
         assert life.parks == 1
 
 
+def test_compile_endpoint_does_not_block_health(tmp_settings, chat_service, tmp_path, monkeypatch):
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.services.prompt_compiler import CompiledPrompt
+
+    def slow_compile(original, kind, mode="enhanced", complete_fn=None, settings=None):
+        time.sleep(1.0)
+        return CompiledPrompt(original=original, effective=original + " [x]", mode=mode, kind=kind)
+
+    monkeypatch.setattr("app.services.prompt_compiler.compile_visual_prompt", slow_compile)
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_video = False
+    svc = MediaService(
+        tmp_settings,
+        lifecycle=FakeLifecycle(tmp_settings),
+        compiler=_compiler,
+    )
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+
+    async def run() -> None:
+        async with app.router.lifespan_context(app):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                lags: list[float] = []
+
+                async def monitor() -> None:
+                    deadline = time.perf_counter() + 1.4
+                    while time.perf_counter() < deadline:
+                        t0 = time.perf_counter()
+                        await asyncio.sleep(0.05)
+                        lags.append(time.perf_counter() - t0)
+
+                mon = asyncio.create_task(monitor())
+                compiled = await client.post(
+                    "/generate/compile",
+                    json={"kind": "image", "prompt": "一只橙色的猫", "prompt_mode": "enhanced"},
+                )
+                await mon
+                health = await client.get("/health")
+                listing = await client.get("/generate")
+                assert compiled.status_code == 200
+                assert health.status_code == 200
+                assert listing.status_code == 200
+                assert lags
+                assert max(lags) < 0.35, f"event loop lagged {max(lags):.3f}s during compile"
+
+    asyncio.run(run())
+
+
+def test_enhanced_job_compile_does_not_block_event_loop(tmp_settings, chat_service, tmp_path, monkeypatch):
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.services.generation_errors import RunResult
+    from app.services.prompt_compiler import CompiledPrompt
+
+    def slow_compile(original, kind, mode="enhanced", complete_fn=None, settings=None):
+        time.sleep(0.8)
+        return CompiledPrompt(original=original, effective=original, mode=mode, kind=kind)
+
+    async def fake_runner(spec):
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    monkeypatch.setattr("app.services.prompt_compiler.compile_visual_prompt", slow_compile)
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=fake_runner, lifecycle=FakeLifecycle(tmp_settings))
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+
+    async def run() -> None:
+        async with app.router.lifespan_context(app):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                lags: list[float] = []
+
+                async def monitor() -> None:
+                    deadline = time.perf_counter() + 1.2
+                    while time.perf_counter() < deadline:
+                        t0 = time.perf_counter()
+                        await asyncio.sleep(0.05)
+                        lags.append(time.perf_counter() - t0)
+
+                mon = asyncio.create_task(monitor())
+                posted = await client.post(
+                    "/generate",
+                    json={"kind": "image", "prompt": "四个杯子", "prompt_mode": "enhanced"},
+                )
+                assert posted.status_code == 200
+                await mon
+                assert lags
+                assert max(lags) < 0.35, f"event loop lagged {max(lags):.3f}s during image compile"
+
+    asyncio.run(run())
+
+
 def test_compile_endpoint_does_not_rewrite_in_raw_mode(media_app):
     with TestClient(media_app) as c:
         r = c.post(

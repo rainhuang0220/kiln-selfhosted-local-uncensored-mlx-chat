@@ -330,7 +330,7 @@ class MediaService:
                 raise GenerationCancelled()
             params = dict(job.get("params") or {})
             mode = str(params.get("prompt_mode") or "enhanced")
-            if mode not in ("raw", "enhanced"):
+            if mode not in ("raw", "enhanced", "translate_enhance"):
                 mode = "enhanced"
             compiled = await self._compile_prompt(kind, job["prompt"], mode)
             params["prompt_mode"] = compiled.mode

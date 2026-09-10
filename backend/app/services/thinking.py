@@ -61,3 +61,14 @@ def thinking_budget_for(
     }
     n = int(table[resolved])
     return n if n > 0 else None
+
+
+def thinking_token_split(max_tokens: int, think_budget: int | None) -> tuple[int, int]:
+    """Cap thinking so a short visible answer still fits in max_tokens."""
+    max_tokens = max(1, int(max_tokens))
+    reserve = min(128, max(32, max_tokens // 4)) if max_tokens > 32 else max(1, max_tokens // 2)
+    if not think_budget:
+        return max_tokens, 0
+    think_max = min(int(think_budget), max(1, max_tokens - reserve))
+    leftover = max(1, max_tokens - think_max)
+    return think_max, leftover

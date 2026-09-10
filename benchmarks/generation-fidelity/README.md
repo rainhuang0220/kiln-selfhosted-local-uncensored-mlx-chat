@@ -47,9 +47,11 @@ The runner only prints the public prompt set. Generation is manual or via Kiln R
 
 ```bash
 python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --limit 4
-python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --offset 4 --limit 4
+python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --ids img-action-zh,img-spatial-zh,img-count-en,img-camera-zh
 python3 benchmarks/generation-fidelity/run_visual_ab.py --kind video --limit 2
 ```
+
+Image modes are `raw`, `enhanced`, and experimental `translate_enhance` (Chinese → English → enhance). Do not make Translate+Enhance the default unless visual A/B shows a clear adherence win.
 
 Score constraint satisfaction, not prettiness. Open `runs/contact-sheet.html` for side-by-side Raw vs Enhanced.
 

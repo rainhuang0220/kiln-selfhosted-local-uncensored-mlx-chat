@@ -395,7 +395,7 @@ export function App() {
                 <div className="role">{m.role}</div>
                 <div className="body">
                   {m.role === "assistant" && m.reasoning ? (
-                    <details className="think">
+                    <details className="think" open={m.status === "streaming" && !m.content}>
                       <summary>Thought</summary>
                       <pre>{m.reasoning}</pre>
                     </details>

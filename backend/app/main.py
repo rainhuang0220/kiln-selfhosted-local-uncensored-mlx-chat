@@ -92,7 +92,7 @@ class GenerateBody(BaseModel):
     fps: int | None = Field(default=None, ge=8, le=30)
     preset: str | None = None
     output_resolution: str | None = None
-    prompt_mode: str | None = Field(default="enhanced", pattern="^(raw|enhanced)$")
+    prompt_mode: str | None = Field(default="enhanced", pattern="^(raw|enhanced|translate_enhance)$")
 
 
 class OpenAIChatBody(BaseModel):
@@ -599,7 +599,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
         mode = body.prompt_mode or "enhanced"
         try:
-            got = compile_visual_prompt(body.prompt, body.kind, mode=mode)  # type: ignore[arg-type]
+            got = await asyncio.to_thread(
+                compile_visual_prompt, body.prompt, body.kind, mode
+            )
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_body", status=400)
         except RuntimeError as exc:

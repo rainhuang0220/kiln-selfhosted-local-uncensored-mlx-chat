@@ -108,6 +108,64 @@ def test_enhanced_keeps_chinese_when_english_preserves_facts():
     assert "night" in got.effective.lower()
 
 
+def test_translate_keeps_chinese_atomic_constraints():
+    from app.services.prompt_compiler import translate_visual_prompt
+
+    original = "画面里必须恰好有三个人。红色汽车在蓝色汽车左侧。人物站着，不要坐下。场景发生在夜晚。"
+
+    def complete(system, user):
+        assert "translat" in system.lower()
+        return (
+            "There must be exactly three people. A red car is to the left of a blue car. "
+            "The people are standing, not sitting. The scene is at night."
+        )
+
+    got = translate_visual_prompt(original, complete_fn=complete)
+    assert got.violations == []
+    assert "three" in got.effective.lower()
+    assert "left" in got.effective.lower()
+    assert "standing" in got.effective.lower()
+    assert "night" in got.effective.lower()
+
+
+def test_translate_falls_back_when_facts_are_lost():
+    from app.services.prompt_compiler import translate_visual_prompt
+
+    original = "画面里必须恰好有三个人。红色汽车在蓝色汽车左侧。"
+
+    def complete(system, user):
+        return "several cars and some people during the day"
+
+    got = translate_visual_prompt(original, complete_fn=complete)
+    assert got.effective == original
+    assert got.violations
+
+
+def test_translate_enhance_runs_translate_then_enhance():
+    original = "画面里必须恰好有三个人。红色汽车在蓝色汽车左侧。人物站着。夜晚。"
+    systems: list[str] = []
+
+    def complete(system, user):
+        systems.append(system)
+        if "translat" in system.lower():
+            return (
+                "exactly three people; a red car to the left of a blue car; "
+                "the people are standing; the scene is at night"
+            )
+        return (
+            "SUBJECT: exactly three people and a red car to the left of a blue car. "
+            "ACTION: standing. ENVIRONMENT: night. CONSTRAINTS: keep count three, left-of, standing, night."
+        )
+
+    got = compile_visual_prompt(original, "image", mode="translate_enhance", complete_fn=complete)
+    assert any("translat" in s.lower() for s in systems)
+    assert any("prompt compiler" in s.lower() for s in systems)
+    assert got.mode == "translate_enhance"
+    assert got.effective != original
+    assert "three" in got.effective.lower()
+    assert "left" in got.effective.lower()
+
+
 def test_video_prompt_asks_for_time_and_camera():
     captured = {}
 

@@ -46,6 +46,11 @@ def test_detects_chinese_constraint_swaps_in_compiled_text():
     assert "night" in joined or "time" in joined
 
 
+def test_overhead_accepts_directly_above_english():
+    original = "从正上方俯视一张圆形木桌。"
+    assert not structured_violations(original, "a round wooden table viewed from directly above")
+
+
 def test_extracts_bilingual_pair_lexicon():
     text = "四个蓝色物体在右边坐着，白天室外，背面仰视。"
     got = {(c["type"], str(c["value"])) for c in extract_constraints(text)}

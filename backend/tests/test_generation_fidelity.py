@@ -32,6 +32,8 @@ def test_visual_ab_prompts_are_public_and_structured():
     for marker in PRIVATE_MARKERS:
         assert marker not in blob
     assert len(data["image"]) >= 8
+    axes = {c["axis"] for item in data["image"] for c in item["constraints"]}
+    assert {"count", "spatial", "action", "attribute", "camera"} <= axes
     assert len(data["video"]) >= 2
     for item in data["image"] + data["video"]:
         assert item["prompt"].strip()
