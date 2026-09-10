@@ -34,3 +34,4 @@ secrets/
 *.mp4
 benchmarks/video/*
 !benchmarks/video/summary.json
+benchmarks/generation-fidelity/runs/

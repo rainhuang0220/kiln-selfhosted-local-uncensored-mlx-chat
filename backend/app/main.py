@@ -25,6 +25,7 @@ from app.services.chat import ChatService
 from app.services.chat_lifecycle import parked_http_body
 from app.services.media import MediaService
 from app.services.memory import MemoryService
+from app.services.sampling import resolve_sampling
 from app.services.models import ModelManager
 from app.services.tokens import TokenEstimator
 
@@ -91,6 +92,7 @@ class GenerateBody(BaseModel):
     fps: int | None = Field(default=None, ge=8, le=30)
     preset: str | None = None
     output_resolution: str | None = None
+    prompt_mode: str | None = Field(default="enhanced", pattern="^(raw|enhanced)$")
 
 
 class OpenAIChatBody(BaseModel):
@@ -591,6 +593,26 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         media: MediaService = request.app.state.media
         return media.backends()
 
+    @app.post("/generate/compile")
+    async def compile_generate_prompt(body: GenerateBody, request: Request):
+        from app.services.prompt_compiler import compile_visual_prompt
+
+        mode = body.prompt_mode or "enhanced"
+        try:
+            got = compile_visual_prompt(body.prompt, body.kind, mode=mode)  # type: ignore[arg-type]
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_body", status=400)
+        except RuntimeError as exc:
+            return error_body(str(exc), "dependency_error", "compiler_unavailable", status=503)
+        return {
+            "kind": got.kind,
+            "prompt_mode": got.mode,
+            "original_prompt": got.original,
+            "effective_prompt": got.effective,
+            "violations": got.violations,
+            "compiler_model": got.compiler_model,
+        }
+
     @app.get("/generate")
     async def list_generate_jobs(request: Request, limit: int = Query(20, ge=1, le=50)):
         media: MediaService = request.app.state.media
@@ -603,6 +625,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             "width": body.width, "height": body.height, "steps": body.steps, "seed": body.seed,
             "frames": body.frames, "fps": body.fps, "preset": body.preset,
             "output_resolution": body.output_resolution,
+            "prompt_mode": body.prompt_mode or "enhanced",
         }.items() if v is not None}
         try:
             job = media.enqueue(kind=body.kind, prompt=body.prompt, backend=body.backend, params=params, owner_id=_owner(request))
@@ -679,13 +702,20 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             ]
             max_out = body.max_tokens if body.max_tokens is not None else cfg.default_max_tokens
             max_out = min(int(max_out), cfg.max_tokens_cap)
+            thinking = cfg.enable_thinking if body.enable_thinking is None else body.enable_thinking
+            sampled = resolve_sampling(
+                enable_thinking=thinking,
+                temperature=body.temperature,
+                top_p=body.top_p,
+                top_k=body.top_k,
+            )
             req = ChatRequest(
                 messages=mapped,
-                temperature=body.temperature if body.temperature is not None else cfg.default_temperature,
-                top_p=body.top_p if body.top_p is not None else cfg.default_top_p,
-                top_k=body.top_k if body.top_k is not None else cfg.default_top_k,
+                temperature=sampled["temperature"],
+                top_p=sampled["top_p"],
+                top_k=sampled["top_k"],
                 max_tokens=max_out,
-                enable_thinking=cfg.enable_thinking if body.enable_thinking is None else body.enable_thinking,
+                enable_thinking=thinking,
                 reasoning_effort=normalize_effort(cfg.reasoning_effort),
                 tools=body.tools,
             )

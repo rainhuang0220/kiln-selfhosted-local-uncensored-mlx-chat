@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator, Protocol
 @dataclass
 class ChatRequest:
     messages: list[dict[str, Any]]
-    temperature: float = 1.0
+    temperature: float = 0.6
     top_p: float = 0.95
     top_k: int = 20
     max_tokens: int = 8192

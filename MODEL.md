@@ -34,4 +34,16 @@ Choose a matching `MODEL_NAME` in `.env` when you want API metadata to identify 
 
 ## Larger 27B profile
 
-The repository retains historical documentation and benchmarks for a Qwen3.8-27B 4-bit MLX profile. It is a useful Apple Silicon performance reference, but it is not downloaded, mounted, or required by the default deployment.
+The repository retains historical documentation and benchmarks for a Qwen3.8-27B 4-bit MLX profile. It is a useful Apple Silicon performance reference, but it is not downloaded, mounted, or required by the default deployment. This release does not add a Chat Quality toggle for 27B: swapping it would take down the live 9B worker, and no offline A/B on this host justified the extra product surface.
+
+## Filters vs checkpoints
+
+Kiln does not apply an application-layer safety filter on Chat, Image, or Video. That is not the same as “the model has no learned safety bias.”
+
+| Path | Checkpoint | Provenance | Censorship claim |
+| --- | --- | --- | --- |
+| Chat | HauhauCS Qwen3.5-9B Aggressive MLX mxfp4, revision `a9e5f6d9…` | Verified against the pinned Hub card | Upstream card claims refusal removal (`0/465`). Kiln does not re-run that suite. |
+| Image | Tongyi-MAI Z-Image-Turbo via mflux 4-bit | Standard upstream | **Not claimed uncensored.** FLUX.2 Klein’s official text encoder may sanitize prompts. |
+| Video | `wan_1.3B_exp_e14` fine-tune of Wan-AI/Wan2.1-T2V-1.3B | Card in `video-nsfw-wan-1.3b/README.md` | NSFW fine-tune claimed by the trainer. Directory name is not the evidence. Runtime still applies Wan’s default **quality** negative prompt (oversaturation / artifacts / extra fingers), not an NSFW blocklist. T5 `text_len` is 512 tokens. |
+
+Do not write “Kiln is fully uncensored.”

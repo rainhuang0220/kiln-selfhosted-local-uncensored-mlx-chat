@@ -15,10 +15,11 @@ import type {
   TokenUsage,
 } from "../types/chat";
 
+const THINKING_PRESET = { temperature: 0.6, topP: 0.95, topK: 20 };
+const NON_THINKING_PRESET = { temperature: 0.7, topP: 0.8, topK: 20 };
+
 const DEFAULT_PARAMS: GenerationParams = {
-  temperature: 1.0,
-  topP: 0.95,
-  topK: 20,
+  ...THINKING_PRESET,
   maxTokens: 8192,
   enableThinking: true,
   reasoningEffort: "medium",
@@ -372,7 +373,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const draft = get().draft;
     set({ draft: (draft ? draft.replace(/\s*$/, "") : "") + chunks.join(""), error: null });
   },
-  setParams: (p) => set({ params: { ...get().params, ...p } }),
+  setParams: (p) => {
+    const next = { ...get().params, ...p };
+    if (p.enableThinking !== undefined && p.temperature === undefined) {
+      Object.assign(next, p.enableThinking ? THINKING_PRESET : NON_THINKING_PRESET);
+    }
+    set({ params: next });
+  },
   toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
 
   stop: () => {

@@ -26,7 +26,7 @@ exec "$PY" -m mlx_lm.server \
   --host 127.0.0.1 \
   --port 8081 \
   --max-tokens 32768 \
-  --temp 1.0 \
+  --temp 0.6 \
   --top-p 0.95 \
   --top-k 20 \
   --decode-concurrency 1 \

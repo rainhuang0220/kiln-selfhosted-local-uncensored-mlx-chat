@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   cancelJob,
+  compilePrompt,
   createJob,
   fetchBackends,
   getJob,
@@ -8,6 +9,7 @@ import {
   type MediaBackend,
   type MediaJob,
   type MediaKind,
+  type PromptMode,
   type VideoPreset,
 } from "./api/generate";
 import { useChatStore } from "./stores/chat-store";
@@ -21,26 +23,32 @@ const FALLBACK_VIDEO: Record<string, VideoPreset> = {
     width: 832,
     height: 480,
     frames: 17,
-    steps: 8,
+    steps: 10,
     fps: 16,
+    guide: 5,
+    shift: 5,
+    teacache: 0.05,
     clip_s: 1.1,
-    typical_wall_s: 230,
+    typical_wall_s: 210,
     typical_note: "Typically about 3–4 minutes on M4 24GB.",
-    hint: "Fewer denoise steps. Faster; slightly softer motion.",
+    hint: "Previous default. Guide 5, shift 5, TeaCache on.",
     recommended: false,
   },
   standard: {
     id: "standard",
-    label: "Standard",
+    label: "Quality",
     width: 832,
     height: 480,
     frames: 17,
-    steps: 10,
+    steps: 20,
     fps: 16,
+    guide: 6,
+    shift: 8,
+    teacache: 0,
     clip_s: 1.1,
-    typical_wall_s: 210,
-    typical_note: "Typically about 3–4 minutes on M4 24GB.",
-    hint: "Default quality. T5 bfloat16 + TeaCache.",
+    typical_wall_s: 420,
+    typical_note: "Typically about 6–8 minutes on M4 24GB.",
+    hint: "Upstream-like: more steps, guide 6, shift 8, TeaCache off.",
     recommended: true,
   },
   long: {
@@ -49,18 +57,22 @@ const FALLBACK_VIDEO: Record<string, VideoPreset> = {
     width: 832,
     height: 480,
     frames: 33,
-    steps: 10,
+    steps: 20,
     fps: 16,
+    guide: 6,
+    shift: 8,
+    teacache: 0,
     clip_s: 2.1,
-    typical_wall_s: 585,
-    typical_note: "Typically about 8–12 minutes on M4 24GB.",
-    hint: "About 2 seconds of video. Noticeably slower; chat parks for the job.",
+    typical_wall_s: 900,
+    typical_note: "Typically about 12–16 minutes on M4 24GB.",
+    hint: "About 2 seconds. Quality sampling; chat parks for the job.",
     recommended: false,
   },
 };
 
 const STATUS_LABEL: Record<string, string> = {
   queued: "Waiting",
+  enhancing_prompt: "Compiling prompt",
   parking_chat: "Preparing",
   loading: "Preparing",
   generating: "Generating",
@@ -75,6 +87,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ACTIVE = new Set([
   "queued",
+  "enhancing_prompt",
   "parking_chat",
   "loading",
   "generating",
@@ -97,6 +110,10 @@ export function GenerateStudio() {
   const loadHealth = useChatStore((s) => s.loadHealth);
   const [kind, setKind] = useState<MediaKind>("image");
   const [prompt, setPrompt] = useState("");
+  const [promptMode, setPromptMode] = useState<PromptMode>("enhanced");
+  const [preview, setPreview] = useState<string>("");
+  const [previewViolations, setPreviewViolations] = useState<string[]>([]);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
   const [seed, setSeed] = useState(42);
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
@@ -167,6 +184,7 @@ export function GenerateStudio() {
   }, [job?.id, job?.status, loadHealth]);
 
   const currentPreset = presets.find((p) => p.id === videoPreset) || FALLBACK_VIDEO.standard;
+  const currentBackend = (kind === "image" ? backends.image : backends.video).find((b) => b.id === backend);
 
   return (
     <div className="gen-studio">
@@ -219,8 +237,70 @@ export function GenerateStudio() {
         rows={5}
         value={prompt}
         placeholder={kind === "image" ? "Describe the still." : "Describe the shot, motion, and camera."}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e) => {
+          setPrompt(e.target.value);
+          setPreview("");
+          setPreviewViolations([]);
+        }}
       />
+      <div className="gen-mode" role="radiogroup" aria-label="Prompt mode">
+        {(["raw", "enhanced"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            role="radio"
+            aria-checked={promptMode === mode}
+            className={promptMode === mode ? "on" : ""}
+            disabled={running}
+            onClick={() => {
+              setPromptMode(mode);
+              setPreview("");
+              setPreviewViolations([]);
+            }}
+          >
+            {mode === "raw" ? "Raw" : "Enhanced"}
+          </button>
+        ))}
+        {promptMode === "enhanced" ? (
+          <button
+            className="btn ghost"
+            type="button"
+            disabled={busy || !prompt.trim()}
+            onClick={async () => {
+              setError(null);
+              setBusy(true);
+              try {
+                const compiled = await compilePrompt({ kind, prompt: prompt.trim(), prompt_mode: "enhanced" });
+                setPreview(compiled.effective_prompt);
+                setPreviewViolations(compiled.violations || []);
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Preview effective prompt
+          </button>
+        ) : null}
+      </div>
+      <p className="gen-lede">
+        {promptMode === "raw"
+          ? "Raw sends your text unchanged. Enhanced uses the local Qwen as a prompt compiler — it must not drop your constraints."
+          : "Enhanced expands the prompt locally before generation. Preview the effective text; nothing is rewritten in secret."}
+      </p>
+      {preview ? (
+        <details className="gen-inspect" open>
+          <summary>Effective prompt</summary>
+          {previewViolations.length ? (
+            <p className="gen-lede">
+              Compiler would have changed a constraint, so Kiln kept the original prompt.
+              ({previewViolations.join(", ")})
+            </p>
+          ) : null}
+          <pre>{preview}</pre>
+        </details>
+      ) : null}
       <div className="gen-bar">
         <select value={backend} onChange={(e) => setBackend(e.target.value)} disabled={running}>
           {(kind === "image" ? backends.image : backends.video).map((b) => (
@@ -265,6 +345,7 @@ export function GenerateStudio() {
                 const created = await createJob({
                   kind,
                   prompt: prompt.trim(),
+                  prompt_mode: promptMode,
                   backend,
                   width,
                   height,
@@ -291,6 +372,14 @@ export function GenerateStudio() {
           </button>
         )}
       </div>
+      {currentBackend?.checkpoint_censorship ? (
+        <p className="gen-lede">
+          {currentBackend.label}. App filter: {currentBackend.application_filter || "none"}.
+          Checkpoint: {currentBackend.checkpoint_censorship.replaceAll("_", " ")}.
+          {" "}
+          {currentBackend.provenance?.replaceAll("_", " ")}.
+        </p>
+      ) : null}
       {advanced ? (
         <div className="gen-adv">
           <label>
@@ -337,6 +426,41 @@ export function GenerateStudio() {
             ) : null}
             {job.metrics?.wall_s != null ? <span> · {Number(job.metrics.wall_s).toFixed(1)}s</span> : null}
           </div>
+          <details className="gen-inspect" open={inspectorOpen} onToggle={(e) => setInspectorOpen(e.currentTarget.open)}>
+            <summary>Prompt inspector</summary>
+            <dl>
+              <dt>Original</dt>
+              <dd>{job.original_prompt || job.prompt}</dd>
+              <dt>Effective</dt>
+              <dd>{job.effective_prompt || String(job.params?.effective_prompt || job.prompt)}</dd>
+              <dt>Backend</dt>
+              <dd>{job.backend}</dd>
+              <dt>Model</dt>
+              <dd>{String(job.params?.model || job.backend)}</dd>
+              <dt>Mode</dt>
+              <dd>{String(job.prompt_mode || job.params?.prompt_mode || "raw")}</dd>
+              {Array.isArray(job.params?.compiler_violations) &&
+              (job.params.compiler_violations as unknown[]).length ? (
+                <>
+                  <dt>Fallback</dt>
+                  <dd>
+                    Kept original; compiler violations:{" "}
+                    {(job.params.compiler_violations as string[]).join(", ")}
+                  </dd>
+                </>
+              ) : null}
+              <dt>Seed</dt>
+              <dd>{String(job.metrics?.seed ?? job.params?.seed ?? "—")}</dd>
+              <dt>Steps</dt>
+              <dd>{String(job.metrics?.steps ?? job.params?.steps ?? "—")}</dd>
+              {job.metrics?.guide != null ? (
+                <>
+                  <dt>Guide / shift</dt>
+                  <dd>{String(job.metrics.guide)} / {String(job.metrics.shift ?? "—")}</dd>
+                </>
+              ) : null}
+            </dl>
+          </details>
           {kind === "video" && ACTIVE.has(job.status) ? (
             <p className="gen-lede">{currentPreset.typical_note} No live countdown — wall time varies with thermal and memory pressure.</p>
           ) : null}

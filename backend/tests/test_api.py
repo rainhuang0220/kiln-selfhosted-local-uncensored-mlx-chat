@@ -45,6 +45,30 @@ def test_health(client):
     assert body["max_tokens_cap"] >= 32768
 
 
+def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "ping", "stream": False, "enable_thinking": True, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    req = fake_provider.calls[-1]
+    assert req.temperature == 0.6
+    assert req.top_p == 0.95
+    assert req.top_k == 20
+
+
+def test_chat_non_thinking_uses_qwen_sampling_preset(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "ping", "stream": False, "enable_thinking": False, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    req = fake_provider.calls[-1]
+    assert req.temperature == 0.7
+    assert req.top_p == 0.8
+    assert req.top_k == 20
+
+
 def test_ten_thousand_chars_reach_the_model(client, fake_provider):
     blob = "甲" * 10_000
     r = client.post(

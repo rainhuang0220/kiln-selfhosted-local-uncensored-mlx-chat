@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "required": ["id", "kind", "backend", "prompt_mode", "seed", "scores"],
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "enum": ["image", "video", "chat"] },
+    "backend": { "type": "string" },
+    "prompt_mode": { "enum": ["raw", "enhanced"] },
+    "seed": { "type": "integer" },
+    "original_prompt": { "type": "string" },
+    "effective_prompt": { "type": "string" },
+    "scores": {
+      "type": "object",
+      "required": [
+        "prompt_preservation",
+        "subject",
+        "attributes",
+        "count",
+        "spatial",
+        "action",
+        "style",
+        "overall"
+      ],
+      "additionalProperties": { "type": "number" }
+    },
+    "notes": { "type": "string" }
+  }
+}

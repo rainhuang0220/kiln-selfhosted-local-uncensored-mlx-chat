@@ -29,7 +29,7 @@
 - Model Workbench：不离开 Kiln 检索 Hugging Face，查看仓库，下载 MLX-ready 权重到本机模型库并切换
 - 每条消息的 ↑输入 / ↓输出 token
 - 默认深色窑炉界面，左下角可切 Light / Dark / System
-- 本机 Generate：默认图 Z-Image Turbo；默认视频 Wan 1.3B MLX 4bit（T5 bf16 + TeaCache）
+- 本机 Generate：图 Z-Image Turbo（Raw / Enhanced 本地扩写）；视频 Wan2.1 1.3B。应用层无内容过滤器。这不等于「模型没有学到的安全偏好」。各后端证据见 [MODEL.md](MODEL.md)。「能生成」也不等于「听得懂要求」。
 - 长期记忆接口已接 SQLite（不会自动把模型胡话写进记忆）
 
 ---

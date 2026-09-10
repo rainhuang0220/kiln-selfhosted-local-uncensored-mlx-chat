@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Split refusal/censorship claims from prompt-adherence quality. Document each backend’s checkpoint provenance instead of calling Kiln “fully uncensored.”
+- Chat sampling now follows the Qwen3.5 card: thinking `0.6/0.95/20`, non-thinking `0.7/0.8/20`, with UI overrides.
+- Image and video can compile prompts locally through the running Qwen (enhance before parking chat). Raw mode still sends the user text unchanged.
+- Generation cards show Original vs Effective prompt, backend, model, seed, and steps.
+- Video Fast keeps the old speed preset; Quality uses more steps, guide 6, shift 8, TeaCache off. Wan2.2 5B is not added on 24GB.
+
 ## v0.5.0
 
 - Added local image/video generation with persistent jobs, cancellation, and serialized heavy workers.

@@ -78,7 +78,7 @@ Every BFF request:
 - `model: "default_model"` so mlx does not try to load another path
 - `stream: true` and `stream_options.include_usage: true`
 - `chat_template_kwargs: {enable_thinking, reasoning_effort, preserve_thinking}`
-- Sampling from `generation_config.json`: temperature **1.0**, top_p **0.95**, top_k **20**
+- Sampling follows the Qwen3.5 card: thinking **0.6 / 0.95 / 20**, non-thinking **0.7 / 0.8 / 20**. The UI can override.
 - Default `max_tokens=2048`, hard cap **8192** (27B on ~24 GB unified memory; 262,144 is theoretical only)
 
 Field remap: mlx streams `delta.reasoning`; the Qwen jinja template reads `message.reasoning_content` on the next turn. The BFF stores `reasoning` as `reasoning_content`.
@@ -112,6 +112,8 @@ The inspector (right column / drawer) shows:
 - Generation params actually sent
 
 The inspector is a debugger. If the BFF dropped turns or injected a thinking preamble, the transcript and the inspector **will disagree**. That is the feature.
+
+Image/video jobs keep the same rule. `media_jobs.prompt` is the original user text. `params.effective_prompt` is what the subprocess `--prompt` receives. Enhanced mode expands through the local Qwen **before** video parks chat. Raw mode is a no-op. The compiler must not change requested facts; if a preservation check fires, Kiln sends the original. There is no application-layer safety filter. Video still inherits Wan’s default **quality** negative prompt (oversaturation / artifacts / extra fingers) unless we pass an empty string. T5 `text_len` is 512 tokens — longer compiled prompts can truncate at the encoder.
 
 Token counts: mlx `usage` when present; otherwise this checkpoint's HuggingFace tokenizer (`tokenizers` crate, local `tokenizer.json`). Never `len(text)//4`.
 

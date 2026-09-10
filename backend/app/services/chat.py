@@ -14,6 +14,7 @@ from app.services.compress import compress_messages
 from app.services.history import truncate_messages
 from app.services.ingest import pack_user_message
 from app.services.memory import MemoryService
+from app.services.sampling import resolve_sampling
 from app.services.thinking import (
     normalize_effort,
     remap_assistant_for_history,
@@ -741,12 +742,18 @@ class ChatService:
                 "status": 400,
             }
             return
-        temperature = s.default_temperature if temperature is None else temperature
-        top_p = s.default_top_p if top_p is None else top_p
-        top_k = s.default_top_k if top_k is None else top_k
+        enable_thinking = s.enable_thinking if enable_thinking is None else enable_thinking
+        sampled = resolve_sampling(
+            enable_thinking=enable_thinking,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+        )
+        temperature = sampled["temperature"]
+        top_p = sampled["top_p"]
+        top_k = sampled["top_k"]
         max_tokens = s.default_max_tokens if max_tokens is None else max_tokens
         max_tokens = max(1, min(int(max_tokens), s.max_tokens_cap))
-        enable_thinking = s.enable_thinking if enable_thinking is None else enable_thinking
         effort = normalize_effort(reasoning_effort or s.reasoning_effort)
         system_prompt = (system if system is not None else s.default_system) or ""
         params = {

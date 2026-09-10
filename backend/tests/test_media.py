@@ -13,6 +13,10 @@ from app.services.media import MediaService
 from app.db import get_conn
 
 
+def _compiler(kind, prompt, mode):
+    return prompt if mode == "raw" else f"{prompt} [compiled]"
+
+
 class FakeLifecycle(ChatLifecycle):
     def __init__(self, settings):
         super().__init__(settings, park_fn=self._park, restore_fn=self._restore)
@@ -42,7 +46,12 @@ def media_app(tmp_settings, chat_service, tmp_path: Path):
     tmp_settings.generations_dir = str(tmp_path / "generations")
     tmp_settings.pause_chat_for_video = False
     life = FakeLifecycle(tmp_settings)
-    svc = MediaService(tmp_settings, runner=fake_runner, lifecycle=life)
+    svc = MediaService(
+        tmp_settings,
+        runner=fake_runner,
+        lifecycle=life,
+        compiler=_compiler,
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     app.state.fake_life = life
     return app
@@ -98,9 +107,19 @@ def test_generate_backends(media_app):
         presets = {p["id"] for p in body["video_presets"]}
         assert presets == {"fast", "standard", "long"}
         std = next(p for p in body["video_presets"] if p["id"] == "standard")
+        fast = next(p for p in body["video_presets"] if p["id"] == "fast")
         assert std["recommended"] is True
-        assert std["steps"] == 10
+        assert std["steps"] == 20
         assert std["frames"] == 17
+        assert std["guide"] == 6.0
+        assert std["shift"] == 8.0
+        assert std["teacache"] == 0.0
+        assert fast["steps"] == 10
+        assert fast["guide"] == 5.0
+        video = next(x for x in body["video"] if x["id"] == "nsfw-wan-1.3b")
+        assert video["checkpoint_censorship"] == "nsfw_finetune_claimed"
+        zimg = next(x for x in body["image"] if x["id"] == "z-image-turbo")
+        assert zimg["checkpoint_censorship"] == "not_claimed"
 
 
 def test_health_and_chat_during_slow_generation(tmp_settings, chat_service, tmp_path: Path):
@@ -120,7 +139,9 @@ def test_health_and_chat_during_slow_generation(tmp_settings, chat_service, tmp_
 
     tmp_settings.generations_dir = str(tmp_path / "generations")
     tmp_settings.pause_chat_for_video = False
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=FakeLifecycle(tmp_settings))
+    svc = MediaService(
+        tmp_settings, runner=slow_runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "frames": 17, "seed": 1})
@@ -154,7 +175,7 @@ def test_chat_parked_returns_503(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "preset": "standard"})
@@ -186,7 +207,7 @@ def test_video_failure_restores_chat(tmp_settings, chat_service, tmp_path: Path)
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=boom, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=boom, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln"})
@@ -223,7 +244,7 @@ def test_cancel_queued_and_running(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         a = c.post("/generate", json={"kind": "video", "prompt": "one"}).json()
@@ -286,7 +307,9 @@ def test_heavy_generation_is_serial(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = False
-    svc = MediaService(tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings))
+    svc = MediaService(
+        tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         a = c.post("/generate", json={"kind": "image", "prompt": "one"}).json()
@@ -297,3 +320,77 @@ def test_heavy_generation_is_serial(tmp_settings, chat_service, tmp_path: Path):
         assert _wait_status(c, a["id"])["status"] == "done"
         assert _wait_status(c, b["id"])["status"] == "done"
         assert current["max"] == 1
+
+
+def test_raw_prompt_reaches_runner_verbatim(tmp_settings, chat_service, tmp_path: Path):
+    seen = {}
+
+    async def runner(spec):
+        seen["prompt"] = spec["prompt"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    svc = MediaService(
+        tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "image", "prompt": "exactly three red cubes", "prompt_mode": "raw"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert seen["prompt"] == "exactly three red cubes"
+        assert got["original_prompt"] == "exactly three red cubes"
+        assert got["effective_prompt"] == "exactly three red cubes"
+        assert got["prompt_mode"] == "raw"
+
+
+def test_video_enhances_before_parking_chat(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    order = []
+
+    def compiler(kind, prompt, mode):
+        order.append(("compile", life.parks))
+        return f"{prompt} | compiled"
+
+    async def runner(spec):
+        order.append(("run", life.parks, spec["prompt"]))
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.mp4"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_video = True
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "video", "prompt": "a copper kiln steaming", "prompt_mode": "enhanced"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done", got
+        assert order[0] == ("compile", 0)
+        assert order[1][0] == "run"
+        assert order[1][1] == 1
+        assert order[1][2] == "a copper kiln steaming | compiled"
+        assert got["effective_prompt"] == "a copper kiln steaming | compiled"
+        assert got["params"]["model"]
+        assert life.parks == 1
+
+
+def test_compile_endpoint_does_not_rewrite_in_raw_mode(media_app):
+    with TestClient(media_app) as c:
+        r = c.post(
+            "/generate/compile",
+            json={"kind": "image", "prompt": "red cube left of blue sphere", "prompt_mode": "raw"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["original_prompt"] == "red cube left of blue sphere"
+        assert body["effective_prompt"] == body["original_prompt"]
+        assert body["violations"] == []

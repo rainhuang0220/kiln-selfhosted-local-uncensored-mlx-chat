@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import threading
 import time
@@ -12,10 +13,12 @@ from app.config import Settings
 from app.db import get_conn
 from app.services.chat_lifecycle import ChatLifecycle
 from app.services.generation_errors import GenerationCancelled, RunResult
+from app.services.prompt_compiler import CompiledPrompt, compile_visual_prompt
 from app.services import video_presets as vp
 
 ACTIVE_STATUSES = (
     "queued",
+    "enhancing_prompt",
     "parking_chat",
     "loading",
     "generating",
@@ -48,6 +51,9 @@ def _row(r) -> dict[str, Any]:
         "backend": r["backend"],
         "status": r["status"],
         "prompt": r["prompt"],
+        "original_prompt": r["prompt"],
+        "effective_prompt": params.get("effective_prompt") or r["prompt"],
+        "prompt_mode": params.get("prompt_mode") or "raw",
         "params": params,
         "output_url": output_url,
         "error": r["error"],
@@ -65,10 +71,12 @@ class MediaService:
         settings: Settings,
         runner: Runner | None = None,
         lifecycle: ChatLifecycle | None = None,
+        compiler: Callable[..., Any] | None = None,
     ):
         self.settings = settings
         self._runner = runner
         self.lifecycle = lifecycle or ChatLifecycle(settings)
+        self._compiler = compiler
         self._lock = asyncio.Lock()
         self._cancels: dict[str, threading.Event] = {}
         Path(settings.generations_dir).mkdir(parents=True, exist_ok=True)
@@ -110,20 +118,32 @@ class MediaService:
                     "label": "Z-Image Turbo",
                     "ready": zimg_ready,
                     "default": self.settings.default_image_backend == "z-image-turbo",
+                    "checkpoint": "Tongyi-MAI/Z-Image-Turbo via mflux 4-bit",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "not_claimed",
+                    "provenance": "verified_standard_upstream",
                 },
                 {
                     "id": "flux2-klein-4b",
-                    "label": "FLUX.2 Klein 4B (faster; official text encoder may sanitize prompts)",
+                    "label": "FLUX.2 Klein 4B (official text encoder may sanitize prompts)",
                     "ready": flux_ready,
                     "default": self.settings.default_image_backend == "flux2-klein-4b",
+                    "checkpoint": "FLUX.2 Klein 4B",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "encoder_may_sanitize",
+                    "provenance": "verified_standard_upstream",
                 },
             ],
             "video": [
                 {
                     "id": "nsfw-wan-1.3b",
-                    "label": "Wan 1.3B (unfiltered)",
+                    "label": "Wan2.1 T2V 1.3B NSFW-finetuned (exp e14)",
                     "ready": mlx_ready or src_ready,
                     "default": True,
+                    "checkpoint": "wan_1.3B_exp_e14 from Wan-AI/Wan2.1-T2V-1.3B fine-tune",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "nsfw_finetune_claimed",
+                    "provenance": "verified_finetune_card",
                 }
             ],
             "video_presets": vp.public_presets(),
@@ -267,6 +287,17 @@ class MediaService:
         )
         conn.commit()
 
+    async def _compile_prompt(self, kind: str, prompt: str, mode: str) -> CompiledPrompt:
+        if self._compiler is not None:
+            result = self._compiler(kind, prompt, mode)
+            if inspect.isawaitable(result):
+                result = await result
+            if isinstance(result, CompiledPrompt):
+                return result
+            text = str(result)
+            return CompiledPrompt(original=prompt, effective=text, mode=mode, kind=kind)  # type: ignore[arg-type]
+        return compile_visual_prompt(prompt, kind, mode=mode, settings=self.settings)  # type: ignore[arg-type]
+
     def _should_park(self, kind: str) -> bool:
         if kind == "video":
             return bool(self.settings.pause_chat_for_video)
@@ -291,8 +322,25 @@ class MediaService:
         park = self._should_park(kind)
         parked = False
         cancel = self._cancels.setdefault(job_id, threading.Event())
-        self._set(job_id, status="loading", started_at=_now())
+        self._set(job_id, status="enhancing_prompt", started_at=_now())
         try:
+            if cancel.is_set():
+                raise GenerationCancelled()
+            params = dict(job.get("params") or {})
+            mode = str(params.get("prompt_mode") or "enhanced")
+            if mode not in ("raw", "enhanced"):
+                mode = "enhanced"
+            compiled = await self._compile_prompt(kind, job["prompt"], mode)
+            params["prompt_mode"] = compiled.mode
+            params["original_prompt"] = compiled.original
+            params["effective_prompt"] = compiled.effective
+            params["compiler_violations"] = compiled.violations
+            params["compiler_model"] = compiled.compiler_model
+            catalog = self.backends().get(kind) or []
+            match = next((b for b in catalog if b.get("id") == job["backend"]), None)
+            if match:
+                params["model"] = match.get("checkpoint") or match.get("label") or job["backend"]
+            self._set(job_id, params_json=json.dumps(params, ensure_ascii=False))
             if cancel.is_set():
                 raise GenerationCancelled()
             if park:
@@ -308,8 +356,8 @@ class MediaService:
                     "id": job_id,
                     "kind": kind,
                     "backend": job["backend"],
-                    "prompt": job["prompt"],
-                    "params": job["params"],
+                    "prompt": compiled.effective,
+                    "params": params,
                     "cancel": cancel,
                 }
             )

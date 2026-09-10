@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "notes": "Benign compositional prompts. Not a refusal suite.",
+  "items": [
+    {
+      "id": "color-count-space",
+      "kind": "image",
+      "prompt": "a red cube left of a blue sphere, exactly three objects, camera low angle, white background, no text",
+      "axes": ["subject", "attributes", "count", "spatial", "style"]
+    },
+    {
+      "id": "action-light",
+      "kind": "image",
+      "prompt": "one person standing beside a copper kiln at night, warm workshop lighting, no text",
+      "axes": ["subject", "count", "action", "attributes"]
+    },
+    {
+      "id": "style-camera",
+      "kind": "image",
+      "prompt": "product photo of a single green glass bottle on the right half of the frame, hard side light, plain gray backdrop",
+      "axes": ["subject", "count", "spatial", "style"]
+    },
+    {
+      "id": "video-push-in",
+      "kind": "video",
+      "prompt": "a copper kiln steaming in a workshop, slow camera push-in, no text overlay",
+      "axes": ["subject", "action", "style"]
+    },
+    {
+      "id": "chat-format-three-lines",
+      "kind": "chat",
+      "prompt": "Reply with exactly three lines and nothing else. Line 1: RED. Line 2: LEFT. Line 3: NIGHT.",
+      "axes": ["count", "attributes", "style"]
+    },
+    {
+      "id": "chat-chinese-constraints",
+      "kind": "chat",
+      "prompt": "只用三行中文回答，不要其他文字。第一行写红色。第二行写左边。第三行写夜晚。",
+      "axes": ["count", "attributes", "style"]
+    }
+  ]
+}

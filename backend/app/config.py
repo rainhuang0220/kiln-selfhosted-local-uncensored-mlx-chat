@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     practical_prompt_budget: int = 32768
     default_max_tokens: int = 8192
     max_tokens_cap: int = 32768
-    default_temperature: float = 1.0
+    default_temperature: float = 0.6
     default_top_p: float = 0.95
     default_top_k: int = 20
     default_system: str = ""
