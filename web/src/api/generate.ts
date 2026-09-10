@@ -1,7 +1,7 @@
 import { apiFetch } from "./http";
 
 export type MediaKind = "image" | "video";
-export type PromptMode = "raw" | "enhanced";
+export type PromptMode = "raw" | "enhanced" | "translate_enhance";
 
 export interface MediaBackend {
   id: string;
@@ -32,6 +32,20 @@ export interface VideoPreset {
   recommended: boolean;
 }
 
+export interface ImagePreset {
+  id: string;
+  label: string;
+  backend: string;
+  width: number;
+  height: number;
+  steps: number;
+  guidance?: number | null;
+  typical_wall_s: number;
+  typical_note: string;
+  hint: string;
+  recommended: boolean;
+}
+
 export interface MediaJob {
   id: string;
   kind: MediaKind;
@@ -55,6 +69,7 @@ export async function fetchBackends(): Promise<{
   image: MediaBackend[];
   video: MediaBackend[];
   video_presets?: VideoPreset[];
+  image_presets?: ImagePreset[];
 }> {
   const r = await apiFetch("/generate/backends");
   if (!r.ok) throw new Error(await r.text());

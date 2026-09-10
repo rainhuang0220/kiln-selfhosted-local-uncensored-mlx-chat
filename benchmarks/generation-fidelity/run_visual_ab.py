@@ -50,7 +50,7 @@ def _save_file(job: dict, dest: Path) -> None:
     dest.write_bytes(raw)
 
 
-def generate_image(item: dict, mode: str, seed: int, backend: str) -> dict:
+def generate_image(item: dict, mode: str, seed: int, backend: str, steps: int = 9, tag: str = "") -> dict:
     job = _req(
         "POST",
         "/generate",
@@ -62,13 +62,14 @@ def generate_image(item: dict, mode: str, seed: int, backend: str) -> dict:
             "seed": seed,
             "width": 1024,
             "height": 1024,
-            "steps": 9,
+            "steps": steps,
         },
     )
-    got = _wait(job["id"], 900)
+    got = _wait(job["id"], 2400)
     if got.get("status") != "done":
         raise RuntimeError(f"{item['id']} {mode} failed: {got.get('error')}")
-    out = RUNS / "image" / f"{item['id']}-{mode}.png"
+    suffix = f"{tag}-{mode}" if tag else mode
+    out = RUNS / "image" / f"{item['id']}-{suffix}.png"
     _save_file(got, out)
     return {
         "id": item["id"],
@@ -79,6 +80,8 @@ def generate_image(item: dict, mode: str, seed: int, backend: str) -> dict:
         "seed": seed,
         "output": str(out.relative_to(ROOT)),
         "wall_s": (got.get("metrics") or {}).get("wall_s"),
+        "backend": backend,
+        "steps": steps,
         "status": got["status"],
         "constraints": item["constraints"],
     }
@@ -164,6 +167,10 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=4)
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--ids", default="")
+    parser.add_argument("--backend", default="")
+    parser.add_argument("--steps", type=int, default=0)
+    parser.add_argument("--modes", default="raw,enhanced,translate_enhance")
+    parser.add_argument("--tag", default="")
     args = parser.parse_args()
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
     RUNS.mkdir(parents=True, exist_ok=True)
@@ -177,15 +184,26 @@ def main() -> None:
             items = [x for x in items if x["id"] in wanted]
         else:
             items = items[args.offset : args.offset + args.limit]
+        modes = [m.strip() for m in args.modes.split(",") if m.strip()]
+        backend = args.backend or spec["image_backend"]
+        steps = args.steps or (20 if backend == "flux1-dev" else 9)
+        tag = args.tag or backend
         for item in items:
-            for mode in ("raw", "enhanced", "translate_enhance"):
-                out = RUNS / "image" / f"{item['id']}-{mode}.png"
+            for mode in modes:
+                out = RUNS / "image" / f"{item['id']}-{tag}-{mode}.png"
+                legacy = RUNS / "image" / f"{item['id']}-{mode}.png"
+                if not out.is_file() and legacy.is_file() and tag in {"z-image-turbo", spec["image_backend"]}:
+                    out = legacy
                 if out.is_file() and out.stat().st_size > 1000:
-                    print(f"SKIP IMAGE {item['id']} {mode}", flush=True)
+                    print(f"SKIP IMAGE {item['id']} {tag} {mode}", flush=True)
                     continue
-                print(f"IMAGE {item['id']} {mode}", flush=True)
-                row = generate_image(item, mode, spec["image_seed"], spec["image_backend"])
-                manifest["image"] = [x for x in manifest["image"] if not (x["id"] == item["id"] and x["mode"] == mode)]
+                print(f"IMAGE {item['id']} {tag} {mode}", flush=True)
+                row = generate_image(item, mode, spec["image_seed"], backend, steps, tag)
+                manifest["image"] = [
+                    x
+                    for x in manifest["image"]
+                    if not (x["id"] == item["id"] and x["mode"] == mode and x.get("backend", spec["image_backend"]) == backend)
+                ]
                 manifest["image"].append(row)
                 manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
                 print(json.dumps({k: row[k] for k in ("id", "mode", "wall_s", "output")}, ensure_ascii=False), flush=True)

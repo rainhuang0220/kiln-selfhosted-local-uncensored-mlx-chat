@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     media_python: str = str(ROOT.parent / ".media-venv" / "bin" / "python")
     image_flux_dir: str = str(ROOT.parent / "image-flux2-klein-4b-mflux-4bit")
     image_zimage_dir: str = str(ROOT.parent / "image-z-image-turbo-mflux-4bit")
+    image_flux1_dev_dir: str = str(ROOT.parent / "image-flux1-dev-mflux-4bit")
     video_wan_aux_dir: str = str(ROOT.parent / "video-wan21-t2v-1.3b-aux")
     video_wan_dit: str = str(ROOT.parent / "video-nsfw-wan-1.3b" / "wan_1.3B_exp_e14.safetensors")
     video_wan_mlx_dir: str = str(ROOT.parent / "video-nsfw-wan-1.3b-mlx")

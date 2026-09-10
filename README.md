@@ -19,7 +19,7 @@ browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 - Token stats: input / output / total / occupancy
 - Model Workbench: search Hugging Face in-app, inspect a repository, download an MLX-ready checkpoint, and select it locally
 - OpenAI-compatible `POST /v1/chat/completions`
-- Local Generate: image (Z-Image Turbo, Raw/Enhanced prompt compiler) and short video (Wan2.1 1.3B). No application-layer filter; checkpoints are documented separately in [MODEL.md](MODEL.md). Do not read “uncensored” as “always follows the prompt.”
+- Local Generate: image Fast (Z-Image Turbo Q4) and Quality (FLUX.1 [dev] Q4), Raw / Enhanced / experimental Translate+Enhance, plus short video (Wan2.1 1.3B). No application-layer filter; checkpoints are documented separately in [MODEL.md](MODEL.md). Do not read “uncensored” as “always follows the prompt.”
 - Memory tables ready (retrieve stubbed; no auto-write)
 
 ## Ports on this machine

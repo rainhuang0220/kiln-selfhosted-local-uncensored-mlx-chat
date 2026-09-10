@@ -98,6 +98,17 @@ def test_generate_backends(media_app):
         ids = {x["id"] for x in body["image"]}
         assert "flux2-klein-4b" in ids
         assert "z-image-turbo" in ids
+        assert "flux1-dev" in ids
+        flux1 = next(x for x in body["image"] if x["id"] == "flux1-dev")
+        assert flux1["checkpoint_censorship"] == "not_claimed"
+        image_presets = {p["id"] for p in body["image_presets"]}
+        assert image_presets == {"fast", "quality"}
+        quality = next(p for p in body["image_presets"] if p["id"] == "quality")
+        assert quality["backend"] == "flux1-dev"
+        assert quality["steps"] == 20
+        fast_img = next(p for p in body["image_presets"] if p["id"] == "fast")
+        assert fast_img["backend"] == "z-image-turbo"
+        assert fast_img["steps"] == 9
         video_ids = {x["id"] for x in body["video"]}
         assert "nsfw-wan-1.3b" in video_ids
         zimg = next(x for x in body["image"] if x["id"] == "z-image-turbo")
@@ -347,6 +358,96 @@ def test_raw_prompt_reaches_runner_verbatim(tmp_settings, chat_service, tmp_path
         assert got["original_prompt"] == "exactly three red cubes"
         assert got["effective_prompt"] == "exactly three red cubes"
         assert got["prompt_mode"] == "raw"
+
+
+def test_image_quality_preset_uses_flux1_dev_and_parks_chat(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        seen["steps"] = (spec.get("params") or {}).get("steps")
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={"steps": seen["steps"], "seed": 42})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={
+                "kind": "image",
+                "prompt": "exactly four yellow lemons",
+                "preset": "quality",
+                "prompt_mode": "enhanced",
+                "seed": 42,
+            },
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "flux1-dev"
+        assert seen["backend"] == "flux1-dev"
+        assert int(seen["steps"] or 0) == 20
+        assert life.parks == 1
+        assert life.restores >= 1
+
+
+def test_image_quality_preset_overrides_conflicting_backend(tmp_settings, chat_service, tmp_path: Path):
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={
+                "kind": "image",
+                "prompt": "exactly four yellow lemons",
+                "preset": "quality",
+                "backend": "z-image-turbo",
+                "prompt_mode": "raw",
+            },
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "flux1-dev"
+        assert seen["backend"] == "flux1-dev"
+
+
+def test_image_fast_preset_keeps_zimage_and_does_not_park(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "image", "prompt": "a copper kiln", "preset": "fast", "prompt_mode": "raw"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "z-image-turbo"
+        assert seen["backend"] == "z-image-turbo"
+        assert life.parks == 0
 
 
 def test_video_enhances_before_parking_chat(tmp_settings, chat_service, tmp_path: Path):

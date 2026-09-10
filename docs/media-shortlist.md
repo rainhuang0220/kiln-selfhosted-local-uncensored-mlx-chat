@@ -6,8 +6,9 @@ Chat remains Hauhau Qwen3.5-9B on `:8081`. Image and video workers load on deman
 
 | Backend | Role |
 | --- | --- |
-| Z-Image Turbo, mflux 4-bit | Default. Unfiltered generation on the tested prompts. |
-| FLUX.2 Klein 4B | Optional faster path. Official text encoder may silently sanitize prompts. |
+| Z-Image Turbo, mflux 4-bit | **Fast** (default). Chat stays up. Weaker exact count and action landing. |
+| FLUX.1 [dev] Q4, mflux | **Quality**. 12B prior, 20 steps, guidance 3.5. Chat parks. FLUX.1 [dev] Non-Commercial License. |
+| FLUX.2 Klein 4B | Optional leftover. Official text encoder may silently sanitize prompts. |
 
 ## Video
 

@@ -14,6 +14,7 @@ from app.db import get_conn
 from app.services.chat_lifecycle import ChatLifecycle
 from app.services.generation_errors import GenerationCancelled, RunResult
 from app.services.prompt_compiler import CompiledPrompt, compile_visual_prompt
+from app.services import image_presets as ip
 from app.services import video_presets as vp
 
 ACTIVE_STATUSES = (
@@ -29,7 +30,7 @@ ACTIVE_STATUSES = (
 TERMINAL = {"done", "failed", "cancelled", "interrupted"}
 IN_FLIGHT = tuple(s for s in ACTIVE_STATUSES if s != "queued")
 
-IMAGE_BACKENDS = ("flux2-klein-4b", "z-image-turbo")
+IMAGE_BACKENDS = ("z-image-turbo", "flux1-dev", "flux2-klein-4b")
 VIDEO_BACKENDS = ("nsfw-wan-1.3b",)
 
 Runner = Callable[[dict[str, Any]], Awaitable[RunResult]]
@@ -84,6 +85,7 @@ class MediaService:
     def backends(self) -> dict[str, Any]:
         flux = Path(self.settings.image_flux_dir)
         zimg = Path(self.settings.image_zimage_dir)
+        flux1 = Path(self.settings.image_flux1_dev_dir)
         dit = Path(self.settings.video_wan_dit)
         aux = Path(self.settings.video_wan_aux_dir)
         mlx_dir = Path(self.settings.video_wan_mlx_dir)
@@ -99,6 +101,9 @@ class MediaService:
                 "vae/0.safetensors",
             )
         )
+        flux1_files = list((flux1 / "transformer").glob("*.safetensors")) if (flux1 / "transformer").is_dir() else []
+        flux1_vae = list((flux1 / "vae").glob("*.safetensors")) if (flux1 / "vae").is_dir() else []
+        flux1_ready = bool(flux1_files) and flux1_files[0].stat().st_size > 50_000_000 and bool(flux1_vae)
         mlx_ready = all(
             (mlx_dir / name).is_file()
             for name in ("config.json", "model.safetensors", "t5_encoder.safetensors", "vae.safetensors")
@@ -124,6 +129,17 @@ class MediaService:
                     "provenance": "verified_standard_upstream",
                 },
                 {
+                    "id": "flux1-dev",
+                    "label": "FLUX.1 [dev] Q4 (Quality)",
+                    "ready": flux1_ready,
+                    "default": self.settings.default_image_backend == "flux1-dev",
+                    "checkpoint": "black-forest-labs/FLUX.1-dev via mflux 4-bit",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "not_claimed",
+                    "provenance": "verified_standard_upstream",
+                    "license": "FLUX.1 [dev] Non-Commercial License",
+                },
+                {
                     "id": "flux2-klein-4b",
                     "label": "FLUX.2 Klein 4B (official text encoder may sanitize prompts)",
                     "ready": flux_ready,
@@ -134,6 +150,7 @@ class MediaService:
                     "provenance": "verified_standard_upstream",
                 },
             ],
+            "image_presets": ip.public_presets(),
             "video": [
                 {
                     "id": "nsfw-wan-1.3b",
@@ -213,6 +230,7 @@ class MediaService:
         if not prompt:
             raise ValueError("prompt is required")
         if kind == "image":
+            params, backend = ip.resolve(params, backend)
             backend = backend or self.settings.default_image_backend
             if backend not in IMAGE_BACKENDS:
                 raise ValueError(f"unknown image backend: {backend}")
@@ -300,9 +318,11 @@ class MediaService:
             compile_visual_prompt, prompt, kind, mode, None, self.settings
         )
 
-    def _should_park(self, kind: str) -> bool:
+    def _should_park(self, kind: str, backend: str | None = None) -> bool:
         if kind == "video":
             return bool(self.settings.pause_chat_for_video)
+        if backend == "flux1-dev":
+            return True
         return bool(self.settings.pause_chat_for_image)
 
     async def pump(self) -> None:
@@ -321,7 +341,7 @@ class MediaService:
     async def _run_job(self, job: dict[str, Any]) -> None:
         job_id = job["id"]
         kind = job["kind"]
-        park = self._should_park(kind)
+        park = self._should_park(kind, job.get("backend"))
         parked = False
         cancel = self._cancels.setdefault(job_id, threading.Event())
         self._set(job_id, status="enhancing_prompt", started_at=_now())

@@ -60,6 +60,24 @@ def test_constraint_score_schema_exists():
     assert "PASS" in schema["properties"]["constraints"]["items"]["properties"]["verdict"]["enum"]
 
 
+def test_visual_ab_runner_can_target_flux1_dev():
+    text = (ROOT / "benchmarks" / "generation-fidelity" / "run_visual_ab.py").read_text(encoding="utf-8")
+    assert "--backend" in text
+    assert "flux1-dev" in text
+
+
+def test_image_presets_quality_selects_flux1_dev():
+    from app.services.image_presets import resolve
+
+    params, backend = resolve({"preset": "quality", "seed": 42}, "z-image-turbo")
+    assert backend == "flux1-dev"
+    assert params["steps"] == 20
+    assert params["guidance"] == 3.5
+    fast, fast_backend = resolve({"preset": "fast"}, None)
+    assert fast_backend == "z-image-turbo"
+    assert fast["steps"] == 9
+
+
 def test_fidelity_schema_has_required_axes():
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     required = set(schema["properties"]["scores"]["required"])

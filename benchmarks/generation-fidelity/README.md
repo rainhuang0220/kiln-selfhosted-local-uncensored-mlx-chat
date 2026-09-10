@@ -48,10 +48,11 @@ The runner only prints the public prompt set. Generation is manual or via Kiln R
 ```bash
 python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --limit 4
 python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --ids img-action-zh,img-spatial-zh,img-count-en,img-camera-zh
+python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --backend flux1-dev --steps 20 --modes enhanced --tag flux1-dev
 python3 benchmarks/generation-fidelity/run_visual_ab.py --kind video --limit 2
 ```
 
-Image modes are `raw`, `enhanced`, and experimental `translate_enhance` (Chinese → English → enhance). Do not make Translate+Enhance the default unless visual A/B shows a clear adherence win.
+Image modes are `raw`, `enhanced`, and experimental `translate_enhance` (Chinese → English → enhance). Do not make Translate+Enhance the default unless visual A/B shows a clear adherence win. Image Fast is `z-image-turbo`; Image Quality is `flux1-dev`.
 
 Score constraint satisfaction, not prettiness. Open `runs/contact-sheet.html` for side-by-side Raw vs Enhanced.
 

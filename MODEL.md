@@ -43,7 +43,9 @@ Kiln does not apply an application-layer safety filter on Chat, Image, or Video.
 | Path | Checkpoint | Provenance | Censorship claim |
 | --- | --- | --- | --- |
 | Chat | HauhauCS Qwen3.5-9B Aggressive MLX mxfp4, revision `a9e5f6d9…` | Verified against the pinned Hub card | Upstream card claims refusal removal (`0/465`). Kiln does not re-run that suite. |
-| Image | Tongyi-MAI Z-Image-Turbo via mflux 4-bit | Standard upstream | **Not claimed uncensored.** FLUX.2 Klein’s official text encoder may sanitize prompts. |
+| Image Fast | Tongyi-MAI Z-Image-Turbo via mflux 4-bit | Standard upstream | **Not claimed uncensored.** |
+| Image Quality | black-forest-labs/FLUX.1-dev via mflux 4-bit (local pack `image-flux1-dev-mflux-4bit`) | Standard upstream, Non-Commercial License | **Not claimed uncensored.** Chat parks during Quality. Measured ~10–12 min / 1024² / 20 steps. Better exact count than Z-Image; still misses jump-onto-table. |
+| Image leftover | FLUX.2 Klein 4B | Standard upstream | Official text encoder may sanitize prompts. |
 | Video | `wan_1.3B_exp_e14` fine-tune of Wan-AI/Wan2.1-T2V-1.3B | Card in `video-nsfw-wan-1.3b/README.md` | NSFW fine-tune claimed by the trainer. Directory name is not the evidence. Runtime still applies Wan’s default **quality** negative prompt (oversaturation / artifacts / extra fingers), not an NSFW blocklist. T5 `text_len` is 512 tokens. |
 
 Do not write “Kiln is fully uncensored.”

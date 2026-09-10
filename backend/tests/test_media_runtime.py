@@ -66,6 +66,45 @@ def test_zimage_prompt_is_a_single_argv_element(tmp_settings, tmp_path, monkeypa
     assert all(isinstance(x, str) for x in cmd)
 
 
+def test_flux1_dev_uses_mflux_generate_low_ram(tmp_settings, tmp_path, monkeypatch):
+    model = tmp_path / "flux1"
+    (model / "transformer").mkdir(parents=True)
+    (model / "transformer" / "0.safetensors").write_bytes(b"x" * 200)
+    tmp_settings.image_flux1_dev_dir = str(model)
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    captured: dict = {}
+
+    def fake_which(name, path=None):
+        if name == "mflux-generate":
+            return "/fake/mflux-generate"
+        return None
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        Path(cmd[cmd.index("--output") + 1]).write_bytes(b"x")
+        return _Ok()
+
+    monkeypatch.setattr("app.services.media_runtime.shutil.which", fake_which)
+    monkeypatch.setattr("app.services.media_runtime._run_cancellable", fake_run)
+    result = _run_image(
+        tmp_settings,
+        {
+            "id": "j2",
+            "kind": "image",
+            "backend": "flux1-dev",
+            "prompt": "exactly four yellow lemons on a plate",
+            "params": {"width": 1024, "height": 1024, "steps": 20, "seed": 42, "guidance": 3.5},
+        },
+    )
+    cmd = captured["cmd"]
+    assert cmd[0] == "/fake/mflux-generate"
+    assert cmd[cmd.index("--prompt") + 1] == "exactly four yellow lemons on a plate"
+    assert cmd[cmd.index("--steps") + 1] == "20"
+    assert cmd[cmd.index("--guidance") + 1] == "3.5"
+    assert "--low-ram" in cmd
+    assert result.metrics["backend"] == "flux1-dev"
+
+
 def test_video_argv_includes_shift_and_verbatim_prompt(tmp_settings, tmp_path, monkeypatch):
     mlx_dir = tmp_path / "wan-mlx"
     mlx_dir.mkdir()
