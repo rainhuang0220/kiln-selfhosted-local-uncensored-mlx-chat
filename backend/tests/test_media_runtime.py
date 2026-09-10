@@ -1,10 +1,37 @@
 from pathlib import Path
 
-from app.services.media_runtime import _run_image, _run_video
+from app.services.media_runtime import _port_open, _run_image, _run_video
 
 
 class _Ok:
     returncode = 0
+
+
+def test_wan_teacache_module_imports():
+    from app.services import wan_teacache
+
+    assert wan_teacache.COEFFS_1_3B
+
+
+def test_port_open_does_not_require_lsof(monkeypatch):
+    import socket
+
+    class FakeSock:
+        def settimeout(self, _t):
+            return None
+
+        def connect_ex(self, addr):
+            assert addr[1] == 8081
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(socket, "socket", lambda *a, **k: FakeSock())
+    assert _port_open(8081) is True
 
 
 def test_zimage_prompt_is_a_single_argv_element(tmp_settings, tmp_path, monkeypatch):

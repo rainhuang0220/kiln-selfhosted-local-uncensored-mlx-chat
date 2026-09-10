@@ -296,7 +296,9 @@ class MediaService:
                 return result
             text = str(result)
             return CompiledPrompt(original=prompt, effective=text, mode=mode, kind=kind)  # type: ignore[arg-type]
-        return compile_visual_prompt(prompt, kind, mode=mode, settings=self.settings)  # type: ignore[arg-type]
+        return await asyncio.to_thread(
+            compile_visual_prompt, prompt, kind, mode, None, self.settings
+        )
 
     def _should_park(self, kind: str) -> bool:
         if kind == "video":

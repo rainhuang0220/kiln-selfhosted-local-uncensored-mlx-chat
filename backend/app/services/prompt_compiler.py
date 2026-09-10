@@ -9,6 +9,7 @@ from typing import Callable, Literal
 from urllib.request import Request, urlopen
 
 from app.config import Settings, settings as default_settings
+from app.services.constraint_verifier import structured_violations
 
 Kind = Literal["image", "video"]
 Mode = Literal["raw", "enhanced"]
@@ -158,7 +159,7 @@ def compile_visual_prompt(
         raise RuntimeError(f"prompt compiler unavailable; retry with Raw mode ({exc})") from exc
     if not drafted:
         raise RuntimeError("prompt compiler returned an empty completion")
-    violations = preservation_violations(text, drafted)
+    violations = preservation_violations(text, drafted) + structured_violations(text, drafted)
     if violations:
         return CompiledPrompt(
             original=text,

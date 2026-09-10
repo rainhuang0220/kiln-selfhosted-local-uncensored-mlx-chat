@@ -37,13 +37,13 @@ def _run(
     )
 
 
-def _port_open(port: int) -> bool:
-    probe = subprocess.run(
-        ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-        capture_output=True,
-        text=True,
-    )
-    return probe.returncode == 0 and bool(probe.stdout.strip())
+def _port_open(port: int, host: str = "127.0.0.1") -> bool:
+    # LaunchAgents often have a PATH without /usr/sbin/lsof. Probe with a socket.
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.3)
+        return sock.connect_ex((host, port)) == 0
 
 
 def pause_mlx(settings: Settings) -> None:

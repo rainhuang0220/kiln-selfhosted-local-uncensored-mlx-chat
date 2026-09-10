@@ -40,3 +40,23 @@ python3 benchmarks/generation-fidelity/run.py --list
 ```
 
 The runner only prints the public prompt set. Generation is manual or via Kiln Raw/Enhanced with a fixed seed so later model swaps are comparable.
+
+## Visual A/B
+
+`visual_ab.json` is a larger benign set (Chinese, English, mixed, multi-constraint). Outputs go to `runs/` and must not be committed.
+
+```bash
+python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --limit 4
+python3 benchmarks/generation-fidelity/run_visual_ab.py --kind image --offset 4 --limit 4
+python3 benchmarks/generation-fidelity/run_visual_ab.py --kind video --limit 2
+```
+
+Score constraint satisfaction, not prettiness. Open `runs/contact-sheet.html` for side-by-side Raw vs Enhanced.
+
+Filled score cards stay out of git (`data/private-evals/`, `runs/`). Aggregate with:
+
+```bash
+python3 benchmarks/generation-fidelity/summarize_scores.py path/to/scores.json
+```
+
+`*.png` / `*.mp4` / `runs/` are gitignored. Do not commit generated media or private prompts.

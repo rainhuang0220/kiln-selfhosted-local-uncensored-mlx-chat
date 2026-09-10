@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "notes": "Benign visual A/B. Not a refusal suite. Do not commit outputs.",
+  "image_seed": 42,
+  "image_backend": "z-image-turbo",
+  "image": [
+    {
+      "id": "img-action-zh",
+      "family": "single_subject_action",
+      "lang": "zh",
+      "prompt": "一只橙色的短毛猫正从地面跳上木质餐桌。",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "subject is an orange shorthair cat"},
+        {"id": "C2", "axis": "action", "text": "the cat is jumping / mid-leap"},
+        {"id": "C3", "axis": "spatial", "text": "destination is a wooden dining table"},
+        {"id": "C4", "axis": "action", "text": "motion is from the floor onto the table"}
+      ]
+    },
+    {
+      "id": "img-spatial-zh",
+      "family": "two_subjects_spatial",
+      "lang": "zh",
+      "prompt": "一辆红色小轿车停在一辆蓝色自行车的左边，白天的停车场。",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "there is a red car"},
+        {"id": "C2", "axis": "subject", "text": "there is a blue bicycle"},
+        {"id": "C3", "axis": "spatial", "text": "the red car is to the left of the blue bicycle"},
+        {"id": "C4", "axis": "attribute", "text": "it is daytime"},
+        {"id": "C5", "axis": "attribute", "text": "setting is a parking lot"}
+      ]
+    },
+    {
+      "id": "img-count-en",
+      "family": "exact_count",
+      "lang": "en",
+      "prompt": "Exactly four yellow lemons rest on a round white plate. No other fruit.",
+      "constraints": [
+        {"id": "C1", "axis": "count", "text": "exactly four lemons"},
+        {"id": "C2", "axis": "attribute", "text": "lemons are yellow"},
+        {"id": "C3", "axis": "subject", "text": "they sit on a round white plate"},
+        {"id": "C4", "axis": "count", "text": "no other fruit is present"}
+      ]
+    },
+    {
+      "id": "img-attrs-zh",
+      "family": "multi_attribute",
+      "lang": "zh",
+      "prompt": "一个穿绿色雨衣、戴黄色帽子的小女孩，右手握着一把透明雨伞，站在湿漉漉的人行道上。",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "subject is a young girl"},
+        {"id": "C2", "axis": "attribute", "text": "she wears a green raincoat"},
+        {"id": "C3", "axis": "attribute", "text": "she wears a yellow hat"},
+        {"id": "C4", "axis": "attribute", "text": "a transparent umbrella is in her right hand"},
+        {"id": "C5", "axis": "action", "text": "she is standing"},
+        {"id": "C6", "axis": "attribute", "text": "the sidewalk is wet"}
+      ]
+    },
+    {
+      "id": "img-person-en",
+      "family": "person_action",
+      "lang": "en",
+      "prompt": "A male chef in a white jacket is tossing a round pizza dough above his head inside a small restaurant kitchen.",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "subject is a male chef"},
+        {"id": "C2", "axis": "attribute", "text": "he wears a white jacket"},
+        {"id": "C3", "axis": "action", "text": "he is tossing pizza dough above his head"},
+        {"id": "C4", "axis": "attribute", "text": "setting is a restaurant kitchen"}
+      ]
+    },
+    {
+      "id": "img-camera-zh",
+      "family": "camera_composition",
+      "lang": "zh",
+      "prompt": "从正上方俯视一张圆形木桌，桌上只有一只白色咖啡杯，没有其他物体。",
+      "constraints": [
+        {"id": "C1", "axis": "camera", "text": "camera is directly overhead / top-down"},
+        {"id": "C2", "axis": "subject", "text": "there is a round wooden table"},
+        {"id": "C3", "axis": "count", "text": "exactly one white coffee cup"},
+        {"id": "C4", "axis": "count", "text": "no other objects on the table"}
+      ]
+    },
+    {
+      "id": "img-long-zh",
+      "family": "long_chinese",
+      "lang": "zh",
+      "prompt": "傍晚的海边木栈道上，一位穿米色风衣的女人站在栏杆边看向左侧的海面，身边有一只黑色的狗坐着，天空有橙色晚霞，画面中不要出现文字。",
+      "constraints": [
+        {"id": "C1", "axis": "attribute", "text": "time is dusk / evening"},
+        {"id": "C2", "axis": "attribute", "text": "setting is a seaside wooden boardwalk"},
+        {"id": "C3", "axis": "subject", "text": "a woman in a beige coat"},
+        {"id": "C4", "axis": "action", "text": "she is standing by a railing looking left toward the sea"},
+        {"id": "C5", "axis": "subject", "text": "a black dog is beside her"},
+        {"id": "C6", "axis": "action", "text": "the dog is sitting"},
+        {"id": "C7", "axis": "attribute", "text": "the sky has orange sunset color"},
+        {"id": "C8", "axis": "style", "text": "no text in the image"}
+      ]
+    },
+    {
+      "id": "img-many-mix",
+      "family": "many_constraints",
+      "lang": "zh-en",
+      "prompt": "夜晚室内，恰好三个人围坐在一张方桌旁：左边的男人穿蓝衬衫，中间的女人穿红毛衣，右边的孩子戴黄帽子。桌上有两只杯子。camera at eye level. 不要文字。",
+      "constraints": [
+        {"id": "C1", "axis": "attribute", "text": "nighttime indoor scene"},
+        {"id": "C2", "axis": "count", "text": "exactly three people"},
+        {"id": "C3", "axis": "action", "text": "they are sitting around a square table"},
+        {"id": "C4", "axis": "attribute", "text": "left: man in a blue shirt"},
+        {"id": "C5", "axis": "attribute", "text": "middle: woman in a red sweater"},
+        {"id": "C6", "axis": "attribute", "text": "right: child wearing a yellow hat"},
+        {"id": "C7", "axis": "count", "text": "exactly two cups on the table"},
+        {"id": "C8", "axis": "camera", "text": "eye-level camera"},
+        {"id": "C9", "axis": "style", "text": "no text"}
+      ]
+    }
+  ],
+  "video_seed": 7,
+  "video_backend": "nsfw-wan-1.3b",
+  "video": [
+    {
+      "id": "vid-sit-zh",
+      "lang": "zh-en",
+      "prompt": "一个穿灰色外套的男人先站在一扇关着的木门前，然后向右走三步，坐到一把木椅上。camera remains static.",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "subject is a man in a gray coat"},
+        {"id": "C2", "axis": "action", "text": "he first stands in front of a closed wooden door"},
+        {"id": "C3", "axis": "action", "text": "he then walks to the right about three steps"},
+        {"id": "C4", "axis": "action", "text": "he sits down on a wooden chair"},
+        {"id": "C5", "axis": "camera", "text": "camera stays static"}
+      ]
+    },
+    {
+      "id": "vid-car-en",
+      "lang": "en",
+      "prompt": "A red hatchback travels from the left side of the frame to the right on an empty daytime street while the camera slowly pans with the car. No other vehicles.",
+      "constraints": [
+        {"id": "C1", "axis": "subject", "text": "subject is a red hatchback"},
+        {"id": "C2", "axis": "action", "text": "the car moves from left to right"},
+        {"id": "C3", "axis": "camera", "text": "camera slowly pans with the car"},
+        {"id": "C4", "axis": "count", "text": "no other vehicles"},
+        {"id": "C5", "axis": "attribute", "text": "daytime empty street"}
+      ]
+    }
+  ]
+}

@@ -80,6 +80,34 @@ def test_enhanced_falls_back_to_original_if_model_rewrites():
     assert got.violations
 
 
+def test_enhanced_falls_back_when_chinese_constraints_lost():
+    def complete(system, user):
+        return "a blue car to the right of a red car in daylight, four people sitting"
+
+    original = "画面里必须恰好有三个人。红色汽车在蓝色汽车左侧。人物站着，不要坐下。场景发生在夜晚。"
+    got = compile_visual_prompt(original, "image", mode="enhanced", complete_fn=complete)
+    assert got.effective == original
+    assert got.violations
+
+
+def test_enhanced_keeps_chinese_when_english_preserves_facts():
+    def complete(system, user):
+        return (
+            "SUBJECT: exactly three people; a red car to the left of a blue car. "
+            "ACTION: the people are standing, not sitting. "
+            "ENVIRONMENT: nighttime. CONSTRAINTS: keep count three, left-of, standing, night."
+        )
+
+    original = "画面里必须恰好有三个人。红色汽车在蓝色汽车左侧。人物站着，不要坐下。场景发生在夜晚。"
+    got = compile_visual_prompt(original, "image", mode="enhanced", complete_fn=complete)
+    assert got.effective != original
+    assert got.violations == []
+    assert "three" in got.effective.lower()
+    assert "left" in got.effective.lower()
+    assert "standing" in got.effective.lower()
+    assert "night" in got.effective.lower()
+
+
 def test_video_prompt_asks_for_time_and_camera():
     captured = {}
 

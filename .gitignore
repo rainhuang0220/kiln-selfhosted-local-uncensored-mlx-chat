@@ -32,6 +32,10 @@ scripts/com.kiln.web-tunnel.plist
 secrets/
 *.log
 *.mp4
+*.png
+*.jpg
+*.jpeg
+*.webp
 benchmarks/video/*
 !benchmarks/video/summary.json
 benchmarks/generation-fidelity/runs/
