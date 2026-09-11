@@ -16,6 +16,7 @@ def test_low_effort_cuts_long_thinking(tmp_settings, fake_provider, client):
 
     fake_provider.stream = long_think  # type: ignore[method-assign]
     tmp_settings.thinking_budget_low = 32
+    tmp_settings.thinking_continuation = True
     with client.stream(
         "POST",
         "/chat",
@@ -41,7 +42,10 @@ def test_health(client):
     assert body["status"] == "ok"
     assert body["model"] == "qwen3.5-9b-hauhau-aggressive-mxfp4"
     assert body["practical_prompt_budget"] >= 32768
-    assert body["default_max_tokens"] >= 8192
+    assert body["default_max_tokens"] >= 1024
+    assert body["default_max_tokens"] <= 2048
+    assert body["enable_thinking"] is False
+    assert body["default_profile"] == "interactive_dialogue"
     assert body["max_tokens_cap"] >= 32768
 
 
@@ -224,3 +228,45 @@ def test_openai_compat_stateless(client, fake_provider):
     body = r.json()
     assert body["object"] == "chat.completion"
     assert "echo:ping" in body["choices"][0]["message"]["content"]
+
+
+def test_openai_compat_forwards_sampling(client, fake_provider):
+    r = client.post(
+        "/v1/chat/completions",
+        json={
+            "messages": [{"role": "user", "content": "ping"}],
+            "stream": False,
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "top_k": 40,
+            "min_p": 0.0,
+            "presence_penalty": 0.5,
+            "repetition_penalty": 1.05,
+        },
+    )
+    assert r.status_code == 200, r.text
+    req = fake_provider.calls[-1]
+    assert req.temperature == 0.8
+    assert req.top_p == 0.9
+    assert req.top_k == 40
+    assert req.presence_penalty == 0.5
+    assert req.repetition_penalty == 1.05
+
+
+def test_openai_stream_eof_does_not_claim_stop(client, fake_provider):
+    async def eof(_request):
+        from app.providers.base import ChatChunk
+
+        yield ChatChunk(id="x", model="fake", delta_content="partial")
+        yield ChatChunk(id="x", model="fake", http_eof=True)
+
+    fake_provider.stream = eof  # type: ignore[method-assign]
+    r = client.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "ping"}], "stream": True},
+    )
+    assert r.status_code == 200
+    assert "interrupted_transport" in r.text
+    assert '"finish_reason": "stop"' not in r.text or r.text.rfind("interrupted_transport") > r.text.rfind(
+        '"finish_reason": "stop"'
+    )

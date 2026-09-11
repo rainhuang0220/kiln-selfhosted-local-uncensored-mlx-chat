@@ -7,7 +7,9 @@ import { ModelWorkbench } from "./components/ModelWorkbench";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
+import { PROFILE_LABELS, isIncompleteTerminal, terminalCopy } from "./lib/profiles";
 import { useChatStore } from "./stores/chat-store";
+import type { GenerationProfile } from "./types/chat";
 
 const STARTERS = [
   "Explain this machine's local Qwen setup in one paragraph.",
@@ -410,11 +412,16 @@ export function App() {
                       <span>↑ {formatTokens(m.usage.input)}</span>
                       <span>↓ {formatTokens(m.usage.output)}</span>
                       <span>Σ {formatTokens(m.usage.total)}</span>
-                      {m.usage.tokensPerSecond ? (
-                        <span>{m.usage.tokensPerSecond.toFixed(1)} tok/s</span>
+                      {m.usage.ttftMs != null ? <span>TTFT {m.usage.ttftMs}ms</span> : null}
+                      {m.usage.decodeTokensPerSec != null ? (
+                        <span>decode {m.usage.decodeTokensPerSec.toFixed(1)} tok/s</span>
+                      ) : m.usage.effectiveOutputTokensPerSec != null ? (
+                        <span>out {m.usage.effectiveOutputTokensPerSec.toFixed(1)} tok/s</span>
                       ) : null}
-                      {m.finish_reason === "length" ? (
-                        <span style={{ color: "var(--copper-2)" }}>hit max tokens</span>
+                      {terminalCopy(m.finish_reason, m.terminal_state) ? (
+                        <span style={{ color: "var(--copper-2)" }}>
+                          {terminalCopy(m.finish_reason, m.terminal_state)}
+                        </span>
                       ) : null}
                     </div>
                   ) : null}
@@ -431,9 +438,13 @@ export function App() {
                           <button className="btn ghost" onClick={() => void store.send("regenerate")}>
                             Regenerate
                           </button>
-                          {m.status === "error" || m.status === "interrupted" ? (
-                            <button className="btn ghost" onClick={() => void store.send("regenerate")}>
-                              Retry
+                          {m.incomplete ||
+                          m.status === "error" ||
+                          m.status === "interrupted" ||
+                          isIncompleteTerminal(m.finish_reason, m.terminal_state) ||
+                          m.finish_reason === "length" ? (
+                            <button className="btn ghost" onClick={() => void store.send("continue")}>
+                              Continue
                             </button>
                           ) : null}
                         </>
@@ -528,38 +539,100 @@ export function App() {
             />
             <div className="composer-bar">
               <div className="toggles">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={store.params.enableThinking}
-                    onChange={(e) => store.setParams({ enableThinking: e.target.checked })}
-                  />
-                  thinking
-                </label>
                 <select
-                  value={store.params.reasoningEffort}
-                  onChange={(e) =>
-                    store.setParams({
-                      reasoningEffort: e.target.value as "low" | "medium" | "xhigh",
-                    })
-                  }
+                  value={store.params.profile}
+                  onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
+                  aria-label="Generation profile"
                 >
-                  <option value="low">low</option>
-                  <option value="medium">mid</option>
-                  <option value="xhigh">max</option>
+                  {(Object.keys(PROFILE_LABELS) as GenerationProfile[]).map((key) => (
+                    <option key={key} value={key}>
+                      {PROFILE_LABELS[key]}
+                    </option>
+                  ))}
                 </select>
-                <label>
-                  max
-                  <input
-                    type="number"
-                    min={64}
-                    max={store.health?.max_tokens_cap || 32768}
-                    step={64}
-                    value={store.params.maxTokens}
-                    onChange={(e) => store.setParams({ maxTokens: Number(e.target.value) })}
-                    style={{ width: 80, background: "transparent", border: 0, color: "inherit" }}
-                  />
-                </label>
+                <details className="advanced">
+                  <summary>Advanced</summary>
+                  <div className="advanced-grid">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={store.params.enableThinking}
+                        onChange={(e) => store.setParams({ enableThinking: e.target.checked })}
+                      />
+                      thinking
+                    </label>
+                    <label>
+                      effort
+                      <select
+                        value={store.params.reasoningEffort}
+                        onChange={(e) =>
+                          store.setParams({
+                            reasoningEffort: e.target.value as "low" | "medium" | "xhigh",
+                          })
+                        }
+                      >
+                        <option value="low">low</option>
+                        <option value="medium">mid</option>
+                        <option value="xhigh">max</option>
+                      </select>
+                    </label>
+                    <label>
+                      temp
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.05}
+                        value={store.params.temperature}
+                        onChange={(e) => store.setParams({ temperature: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      top_p
+                      <input
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={store.params.topP}
+                        onChange={(e) => store.setParams({ topP: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      presence
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        value={store.params.presencePenalty}
+                        onChange={(e) => store.setParams({ presencePenalty: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      repetition
+                      <input
+                        type="number"
+                        min={1}
+                        max={1.3}
+                        step={0.01}
+                        value={store.params.repetitionPenalty}
+                        onChange={(e) => store.setParams({ repetitionPenalty: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      max
+                      <input
+                        type="number"
+                        min={64}
+                        max={store.health?.max_tokens_cap || 32768}
+                        step={64}
+                        value={store.params.maxTokens}
+                        onChange={(e) => store.setParams({ maxTokens: Number(e.target.value) })}
+                      />
+                    </label>
+                  </div>
+                </details>
                 <label className="file-btn">
                   file
                   <input
@@ -775,10 +848,18 @@ function Inspector() {
           <b>{formatTokens(last?.usage?.total)}</b>
           <span>cached</span>
           <b>{formatTokens(last?.usage?.cached)}</b>
-          <span>tok/s</span>
+          <span>TTFT</span>
+          <b>{last?.usage?.ttftMs != null ? `${last.usage.ttftMs}ms` : "—"}</b>
+          <span>decode tok/s</span>
           <b>
-            {last?.usage?.tokensPerSecond != null
-              ? last.usage.tokensPerSecond.toFixed(1)
+            {last?.usage?.decodeTokensPerSec != null
+              ? last.usage.decodeTokensPerSec.toFixed(1)
+              : "—"}
+          </b>
+          <span>effective tok/s</span>
+          <b>
+            {last?.usage?.effectiveOutputTokensPerSec != null
+              ? last.usage.effectiveOutputTokensPerSec.toFixed(1)
               : "—"}
           </b>
         </div>

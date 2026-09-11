@@ -25,7 +25,9 @@ from app.services.chat import ChatService
 from app.services.chat_lifecycle import parked_http_body
 from app.services.media import MediaService
 from app.services.memory import MemoryService
+from app.services.heartbeat import iterate_with_heartbeats
 from app.services.sampling import resolve_sampling
+from app.services.stream_protocol import StreamLedger
 from app.services.models import ModelManager
 from app.services.tokens import TokenEstimator
 
@@ -36,14 +38,24 @@ class ChatBody(BaseModel):
     message: str = ""
     conversation_id: str | None = None
     regenerate: bool = False
+    continue_generation: bool = False
+    profile: str | None = None
     system: str | None = None
     stream: bool = True
     temperature: float | None = None
     top_p: float | None = None
     top_k: int | None = None
+    min_p: float | None = None
+    presence_penalty: float | None = None
+    presence_context_size: int | None = None
+    frequency_penalty: float | None = None
+    frequency_context_size: int | None = None
+    repetition_penalty: float | None = None
+    repetition_context_size: int | None = None
     max_tokens: int | None = None
     enable_thinking: bool | None = None
     reasoning_effort: str | None = None
+    thinking_continuation: bool | None = None
 
 
 class RenameBody(BaseModel):
@@ -101,12 +113,20 @@ class OpenAIChatBody(BaseModel):
     temperature: float | None = None
     top_p: float | None = None
     top_k: int | None = None
+    min_p: float | None = None
+    presence_penalty: float | None = None
+    presence_context_size: int | None = None
+    frequency_penalty: float | None = None
+    frequency_context_size: int | None = None
+    repetition_penalty: float | None = None
+    repetition_context_size: int | None = None
     max_tokens: int | None = None
     stream: bool = False
     stream_options: dict[str, Any] | None = None
     conversation_id: str | None = None
     store: bool = False
     enable_thinking: bool | None = None
+    profile: str | None = None
     tools: list[dict[str, Any]] | None = None
 
 
@@ -232,6 +252,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             "default_max_tokens": cfg.default_max_tokens,
             "max_tokens_cap": cfg.max_tokens_cap,
             "enable_thinking": cfg.enable_thinking,
+            "default_profile": cfg.default_profile,
         }
 
     @app.get("/auth/status")
@@ -369,7 +390,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         q: str = Query(""),
         limit: int = Query(20, ge=1, le=100),
     ):
-        recs = request.app.state.chat.memory.search(q, limit=limit)
+        recs = request.app.state.chat.memory.search(
+            q, limit=limit, owner_id=_owner(request)
+        )
         return {
             "object": "list",
             "data": [
@@ -395,6 +418,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 key=body.key,
                 content=body.content,
                 importance=body.importance,
+                user_id=_owner(request),
             )
         )
         return {"id": rec.id, "content": rec.content}
@@ -412,30 +436,44 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             return parked
         svc: ChatService = request.app.state.chat
 
+        def _chat_kwargs(**extra: Any) -> dict[str, Any]:
+            return {
+                "message": body.message,
+                "conversation_id": body.conversation_id,
+                "regenerate": body.regenerate,
+                "continue_generation": body.continue_generation,
+                "profile": body.profile,
+                "system": body.system,
+                "temperature": body.temperature,
+                "top_p": body.top_p,
+                "top_k": body.top_k,
+                "min_p": body.min_p,
+                "presence_penalty": body.presence_penalty,
+                "presence_context_size": body.presence_context_size,
+                "frequency_penalty": body.frequency_penalty,
+                "frequency_context_size": body.frequency_context_size,
+                "repetition_penalty": body.repetition_penalty,
+                "repetition_context_size": body.repetition_context_size,
+                "max_tokens": body.max_tokens,
+                "enable_thinking": body.enable_thinking,
+                "reasoning_effort": body.reasoning_effort,
+                "thinking_continuation": body.thinking_continuation,
+                "owner_id": _owner(request),
+                **extra,
+            }
+
         async def event_stream() -> AsyncIterator[bytes]:
-            agen = svc.chat(
-                message=body.message,
-                conversation_id=body.conversation_id,
-                stream=True,
-                regenerate=body.regenerate,
-                system=body.system,
-                temperature=body.temperature,
-                top_p=body.top_p,
-                top_k=body.top_k,
-                max_tokens=body.max_tokens,
-                enable_thinking=body.enable_thinking,
-                reasoning_effort=body.reasoning_effort,
-                owner_id=_owner(request),
-            )
+            agen = svc.chat(**_chat_kwargs(stream=True))
+            stream = iterate_with_heartbeats(agen, cfg.heartbeat_s)
             try:
-                async for event in agen:
+                async for event in stream:
                     if await request.is_disconnected():
-                        await agen.aclose()
+                        await stream.aclose()
                         return
                     yield _sse(event["event"], event["data"])
                 yield b"data: [DONE]\n\n"
             except (asyncio.CancelledError, GeneratorExit):
-                await agen.aclose()
+                await stream.aclose()
                 raise
             except Exception as exc:  # noqa: BLE001
                 yield _sse(
@@ -465,20 +503,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         snapshot = None
         done = None
         err = None
-        async for event in svc.chat(
-            message=body.message,
-            conversation_id=body.conversation_id,
-            stream=False,
-            regenerate=body.regenerate,
-            system=body.system,
-            temperature=body.temperature,
-            top_p=body.top_p,
-            top_k=body.top_k,
-            max_tokens=body.max_tokens,
-            enable_thinking=body.enable_thinking,
-            reasoning_effort=body.reasoning_effort,
-            owner_id=_owner(request),
-        ):
+        async for event in svc.chat(**_chat_kwargs(stream=False)):
             name = event["event"]
             if name == "meta":
                 meta = event["data"]
@@ -710,12 +735,26 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 temperature=body.temperature,
                 top_p=body.top_p,
                 top_k=body.top_k,
+                min_p=body.min_p,
+                presence_penalty=body.presence_penalty,
+                presence_context_size=body.presence_context_size,
+                frequency_penalty=body.frequency_penalty,
+                frequency_context_size=body.frequency_context_size,
+                repetition_penalty=body.repetition_penalty,
+                repetition_context_size=body.repetition_context_size,
             )
             req = ChatRequest(
                 messages=mapped,
                 temperature=sampled["temperature"],
                 top_p=sampled["top_p"],
                 top_k=sampled["top_k"],
+                min_p=sampled["min_p"],
+                presence_penalty=sampled["presence_penalty"],
+                presence_context_size=sampled["presence_context_size"],
+                frequency_penalty=sampled["frequency_penalty"],
+                frequency_context_size=sampled["frequency_context_size"],
+                repetition_penalty=sampled["repetition_penalty"],
+                repetition_context_size=sampled["repetition_context_size"],
                 max_tokens=max_out,
                 enable_thinking=thinking,
                 reasoning_effort=normalize_effort(cfg.reasoning_effort),
@@ -731,35 +770,60 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 )
             if body.stream:
                 async def oai_stream() -> AsyncIterator[bytes]:
+                    ledger = StreamLedger()
+                    last_id = "chatcmpl-local"
                     async with svc._lock:
                         async for chunk in provider.stream(req):
-                            delta: dict[str, Any] = {"role": "assistant"}
-                            if chunk.delta_content:
-                                delta["content"] = chunk.delta_content
-                            if chunk.delta_reasoning:
-                                delta["reasoning_content"] = chunk.delta_reasoning
-                            payload = {
-                                "id": chunk.id,
+                            last_id = chunk.id or last_id
+                            if chunk.wire_done:
+                                ledger.observe_done_wire()
+                                continue
+                            if chunk.malformed:
+                                ledger.malformed_frames += 1
+                                continue
+                            if chunk.http_eof:
+                                ledger.http_eof = True
+                                continue
+                            if chunk.finish_reason:
+                                ledger.observe_finish(chunk.finish_reason)
+                            if not (
+                                chunk.delta_content
+                                or chunk.delta_reasoning
+                                or chunk.prompt_tokens is not None
+                            ):
+                                continue
+                            payload: dict[str, Any] = {
+                                "id": last_id,
                                 "object": "chat.completion.chunk",
                                 "model": cfg.model_name,
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "delta": delta,
-                                        "finish_reason": chunk.finish_reason,
-                                    }
-                                ],
                             }
-                            if chunk.prompt_tokens is not None:
+                            if chunk.prompt_tokens is not None and not (
+                                chunk.delta_content or chunk.delta_reasoning
+                            ):
+                                payload["choices"] = []
                                 payload["usage"] = {
                                     "prompt_tokens": chunk.prompt_tokens,
                                     "completion_tokens": chunk.completion_tokens or 0,
                                     "total_tokens": (chunk.prompt_tokens or 0)
                                     + (chunk.completion_tokens or 0),
                                 }
-                                payload["choices"] = []
+                            else:
+                                delta: dict[str, Any] = {"role": "assistant"}
+                                if chunk.delta_content:
+                                    delta["content"] = chunk.delta_content
+                                if chunk.delta_reasoning:
+                                    delta["reasoning_content"] = chunk.delta_reasoning
+                                payload["choices"] = [
+                                    {
+                                        "index": 0,
+                                        "delta": delta,
+                                        "finish_reason": None,
+                                    }
+                                ]
                             yield f"data: {json.dumps(payload)}\n\n".encode()
-                        yield b"data: [DONE]\n\n"
+                    finish = ledger.stored_finish_reason(ledger.classify())
+                    yield f"data: {json.dumps({'id': last_id, 'object': 'chat.completion.chunk', 'model': cfg.model_name, 'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}]})}\n\n".encode()
+                    yield b"data: [DONE]\n\n"
 
                 return StreamingResponse(oai_stream(), media_type="text/event-stream")
             async with svc._lock:
@@ -791,10 +855,18 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 message=str(user_text),
                 conversation_id=body.conversation_id,
                 stream=True,
+                profile=body.profile,
                 system=system if isinstance(system, str) else None,
                 temperature=body.temperature,
                 top_p=body.top_p,
                 top_k=body.top_k,
+                min_p=body.min_p,
+                presence_penalty=body.presence_penalty,
+                presence_context_size=body.presence_context_size,
+                frequency_penalty=body.frequency_penalty,
+                frequency_context_size=body.frequency_context_size,
+                repetition_penalty=body.repetition_penalty,
+                repetition_context_size=body.repetition_context_size,
                 max_tokens=body.max_tokens,
                 enable_thinking=body.enable_thinking,
                 owner_id=_owner(request),
@@ -810,6 +882,22 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                         "object": "chat.completion.chunk",
                         "model": cfg.model_name,
                         "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                    }
+                    yield f"data: {json.dumps(payload)}\n\n".encode()
+                elif event["event"] == "error":
+                    err = event["data"].get("error") or {}
+                    payload = {
+                        "id": "chatcmpl-local",
+                        "object": "chat.completion.chunk",
+                        "model": cfg.model_name,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {},
+                                "finish_reason": err.get("code") or "generation_error",
+                            }
+                        ],
+                        "error": err,
                     }
                     yield f"data: {json.dumps(payload)}\n\n".encode()
                 elif event["event"] == "done":
@@ -839,10 +927,18 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             message=str(user_text),
             conversation_id=body.conversation_id,
             stream=False,
+            profile=body.profile,
             system=system if isinstance(system, str) else None,
             temperature=body.temperature,
             top_p=body.top_p,
             top_k=body.top_k,
+            min_p=body.min_p,
+            presence_penalty=body.presence_penalty,
+            presence_context_size=body.presence_context_size,
+            frequency_penalty=body.frequency_penalty,
+            frequency_context_size=body.frequency_context_size,
+            repetition_penalty=body.repetition_penalty,
+            repetition_context_size=body.repetition_context_size,
             max_tokens=body.max_tokens,
             enable_thinking=body.enable_thinking,
             owner_id=_owner(request),

@@ -14,7 +14,9 @@ Ships the schema now. Extraction and injection land behind a flag.
 
 ## Injection contract
 
-`MemoryService.retrieve(conversation_id, query, budget_tokens) -> list[MemoryItem]`
+`MemoryService.retrieve(conversation_id, query, budget_tokens, owner_id=None) -> list[MemoryItem]`
+
+Public multi-user mode must pass `owner_id`. Search never scans other accounts.
 
 PromptBuilder is the **only** caller that may place items into the mlx payload:
 

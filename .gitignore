@@ -39,3 +39,4 @@ secrets/
 benchmarks/video/*
 !benchmarks/video/summary.json
 benchmarks/generation-fidelity/runs/
+benchmarks/dialogue_reliability/runs/

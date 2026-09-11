@@ -30,7 +30,19 @@ class TokenEstimator:
             return len(self._tok.encode(text).ids)
         return max(1, len(text.encode("utf-8")) // 4)
 
-    def count_messages(self, messages: list[dict]) -> int:
+    def apply_chat_template(
+        self,
+        messages: list[dict],
+        *,
+        assistant_prefix: str | None = None,
+        add_generation_prompt: bool = True,
+    ) -> str:
+        """Qwen ChatML used for token counts and explicit Continue prefixes.
+
+        Incomplete assistant text is appended after `<|im_start|>assistant\\n`
+        and is not closed with `<|im_end|>`. That is continuation, not a
+        finished history turn.
+        """
         parts: list[str] = []
         for msg in messages:
             role = msg.get("role") or "user"
@@ -40,5 +52,11 @@ class TokenEstimator:
             if reasoning:
                 body = f"<think>\n{reasoning}\n</think>\n\n{content}"
             parts.append(f"<|im_start|>{role}\n{body}<|im_end|>")
-        parts.append("<|im_start|>assistant\n")
-        return self.count_text("\n".join(parts))
+        if assistant_prefix is not None:
+            parts.append(f"<|im_start|>assistant\n{assistant_prefix}")
+        elif add_generation_prompt:
+            parts.append("<|im_start|>assistant\n")
+        return "\n".join(parts)
+
+    def count_messages(self, messages: list[dict]) -> int:
+        return self.count_text(self.apply_chat_template(messages))

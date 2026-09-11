@@ -4,7 +4,7 @@
 
 Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.5.0**.
+Current release: **v0.6.0**.
 
 ```
 browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
@@ -12,15 +12,16 @@ browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local
 
 ## What you get
 
-- Multi-turn chat with streaming
+- Multi-turn chat with streaming and explicit terminal states (no silent truncation)
+- Interactive Dialogue / Balanced / Reasoning profiles (dialogue defaults thinking off)
 - Sidebar history (SQLite)
 - Collapsible history, conversation delete, and message quote/delete
 - Context inspector: exact payload sent to the model
-- Token stats: input / output / total / occupancy
+- Token stats: TTFT, decode tok/s, effective output tok/s, occupancy
 - Model Workbench: search Hugging Face in-app, inspect a repository, download an MLX-ready checkpoint, and select it locally
 - OpenAI-compatible `POST /v1/chat/completions`
 - Local Generate: image Fast (Z-Image Turbo Q4) and Quality (FLUX.1 [dev] Q4), Raw / Enhanced / experimental Translate+Enhance, plus short video (Wan2.1 1.3B). No application-layer filter; checkpoints are documented separately in [MODEL.md](MODEL.md). Do not read “uncensored” as “always follows the prompt.”
-- Memory tables ready (retrieve stubbed; no auto-write)
+- Memory tables ready with account-scoped retrieval (no auto-write)
 
 ## Ports on this machine
 

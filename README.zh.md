@@ -22,10 +22,11 @@
 
 ## 现在能做什么
 
-- 连续多轮对话（不是问完就结束）
+- 连续多轮对话（不是问完就结束）；默认 Interactive Dialogue，thinking 关闭
+- 生成中断会标成「生成未正常完成」，可 Continue / Regenerate，不会把半截回复当成正常 stop
 - 左侧历史：今天 / 昨天 / 更早，搜索、双击改名、删除、收起/展开
 - 中间聊天：Markdown、代码高亮、复制、引用、删除单条、再生成、停止
-- 右侧 Context：真正发给模型的 system + 历史 + token 占用条
+- 右侧 Context：真正发给模型的 system + 滚动对话状态 + token 占用条
 - Model Workbench：不离开 Kiln 检索 Hugging Face，查看仓库，下载 MLX-ready 权重到本机模型库并切换
 - 每条消息的 ↑输入 / ↓输出 token
 - 默认深色窑炉界面，左下角可切 Light / Dark / System

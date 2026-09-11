@@ -52,14 +52,23 @@ class Settings(BaseSettings):
     context_window: int = 262144
     # Prompt-only. Do not subtract max_tokens from this (Qwen3.5-9B hybrid KV is ~1GB @ 32k).
     practical_prompt_budget: int = 32768
-    default_max_tokens: int = 8192
+    default_profile: str = "interactive_dialogue"
+    default_max_tokens: int = 1536
     max_tokens_cap: int = 32768
-    default_temperature: float = 0.6
-    default_top_p: float = 0.95
+    default_temperature: float = 0.7
+    default_top_p: float = 0.8
     default_top_k: int = 20
+    default_min_p: float = 0.0
+    default_presence_penalty: float = 0.5
+    default_presence_context_size: int = 256
+    default_frequency_penalty: float = 0.0
+    default_frequency_context_size: int = 256
+    default_repetition_penalty: float = 1.0
+    default_repetition_context_size: int = 128
     default_system: str = ""
-    enable_thinking: bool = True
+    enable_thinking: bool = False
     reasoning_effort: str = "medium"
+    thinking_continuation: bool = False
     thinking_budget_low: int = 256
     thinking_budget_medium: int = 1024
     thinking_budget_xhigh: int = 0

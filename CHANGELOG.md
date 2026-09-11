@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## v0.6.0 — Conversational Reliability Update
+
+- Classify every generation terminal; incomplete upstream streams are no longer stored as a normal stop.
+- Interactive Dialogue is the default profile: thinking off, a single `/v1/chat/completions` pass, max output 1536.
+- Manual think-cut continuation is opt-in only (`thinking_continuation`), not the default chat path.
+- MLX sampling controls (min_p, presence/frequency/repetition penalties and context sizes) are wired through Settings → API → provider.
+- Long chats now fold complete turns into a rolling dialogue state/summary instead of first-160-character snippets.
+- Memory search and `/memory` are owner-scoped. Retrieval receives a real conversation id.
+- SSE heartbeats fire while waiting for the first provider event without cancelling the generator.
+- Frontend shows TTFT vs decode tok/s, incomplete-generation copy, Continue, and collapsed advanced sampling.
+- OpenAI-compatible streaming classifies EOF/malformed frames instead of emitting a silent successful `[DONE]`.
+- Continue resumes an unclosed think block instead of forcing `</think>`.
+
 - Split refusal/censorship claims from prompt-adherence quality. Document each backend’s checkpoint provenance instead of calling Kiln “fully uncensored.”
 - Chat sampling now follows the Qwen3.5 card: thinking `0.6/0.95/20`, non-thinking `0.7/0.8/20`, with UI overrides.
 - Image and video can compile prompts locally through the running Qwen (enhance before parking chat). Raw mode still sends the user text unchanged.

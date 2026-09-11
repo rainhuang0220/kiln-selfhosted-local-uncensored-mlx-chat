@@ -28,6 +28,8 @@ export async function* readSse(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
+  let sawAppDone = false;
+  let aborted = false;
 
   const flush = (chunk: string): SseEvent[] => {
     buf += chunk.replace(/\r\n/g, "\n");
@@ -43,27 +45,46 @@ export async function* readSse(
     return out;
   };
 
+  const note = (ev: SseEvent): SseEvent => {
+    if (ev.event === "done") sawAppDone = true;
+    return ev;
+  };
+
   try {
     while (true) {
       if (signal?.aborted) {
+        aborted = true;
         throw new DOMException("Aborted", "AbortError");
       }
       const { done, value } = await reader.read();
       if (done) {
         const rest = flush(decoder.decode());
         for (const ev of rest) {
-          if (ev.event === "done_wire") return;
-          yield ev;
+          if (ev.event === "done_wire") {
+            if (!sawAppDone) yield { event: "transport_eof", data: { reason: "done_wire" } };
+            return;
+          }
+          yield note(ev);
         }
         if (buf.trim()) {
           const parsed = parseBlock(buf);
-          if (parsed && parsed.event !== "done_wire") yield parsed;
+          if (parsed && parsed.event !== "done_wire") yield note(parsed);
+        }
+        if (!sawAppDone && !aborted) {
+          yield { event: "transport_eof", data: { reason: "eof" } };
         }
         return;
       }
       for (const ev of flush(decoder.decode(value, { stream: true }))) {
-        if (ev.event === "done_wire") return;
-        yield ev;
+        if (ev.event === "done_wire") {
+          if (!sawAppDone) yield { event: "transport_eof", data: { reason: "done_wire" } };
+          return;
+        }
+        if (ev.event === "ping") {
+          yield ev;
+          continue;
+        }
+        yield note(ev);
       }
     }
   } finally {

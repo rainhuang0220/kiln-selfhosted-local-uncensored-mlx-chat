@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any, AsyncIterator
 from urllib.parse import urlparse
@@ -9,6 +8,8 @@ import httpx
 
 from app.config import Settings, settings as default_settings
 from app.providers.base import ChatChunk, ChatRequest, ChatResult
+from app.providers.sse import iter_sse_frames
+from app.services.sampling import mlx_repetition_penalty
 from app.services.thinking import split_thinking
 
 
@@ -60,13 +61,25 @@ class MlxProvider:
         except httpx.HTTPError:
             return False
 
+    def _sampling_fields(self, request: ChatRequest) -> dict[str, Any]:
+        return {
+            "temperature": request.temperature,
+            "top_p": request.top_p,
+            "top_k": request.top_k,
+            "min_p": request.min_p,
+            "presence_penalty": request.presence_penalty,
+            "presence_context_size": request.presence_context_size,
+            "frequency_penalty": request.frequency_penalty,
+            "frequency_context_size": request.frequency_context_size,
+            "repetition_penalty": mlx_repetition_penalty(request.repetition_penalty),
+            "repetition_context_size": request.repetition_context_size,
+        }
+
     def _payload(self, request: ChatRequest, stream: bool) -> dict[str, Any]:
         body: dict[str, Any] = {
             "model": "default_model",
             "messages": request.messages,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "top_k": request.top_k,
+            **self._sampling_fields(request),
             "max_tokens": request.max_tokens,
             "stream": stream,
             "chat_template_kwargs": {
@@ -110,8 +123,19 @@ class MlxProvider:
 
     async def complete(self, request: ChatRequest) -> ChatResult:
         client = await self._client_obj()
+        raw_prompt = (request.extra or {}).get("raw_prompt")
         try:
-            resp = await client.post(self.settings.mlx_chat_url(), json=self._payload(request, False))
+            if raw_prompt:
+                body: dict[str, Any] = {
+                    "model": "default_model",
+                    "prompt": raw_prompt,
+                    "max_tokens": request.max_tokens,
+                    **self._sampling_fields(request),
+                    "stream": False,
+                }
+                resp = await client.post(self.settings.mlx_completions_url(), json=body)
+            else:
+                resp = await client.post(self.settings.mlx_chat_url(), json=self._payload(request, False))
         except httpx.TimeoutException as exc:
             raise TimeoutError("mlx timeout") from exc
         except httpx.HTTPError as exc:
@@ -121,7 +145,7 @@ class MlxProvider:
         data = resp.json()
         choice = (data.get("choices") or [{}])[0]
         message = choice.get("message") or {}
-        content = message.get("content") or ""
+        content = message.get("content") or choice.get("text") or ""
         reasoning = message.get("reasoning") or message.get("reasoning_content") or ""
         if not reasoning and content:
             content, reasoning = split_thinking(content)
@@ -131,7 +155,7 @@ class MlxProvider:
             model=self.default_model(),
             content=content or "",
             reasoning=reasoning or "",
-            finish_reason=choice.get("finish_reason") or "stop",
+            finish_reason=choice.get("finish_reason"),
             prompt_tokens=prompt,
             completion_tokens=completion,
             cached_tokens=cached,
@@ -146,32 +170,31 @@ class MlxProvider:
                 if resp.status_code >= 400:
                     err = (await resp.aread()).decode("utf-8", errors="replace")
                     raise RuntimeError(f"mlx error {resp.status_code}: {err[:400]}")
-                buffer = ""
-                async for raw in resp.aiter_text():
-                    buffer += raw
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        line = line.strip("\r")
-                        if not line:
-                            continue
-                        if line.startswith(":"):
-                            yield {"keepalive": line[1:].strip()}
-                            continue
-                        if not line.startswith("data:"):
-                            continue
-                        payload = line[5:].strip()
-                        if payload == "[DONE]":
-                            return
-                        try:
-                            yield json.loads(payload)
-                        except json.JSONDecodeError:
-                            continue
+                async for frame in iter_sse_frames(resp.aiter_text()):
+                    if frame.kind == "done":
+                        yield {"__wire_done__": True}
+                        return
+                    if frame.kind == "malformed":
+                        yield {"__malformed__": True}
+                        continue
+                    if frame.kind == "keepalive":
+                        yield {"keepalive": frame.raw}
+                        continue
+                    if frame.payload is not None:
+                        yield frame.payload
+                yield {"__http_eof__": True}
         except httpx.TimeoutException as exc:
             raise TimeoutError("mlx timeout") from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(f"mlx unreachable: {exc}") from exc
 
     def _chunk_from_event(self, data: dict[str, Any], req_id: str, model: str) -> ChatChunk:
+        if data.get("__wire_done__"):
+            return ChatChunk(id=req_id, model=model, wire_done=True)
+        if data.get("__malformed__"):
+            return ChatChunk(id=req_id, model=model, malformed=True)
+        if data.get("__http_eof__"):
+            return ChatChunk(id=req_id, model=model, http_eof=True)
         prompt, completion, cached, _ = self._usage(data)
         if data.get("keepalive") is not None:
             return ChatChunk(id=req_id, model=model, keepalive=str(data["keepalive"]))
@@ -202,6 +225,19 @@ class MlxProvider:
     async def stream(self, request: ChatRequest) -> AsyncIterator[ChatChunk]:
         req_id = f"chatcmpl-{uuid.uuid4()}"
         model = self.default_model()
+        raw_prompt = (request.extra or {}).get("raw_prompt")
+        if raw_prompt:
+            body: dict[str, Any] = {
+                "model": "default_model",
+                "prompt": raw_prompt,
+                "max_tokens": request.max_tokens,
+                **self._sampling_fields(request),
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+            async for data in self._stream_post(self.settings.mlx_completions_url(), body):
+                yield self._chunk_from_event(data, req_id, model)
+            return
         async for data in self._stream_post(self.settings.mlx_chat_url(), self._payload(request, True)):
             yield self._chunk_from_event(data, req_id, model)
 
@@ -213,9 +249,7 @@ class MlxProvider:
             "model": "default_model",
             "prompt": self._continuation_prompt(request, reasoning),
             "max_tokens": max(1, max_tokens),
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "top_k": request.top_k,
+            **self._sampling_fields(request),
             "stream": False,
         }
         try:
@@ -235,7 +269,7 @@ class MlxProvider:
             model=self.default_model(),
             content=text,
             reasoning="",
-            finish_reason=choice.get("finish_reason") or "stop",
+            finish_reason=choice.get("finish_reason"),
             prompt_tokens=prompt,
             completion_tokens=completion,
             cached_tokens=cached,
@@ -252,9 +286,7 @@ class MlxProvider:
             "model": "default_model",
             "prompt": self._continuation_prompt(request, reasoning),
             "max_tokens": max(1, max_tokens),
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "top_k": request.top_k,
+            **self._sampling_fields(request),
             "stream": True,
             "stream_options": {"include_usage": True},
         }

@@ -68,6 +68,49 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE conversations ADD COLUMN user_id TEXT")
     if not _has_column(conn, "memories", "user_id"):
         conn.execute("ALTER TABLE memories ADD COLUMN user_id TEXT")
+    conn.execute("DROP INDEX IF EXISTS idx_memories_slot")
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_slot_owner
+          ON memories(IFNULL(user_id, ''), memory_type, key)
+          WHERE key IS NOT NULL AND status = 'active' AND deleted_at IS NULL
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_memories_user
+          ON memories(user_id, importance DESC, updated_at DESC)
+          WHERE status='active' AND deleted_at IS NULL
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_memories_conversation
+          ON memories(source_conversation_id, updated_at DESC)
+        """
+    )
+    try:
+        conn.execute(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+              content, key, memory_id UNINDEXED, tokenize='unicode61'
+            )
+            """
+        )
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute(
+            """
+            INSERT INTO memories_fts(memory_id, content, key)
+            SELECT id, content, IFNULL(key, '')
+            FROM memories
+            WHERE status='active' AND deleted_at IS NULL
+              AND id NOT IN (SELECT memory_id FROM memories_fts)
+            """
+        )
+    except sqlite3.OperationalError:
+        pass
     conn.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_conversations_user

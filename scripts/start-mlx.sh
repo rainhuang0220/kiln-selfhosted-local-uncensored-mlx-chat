@@ -34,4 +34,4 @@ exec "$PY" -m mlx_lm.server \
   --prefill-step-size 1024 \
   --prompt-cache-size 4 \
   --prompt-cache-bytes 4G \
-  --chat-template-args '{"enable_thinking":true,"reasoning_effort":"medium"}'
+  --chat-template-args '{"enable_thinking":false,"reasoning_effort":"medium"}'

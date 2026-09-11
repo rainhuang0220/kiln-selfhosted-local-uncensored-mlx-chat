@@ -3,10 +3,12 @@ import { apiFetch } from "../api/http";
 import { readSse } from "../api/stream";
 import { heuristicTitle } from "../lib/markdown";
 import { applyTheme } from "../lib/theme";
+import { PROFILE_PRESETS } from "../lib/profiles";
 import type {
   ContextSnapshot,
   ConversationSummary,
   GenerationParams,
+  GenerationProfile,
   Health,
   HubModel,
   LocalModel,
@@ -15,15 +17,7 @@ import type {
   TokenUsage,
 } from "../types/chat";
 
-const THINKING_PRESET = { temperature: 0.6, topP: 0.95, topK: 20 };
-const NON_THINKING_PRESET = { temperature: 0.7, topP: 0.8, topK: 20 };
-
-const DEFAULT_PARAMS: GenerationParams = {
-  ...THINKING_PRESET,
-  maxTokens: 8192,
-  enableThinking: true,
-  reasoningEffort: "medium",
-};
+const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.interactive_dialogue };
 
 interface ChatState {
   health: Health | null;
@@ -63,8 +57,9 @@ interface ChatState {
   setDraft: (v: string) => void;
   attachFiles: (files: FileList | File[]) => Promise<void>;
   setParams: (p: Partial<GenerationParams>) => void;
+  setProfile: (profile: GenerationProfile) => void;
   toggleInspector: () => void;
-  send: (mode?: "regenerate") => Promise<void>;
+  send: (mode?: "regenerate" | "continue") => Promise<void>;
   stop: () => void;
   remove: (id: string) => Promise<void>;
   removeMessage: (messageId: string) => Promise<void>;
@@ -232,12 +227,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const r = await apiFetch("/health");
       if (!r.ok) throw new Error("health failed");
       const health = await r.json();
-      const params = get().params;
-      const nextParams =
-        params.maxTokens <= 2048 && health.default_max_tokens
-          ? { ...params, maxTokens: health.default_max_tokens }
-          : params;
-      set({ health, params: nextParams });
+      set({ health });
     } catch {
       set({
         health: {
@@ -246,9 +236,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           model: "qwen3.5-9b-hauhau-aggressive-mxfp4",
           context_window: 262144,
           practical_prompt_budget: 32768,
-          default_max_tokens: 8192,
+          default_max_tokens: 1536,
           max_tokens_cap: 32768,
-          enable_thinking: true,
+          enable_thinking: false,
+          default_profile: "interactive_dialogue",
         },
       });
     }
@@ -298,6 +289,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return {
           ...m,
           status,
+          incomplete:
+            status === "error" ||
+            status === "interrupted" ||
+            ["interrupted_transport", "unknown_terminal", "repetition_guard", "timeout"].includes(
+              String(m.finish_reason || ""),
+            ),
           usage:
             m.prompt_tokens != null
               ? {
@@ -373,13 +370,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const draft = get().draft;
     set({ draft: (draft ? draft.replace(/\s*$/, "") : "") + chunks.join(""), error: null });
   },
-  setParams: (p) => {
-    const next = { ...get().params, ...p };
-    if (p.enableThinking !== undefined && p.temperature === undefined) {
-      Object.assign(next, p.enableThinking ? THINKING_PRESET : NON_THINKING_PRESET);
-    }
-    set({ params: next });
-  },
+  setParams: (p) => set({ params: { ...get().params, ...p } }),
+  setProfile: (profile) => set({ params: { ...PROFILE_PRESETS[profile] } }),
   toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
 
   stop: () => {
@@ -420,10 +412,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   send: async (mode) => {
     const regen = mode === "regenerate";
+    const cont = mode === "continue";
     const lastUser = [...get().messages].reverse().find((m) => m.role === "user");
-    const text = regen ? (lastUser?.content || "").trim() : get().draft.trim();
-    if (!text || get().streaming) return;
-    if (regen && !get().activeId) return;
+    const lastAsst = [...get().messages].reverse().find((m) => m.role === "assistant");
+    const text = regen || cont ? (lastUser?.content || "").trim() : get().draft.trim();
+    if (get().streaming) return;
+    if ((regen || cont) && !get().activeId) return;
+    if (!cont && !text) return;
     const params = get().params;
     const controller = new AbortController();
     const userMsg: Message = {
@@ -433,10 +428,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       status: "complete",
     };
     const assistantMsg: Message = {
-      id: `local-asst-${Date.now()}`,
+      id: cont ? lastAsst?.id || `local-asst-${Date.now()}` : `local-asst-${Date.now()}`,
       role: "assistant",
-      content: "",
-      reasoning: "",
+      content: cont ? lastAsst?.content || "" : "",
+      reasoning: cont ? lastAsst?.reasoning || "" : "",
       status: "streaming",
     };
     const prior = regen
@@ -446,10 +441,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streaming: true,
       error: null,
       controller,
-      messages: regen ? [...prior, assistantMsg] : [...prior, userMsg, assistantMsg],
+      messages: cont
+        ? prior.map((m) => (m.id === assistantMsg.id ? { ...assistantMsg } : m))
+        : regen
+          ? [...prior, assistantMsg]
+          : [...prior, userMsg, assistantMsg],
     });
 
-    const started = performance.now();
     let asstId = assistantMsg.id;
     let userId = userMsg.id;
     let accepted = false;
@@ -463,13 +461,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
           Accept: "text/event-stream",
         },
         body: JSON.stringify({
-          message: regen ? "" : text,
+          message: regen || cont ? "" : text,
           conversation_id: get().activeId,
           regenerate: regen,
+          continue_generation: cont,
+          profile: params.profile,
           stream: true,
           temperature: params.temperature,
           top_p: params.topP,
           top_k: params.topK,
+          min_p: params.minP,
+          presence_penalty: params.presencePenalty,
+          presence_context_size: params.presenceContextSize,
+          frequency_penalty: params.frequencyPenalty,
+          frequency_context_size: params.frequencyContextSize,
+          repetition_penalty: params.repetitionPenalty,
+          repetition_context_size: params.repetitionContextSize,
           max_tokens: params.maxTokens,
           enable_thinking: params.enableThinking,
           reasoning_effort: params.reasoningEffort,
@@ -487,8 +494,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const err = await res.text();
         throw new Error(err || `HTTP ${res.status}`);
       }
-      let content = "";
-      let reasoning = "";
+      let content = assistantMsg.content || "";
+      let reasoning = assistantMsg.reasoning || "";
       let usage: TokenUsage | undefined;
       for await (const ev of readSse(res, controller.signal)) {
         if (ev.event === "meta") {
@@ -549,12 +556,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
             ),
           }));
         } else if (ev.event === "usage") {
-          usage = ev.data as TokenUsage;
-          const elapsed = (performance.now() - started) / 1000;
-          if (elapsed > 0 && usage.output) usage.tokensPerSecond = usage.output / elapsed;
+          const raw = ev.data as TokenUsage & {
+            ttft_ms?: number;
+            total_latency_ms?: number;
+            effective_output_tokens_per_sec?: number;
+            decode_tokens_per_sec?: number;
+          };
+          usage = {
+            input: raw.input,
+            output: raw.output,
+            total: raw.total,
+            cached: raw.cached,
+            source: raw.source,
+            ttftMs: raw.ttftMs ?? raw.ttft_ms,
+            totalLatencyMs: raw.totalLatencyMs ?? raw.total_latency_ms,
+            effectiveOutputTokensPerSec:
+              raw.effectiveOutputTokensPerSec ?? raw.effective_output_tokens_per_sec,
+            decodeTokensPerSec: raw.decodeTokensPerSec ?? raw.decode_tokens_per_sec,
+          };
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId ? { ...m, usage } : m,
+            ),
+          }));
+        } else if (ev.event === "ping") {
+          continue;
+        } else if (ev.event === "transport_eof") {
+          set((s) => ({
+            messages: s.messages.map((m) =>
+              m.id === asstId
+                ? {
+                    ...m,
+                    status: "interrupted",
+                    incomplete: true,
+                    terminal_state: "interrupted_transport",
+                    finish_reason: "interrupted_transport",
+                  }
+                : m,
             ),
           }));
         } else if (ev.event === "error") {
@@ -569,20 +607,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
         } else if (ev.event === "done") {
           const data = ev.data as {
             finish_reason: string;
+            terminal_state?: string;
+            incomplete?: boolean;
+            metrics?: {
+              ttft_ms?: number;
+              total_latency_ms?: number;
+              effective_output_tokens_per_sec?: number;
+              decode_tokens_per_sec?: number;
+            };
             usage?: {
               prompt_tokens: number;
               completion_tokens: number;
               total_tokens: number;
             };
-            message?: { content?: string; reasoning_content?: string };
+            message?: { content?: string; reasoning_content?: string; status?: string };
           };
-          const elapsed = (performance.now() - started) / 1000;
           const u: TokenUsage = usage || {
             input: data.usage?.prompt_tokens || 0,
             output: data.usage?.completion_tokens || 0,
             total: data.usage?.total_tokens || 0,
           };
-          if (elapsed > 0 && u.output) u.tokensPerSecond = u.output / elapsed;
+          if (data.metrics) {
+            u.ttftMs = data.metrics.ttft_ms;
+            u.totalLatencyMs = data.metrics.total_latency_ms;
+            u.effectiveOutputTokensPerSec = data.metrics.effective_output_tokens_per_sec;
+            u.decodeTokensPerSec = data.metrics.decode_tokens_per_sec;
+          }
+          const incomplete = Boolean(data.incomplete);
+          const status: Message["status"] = incomplete
+            ? data.terminal_state === "interrupted_user"
+              ? "interrupted"
+              : "error"
+            : "complete";
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
@@ -590,12 +646,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     ...m,
                     content: data.message?.content ?? content,
                     reasoning: data.message?.reasoning_content ?? reasoning,
-                    status: "complete",
+                    status,
+                    incomplete,
                     usage: u,
                     prompt_tokens: u.input,
                     completion_tokens: u.output,
                     total_tokens: u.total,
                     finish_reason: data.finish_reason,
+                    terminal_state: data.terminal_state,
                   }
                 : m,
             ),

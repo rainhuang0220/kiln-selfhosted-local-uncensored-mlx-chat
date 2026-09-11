@@ -496,6 +496,31 @@ a { color: var(--copper-2); }
   font-size: 12px;
 }
 .toggles label { display: flex; gap: 6px; align-items: center; }
+.advanced { position: relative; }
+.advanced summary { cursor: pointer; color: var(--muted); }
+.advanced-grid {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
+  gap: 8px;
+  min-width: 280px;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.advanced-grid input[type="number"], .advanced-grid select {
+  width: 72px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: inherit;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
 textarea:focus-visible, .btn:focus-visible, .conv-item:focus-visible {
   outline: 2px solid var(--copper);
   outline-offset: 2px;

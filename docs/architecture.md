@@ -1,6 +1,8 @@
 # Kiln — Local Qwen Chat Workbench
 
 > Historical 27B architecture profile. Kiln is model-flexible; see [`MODEL.md`](../MODEL.md) for the current 9B default and switching guidance.
+>
+> Current product defaults (v0.6): Interactive Dialogue, `enable_thinking=false`, `max_tokens=1536`, streaming terminals are classified (no silent stop). This file’s 27B numbers and thinking-on defaults are historical.
 
 Technical selection and architecture for a ChatGPT-class web chat on top of
 the local **Qwen3.8-27B AEON Ultimate Uncensored 4-bit MLX** checkpoint at

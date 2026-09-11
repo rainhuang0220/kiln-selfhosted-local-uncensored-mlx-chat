@@ -10,11 +10,14 @@ from typing import Any, AsyncIterator
 from app.config import Settings
 from app.db import get_conn
 from app.providers.base import ChatChunk, ChatProvider, ChatRequest
-from app.services.compress import compress_messages
+from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
 from app.services.ingest import pack_user_message
 from app.services.memory import MemoryService
-from app.services.sampling import resolve_sampling
+from app.services.profiles import resolve_profile
+from app.services.repetition import hard_self_loop
+from app.services.sampling import THINKING, resolve_sampling
+from app.services.stream_protocol import StreamLedger, TerminalState
 from app.services.thinking import (
     normalize_effort,
     remap_assistant_for_history,
@@ -294,6 +297,7 @@ class ChatService:
             "default_system": self.settings.default_system,
             "enable_thinking": self.settings.enable_thinking,
             "reasoning_effort": self.settings.reasoning_effort,
+            "default_profile": self.settings.default_profile,
             "tokenizer": self.tokenizer.method,
             "overflow_policy": self.settings.overflow_policy,
         }
@@ -377,7 +381,7 @@ class ChatService:
             """
             SELECT id, role, content, reasoning
             FROM messages
-            WHERE conversation_id=? AND status IN ('complete', 'cancelled', 'streaming', 'pending')
+            WHERE conversation_id=? AND status IN ('complete', 'cancelled', 'streaming', 'pending', 'error')
             ORDER BY seq ASC
             """,
             (conversation_id,),
@@ -390,6 +394,46 @@ class ChatService:
             out.append(item)
         return out
 
+    def _conversation_settings(self, conversation_id: str) -> dict[str, Any]:
+        row = self._conn().execute(
+            "SELECT settings_json FROM conversations WHERE id=?",
+            (conversation_id,),
+        ).fetchone()
+        if row is None:
+            return {}
+        try:
+            data = json.loads(row["settings_json"] or "{}")
+        except json.JSONDecodeError:
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _load_dialogue_meta(self, conversation_id: str) -> tuple[DialogueState, str | None]:
+        data = self._conversation_settings(conversation_id)
+        raw = data.get("dialogue_state") if isinstance(data.get("dialogue_state"), dict) else {}
+        allowed = DialogueState().__dict__.keys()
+        state = DialogueState(**{k: raw[k] for k in allowed if k in raw})
+        summary = data.get("rolling_summary")
+        return state, summary if isinstance(summary, str) else None
+
+    def _save_dialogue_meta(
+        self,
+        conversation_id: str,
+        *,
+        state: DialogueState,
+        summary: str | None,
+        params: dict[str, Any],
+    ) -> None:
+        payload = {
+            **params,
+            "dialogue_state": state.__dict__,
+            "rolling_summary": summary,
+        }
+        self._conn().execute(
+            "UPDATE conversations SET settings_json=? WHERE id=?",
+            (json.dumps(payload, ensure_ascii=False), conversation_id),
+        )
+        self._conn().commit()
+
     def _build_payload(
         self,
         history: list[dict[str, Any]],
@@ -397,28 +441,45 @@ class ChatService:
         max_tokens: int,
         enable_thinking: bool,
         reasoning_effort: str,
+        conversation_id: str,
+        owner_id: str | None,
+        prior_state: DialogueState | None = None,
+        prior_summary: str | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = self.settings.practical_prompt_budget
-        # Prompt budget is independent of the completion cap. Qwen3.5 native
-        # context is 262k; stealing max_tokens from an 8k window was cutting 1万字 inputs.
-        history, history_summary, compressed = compress_messages(
+        built = build_dialogue_context(
             history,
             budget=budget,
             estimate=estimate,
-            reserved_output=0,
-            recent_keep=8,
+            prior_state=prior_state,
+            prior_summary=prior_summary,
+            recent_turn_target=8,
+            min_recent_turns=4,
+            fold_every_turns=4,
         )
         kept, dropped, truncated = truncate_messages(
-            history, budget=budget, estimate=estimate, reserved_output=0
+            built.messages, budget=budget, estimate=estimate, reserved_output=0
         )
-        last_user = next((m.get("content") or "" for m in reversed(kept) if m.get("role") == "user"), "")
-        memories = self.memory.retrieve("", last_user, 256)
+        last_user = next(
+            (
+                m.get("content") or ""
+                for m in reversed(kept)
+                if m.get("role") == "user" and m.get("id") != "dialogue-context"
+            ),
+            "",
+        )
+        memories = self.memory.retrieve(
+            conversation_id,
+            last_user,
+            256,
+            owner_id=owner_id,
+        )
         fence = self.memory.fence(memories)
         sent: list[dict[str, Any]] = []
         system_text = ""
         last_user_idx = None
-        for i, msg in enumerate(kept):
+        for msg in kept:
             role = msg["role"]
             if role == "system":
                 text = (msg.get("content") or "").strip()
@@ -439,7 +500,8 @@ class ChatService:
                 )
                 continue
             if role == "user":
-                last_user_idx = len(sent)
+                if msg.get("id") != "dialogue-context":
+                    last_user_idx = len(sent)
                 sent.append({"role": "user", "content": msg.get("content") or ""})
                 continue
             sent.append({"role": role, "content": msg.get("content") or ""})
@@ -469,10 +531,11 @@ class ChatService:
         snapshot = {
             "effective_system_prompt": system_text,
             "sent_messages": sent,
-            "truncated": truncated or compressed,
-            "compressed": compressed,
-            "history_summary": history_summary,
-            "dropped_message_ids": dropped,
+            "truncated": truncated or built.compressed,
+            "compressed": built.compressed,
+            "history_summary": built.summary,
+            "dialogue_state": built.state.__dict__,
+            "dropped_message_ids": dropped or built.dropped_ids,
             "memory_ids": [m.id for m in memories],
             "occupancy": {
                 "effective_window_tokens": budget,
@@ -489,6 +552,8 @@ class ChatService:
                 "preserve_thinking": self.settings.preserve_thinking,
             },
         }
+        snapshot["dialogue_state_obj"] = built.state
+        snapshot["history_summary"] = built.summary
         return sent, snapshot
 
     def _save_snapshot(
@@ -657,18 +722,32 @@ class ChatService:
         conversation_id: str | None,
         stream: bool,
         regenerate: bool = False,
+        continue_generation: bool = False,
+        profile: str | None = None,
         system: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
         top_k: int | None = None,
+        min_p: float | None = None,
+        presence_penalty: float | None = None,
+        presence_context_size: int | None = None,
+        frequency_penalty: float | None = None,
+        frequency_context_size: int | None = None,
+        repetition_penalty: float | None = None,
+        repetition_context_size: int | None = None,
         max_tokens: int | None = None,
         enable_thinking: bool | None = None,
         reasoning_effort: str | None = None,
+        thinking_continuation: bool | None = None,
         owner_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
         text = (message or "").strip()
         skip_user_insert = False
+        resume_assistant = False
+        resume_assistant_id = ""
+        resume_content = ""
+        resume_reasoning = ""
         if regenerate:
             if not conversation_id:
                 yield {
@@ -715,6 +794,74 @@ class ChatService:
             text = (users[-1].get("content") or "").strip()
             self.drop_last_assistant(conversation_id)
             skip_user_insert = True
+        elif continue_generation:
+            if not conversation_id:
+                yield {
+                    "event": "error",
+                    "data": {
+                        "error": {
+                            "message": "conversation_id required to continue",
+                            "type": "invalid_request_error",
+                            "code": "invalid_body",
+                            "param": "conversation_id",
+                        }
+                    },
+                    "status": 400,
+                }
+                return
+            existing = self.get_conversation(conversation_id, owner_id=owner_id)
+            if existing is None:
+                yield {
+                    "event": "error",
+                    "data": {
+                        "error": {
+                            "message": "conversation not found",
+                            "type": "not_found_error",
+                            "code": "conversation_not_found",
+                        }
+                    },
+                    "status": 404,
+                }
+                return
+            users = [m for m in existing["messages"] if m["role"] == "user"]
+            assistants = [m for m in existing["messages"] if m["role"] == "assistant"]
+            if not users or not assistants:
+                yield {
+                    "event": "error",
+                    "data": {
+                        "error": {
+                            "message": "no incomplete assistant turn to continue",
+                            "type": "invalid_request_error",
+                            "code": "invalid_body",
+                        }
+                    },
+                    "status": 400,
+                }
+                return
+            text = (users[-1].get("content") or "").strip()
+            last_asst = assistants[-1]
+            finish = last_asst.get("finish_reason")
+            if last_asst.get("status") == "complete" and finish not in {
+                "length",
+                "completed_length",
+            }:
+                yield {
+                    "event": "error",
+                    "data": {
+                        "error": {
+                            "message": "last assistant turn already completed",
+                            "type": "invalid_request_error",
+                            "code": "invalid_body",
+                        }
+                    },
+                    "status": 400,
+                }
+                return
+            resume_assistant = True
+            resume_assistant_id = last_asst["id"]
+            resume_content = last_asst.get("content") or ""
+            resume_reasoning = last_asst.get("reasoning") or ""
+            skip_user_insert = True
         elif not text:
             yield {
                 "event": "error",
@@ -743,27 +890,46 @@ class ChatService:
                 "status": 400,
             }
             return
-        enable_thinking = s.enable_thinking if enable_thinking is None else enable_thinking
+        profile_name = profile or s.default_profile
+        preset = resolve_profile(profile_name)
+        enable_thinking = (
+            preset["enable_thinking"] if enable_thinking is None else enable_thinking
+        )
         sampled = resolve_sampling(
             enable_thinking=enable_thinking,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
+            min_p=min_p,
+            presence_penalty=presence_penalty,
+            presence_context_size=presence_context_size,
+            frequency_penalty=frequency_penalty,
+            frequency_context_size=frequency_context_size,
+            repetition_penalty=repetition_penalty,
+            repetition_context_size=repetition_context_size,
+            base=THINKING if enable_thinking else preset,
         )
         temperature = sampled["temperature"]
         top_p = sampled["top_p"]
         top_k = sampled["top_k"]
-        max_tokens = s.default_max_tokens if max_tokens is None else max_tokens
+        max_tokens = preset["max_tokens"] if max_tokens is None else max_tokens
+        if max_tokens is None:
+            max_tokens = s.default_max_tokens
         max_tokens = max(1, min(int(max_tokens), s.max_tokens_cap))
-        effort = normalize_effort(reasoning_effort or s.reasoning_effort)
+        effort = normalize_effort(reasoning_effort or preset.get("reasoning_effort") or s.reasoning_effort)
+        use_think_cut = (
+            s.thinking_continuation
+            if thinking_continuation is None
+            else thinking_continuation
+        )
         system_prompt = (system if system is not None else s.default_system) or ""
         params = {
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
+            "profile": preset["profile"],
+            **sampled,
             "max_tokens": max_tokens,
             "enable_thinking": enable_thinking,
             "reasoning_effort": effort,
+            "thinking_continuation": bool(use_think_cut and enable_thinking),
             "thinking_budget": thinking_budget_for(
                 effort,
                 low=s.thinking_budget_low,
@@ -795,12 +961,20 @@ class ChatService:
             )
             created = True
 
-        if cid in self._busy:
+        conflict = None
+        async with self._lock:
+            if cid in self._busy:
+                conflict = "generation already in progress"
+            elif len(self._busy) >= s.generation_concurrency:
+                conflict = "model is busy"
+            else:
+                self._busy.add(cid)
+        if conflict:
             yield {
                 "event": "error",
                 "data": {
                     "error": {
-                        "message": "generation already in progress",
+                        "message": conflict,
                         "type": "invalid_request_error",
                         "code": "generation_in_progress",
                     }
@@ -809,29 +983,12 @@ class ChatService:
             }
             return
 
-        async with self._lock:
-            if len(self._busy) >= s.generation_concurrency:
-                yield {
-                    "event": "error",
-                    "data": {
-                        "error": {
-                            "message": "model is busy",
-                            "type": "invalid_request_error",
-                            "code": "generation_in_progress",
-                        }
-                    },
-                    "status": 409,
-                }
-                return
-            self._busy.add(cid)
-
         started = now_ms()
         user_id = ""
         assistant_id = ""
         snapshot_id = ""
-        content_buf = ""
-        reasoning_buf = ""
-        finish = "stop"
+        content_buf = resume_content
+        reasoning_buf = resume_reasoning
         prompt_tokens = 0
         completion_tokens = 0
         cached_tokens = 0
@@ -839,6 +996,104 @@ class ChatService:
         status = "complete"
         error = None
         occupancy: dict[str, Any] = {}
+        ledger = StreamLedger(started_ms=started)
+        terminal = TerminalState.UNKNOWN_TERMINAL
+        finish = None
+        snapshot_meta: dict[str, Any] = {}
+
+        def make_req(messages: list[dict[str, Any]], max_out: int) -> ChatRequest:
+            extra: dict[str, Any] = {}
+            if resume_assistant and (resume_content or resume_reasoning):
+                if resume_content:
+                    prefix = resume_content
+                    if resume_reasoning and enable_thinking:
+                        prefix = f"<think>\n{resume_reasoning}\n</think>\n\n{resume_content}"
+                else:
+                    prefix = f"<think>\n{resume_reasoning}\n"
+                extra["raw_prompt"] = self.tokenizer.apply_chat_template(
+                    messages, assistant_prefix=prefix
+                )
+            return ChatRequest(
+                messages=messages,
+                temperature=sampled["temperature"],
+                top_p=sampled["top_p"],
+                top_k=sampled["top_k"],
+                min_p=sampled["min_p"],
+                presence_penalty=sampled["presence_penalty"],
+                presence_context_size=sampled["presence_context_size"],
+                frequency_penalty=sampled["frequency_penalty"],
+                frequency_context_size=sampled["frequency_context_size"],
+                repetition_penalty=sampled["repetition_penalty"],
+                repetition_context_size=sampled["repetition_context_size"],
+                max_tokens=max_out,
+                enable_thinking=enable_thinking,
+                reasoning_effort=effort,
+                preserve_thinking=s.preserve_thinking,
+                extra=extra,
+            )
+
+        think_cut = False
+        think_budget = None
+        think_max = 0
+
+        async def consume_stream(agen):
+            nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
+            try:
+                async for chunk in agen:
+                    if chunk.wire_done:
+                        ledger.observe_done_wire()
+                        continue
+                    if chunk.malformed:
+                        ledger.malformed_frames += 1
+                        continue
+                    if chunk.http_eof:
+                        ledger.http_eof = True
+                        continue
+                    if chunk.keepalive:
+                        yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}
+                        continue
+                    now = now_ms()
+                    if chunk.delta_reasoning:
+                        reasoning_buf += chunk.delta_reasoning
+                        ledger.had_output = True
+                        if ledger.first_any_ms is None:
+                            ledger.first_any_ms = now
+                        yield {"event": "delta", "data": {"reasoning": chunk.delta_reasoning}}
+                        if (
+                            use_think_cut
+                            and enable_thinking
+                            and think_budget
+                            and not content_buf
+                            and self.tokenizer.count_text(reasoning_buf) >= think_max
+                        ):
+                            think_cut = True
+                            break
+                    if chunk.delta_content:
+                        content_buf += chunk.delta_content
+                        ledger.had_output = True
+                        if ledger.first_any_ms is None:
+                            ledger.first_any_ms = now
+                        if ledger.first_visible_ms is None:
+                            ledger.first_visible_ms = now
+                        yield {"event": "delta", "data": {"content": chunk.delta_content}}
+                        if hard_self_loop(content_buf):
+                            ledger.repetition_guard = True
+                            break
+                    if chunk.finish_reason:
+                        ledger.observe_finish(chunk.finish_reason)
+                    if chunk.prompt_tokens is not None:
+                        prompt_tokens = chunk.prompt_tokens
+                        usage_source = "upstream"
+                    if chunk.completion_tokens is not None:
+                        completion_tokens = chunk.completion_tokens
+                        usage_source = "upstream"
+                    if chunk.cached_tokens is not None:
+                        cached_tokens = chunk.cached_tokens
+            finally:
+                closer = getattr(agen, "aclose", None)
+                if closer is not None:
+                    await closer()
+
         try:
             if skip_user_insert:
                 hist = self._load_history(cid)
@@ -846,16 +1101,29 @@ class ChatService:
                 user_id = (last_u or {}).get("id") or ""
             else:
                 user_id, _ = self._insert_message(cid, "user", text)
-            assistant_id, _ = self._insert_message(
-                cid, "assistant", "", status="streaming"
-            )
-            history = self._load_history(cid)
-            history = [m for m in history if m["id"] != assistant_id]
+            if resume_assistant and resume_assistant_id:
+                assistant_id = resume_assistant_id
+                self._conn().execute(
+                    "UPDATE messages SET status='streaming', updated_at=? WHERE id=?",
+                    (now_ms(), assistant_id),
+                )
+                self._conn().commit()
+                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+            else:
+                assistant_id, _ = self._insert_message(
+                    cid, "assistant", "", status="streaming"
+                )
+                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+            prior_state, prior_summary = self._load_dialogue_meta(cid)
             sent, snapshot_meta = self._build_payload(
                 history,
                 max_tokens=max_tokens,
                 enable_thinking=enable_thinking,
                 reasoning_effort=effort,
+                conversation_id=cid,
+                owner_id=owner_id,
+                prior_state=prior_state,
+                prior_summary=prior_summary,
             )
             occupancy = snapshot_meta["occupancy"]
             prompt_tokens = occupancy["prompt_tokens"]
@@ -864,11 +1132,17 @@ class ChatService:
                 and s.overflow_policy == "error"
             ):
                 status = "error"
-                finish = "error"
                 error = "prompt exceeds practical context budget"
+                ledger.exception = RuntimeError(error)
                 return
 
             snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
+            self._save_dialogue_meta(
+                cid,
+                state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
+                summary=snapshot_meta.get("history_summary"),
+                params=params,
+            )
             yield {
                 "event": "meta",
                 "data": {
@@ -889,173 +1163,110 @@ class ChatService:
                     "effective_system_prompt": snapshot_meta["effective_system_prompt"],
                     "sent_messages": snapshot_meta["sent_messages"],
                     "occupancy": occupancy,
+                    "history_summary": snapshot_meta.get("history_summary"),
+                    "dialogue_state": snapshot_meta.get("dialogue_state"),
                     "truncation": {
                         "applied": snapshot_meta["truncated"],
-                        "policy": "drop_oldest" if snapshot_meta["truncated"] else "none",
+                        "policy": "fold_turns" if snapshot_meta["truncated"] else "none",
                         "dropped_message_ids": snapshot_meta["dropped_message_ids"],
                     },
                 },
             }
 
-            req = ChatRequest(
-                messages=sent,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-                max_tokens=max_tokens,
-                enable_thinking=enable_thinking,
-                reasoning_effort=effort,
-                preserve_thinking=s.preserve_thinking,
+            think_budget = thinking_budget_for(
+                effort,
+                low=s.thinking_budget_low,
+                medium=s.thinking_budget_medium,
+                xhigh=s.thinking_budget_xhigh,
             )
+            think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
+            req = make_req(sent, max_tokens)
 
             if not stream:
-                think_budget = thinking_budget_for(
-                    effort,
-                    low=s.thinking_budget_low,
-                    medium=s.thinking_budget_medium,
-                    xhigh=s.thinking_budget_xhigh,
-                )
-                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
                 first_max = max_tokens
-                if think_budget and enable_thinking:
+                if use_think_cut and think_budget and enable_thinking:
                     first_max = think_max
-                first_req = ChatRequest(
-                    messages=sent,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    max_tokens=first_max,
-                    enable_thinking=enable_thinking,
-                    reasoning_effort=effort,
-                    preserve_thinking=s.preserve_thinking,
-                )
+                first_req = make_req(sent, first_max)
                 result = await self.provider.complete(first_req)
-                content_buf = result.content
-                reasoning_buf = result.reasoning
+                content_buf = (resume_content + (result.content or "")) if resume_assistant else result.content
+                extra_reason = result.reasoning or ""
+                reasoning_buf = (
+                    (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
+                )
                 if not reasoning_buf and content_buf:
                     content_buf, reasoning_buf = split_thinking(content_buf)
                 if (
-                    think_budget
+                    use_think_cut
+                    and think_budget
                     and enable_thinking
-                    and not content_buf
+                    and not result.content
                     and hasattr(self.provider, "complete_after_think")
                 ):
                     leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
                     extra = await self.provider.complete_after_think(
                         first_req, reasoning_buf, leftover
                     )
-                    content_buf = extra.content
+                    content_buf = (resume_content + extra.content) if resume_assistant else extra.content
                     result = extra
-                finish = result.finish_reason
+                ledger.observe_finish(result.finish_reason)
+                ledger.observe_done_wire()
+                ledger.had_output = bool(content_buf or reasoning_buf)
                 if result.prompt_tokens is not None:
                     prompt_tokens = result.prompt_tokens
                     usage_source = result.usage_source
                 if result.completion_tokens:
                     completion_tokens = result.completion_tokens
-                else:
-                    completion_tokens = self.tokenizer.count_text(
-                        (reasoning_buf or "") + (content_buf or "")
-                    )
                 cached_tokens = result.cached_tokens
                 if content_buf:
                     yield {"event": "delta", "data": {"content": content_buf}}
                 if reasoning_buf:
                     yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
             else:
-                think_budget = thinking_budget_for(
-                    effort,
-                    low=s.thinking_budget_low,
-                    medium=s.thinking_budget_medium,
-                    xhigh=s.thinking_budget_xhigh,
-                )
-                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
-                think_cut = False
-                agen = self.provider.stream(req)
-                try:
-                    async for chunk in agen:
-                        if chunk.keepalive:
-                            yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}
-                            continue
-                        if chunk.delta_reasoning:
-                            reasoning_buf += chunk.delta_reasoning
-                            yield {
-                                "event": "delta",
-                                "data": {"reasoning": chunk.delta_reasoning},
-                            }
-                            if (
-                                think_budget
-                                and enable_thinking
-                                and not content_buf
-                                and self.tokenizer.count_text(reasoning_buf) >= think_max
-                            ):
-                                think_cut = True
-                                break
-                        if chunk.delta_content:
-                            content_buf += chunk.delta_content
-                            yield {
-                                "event": "delta",
-                                "data": {"content": chunk.delta_content},
-                            }
-                        if chunk.finish_reason:
-                            finish = chunk.finish_reason
-                        if chunk.prompt_tokens is not None:
-                            prompt_tokens = chunk.prompt_tokens
-                            usage_source = "upstream"
-                        if chunk.completion_tokens is not None:
-                            completion_tokens = chunk.completion_tokens
-                            usage_source = "upstream"
-                        if chunk.cached_tokens is not None:
-                            cached_tokens = chunk.cached_tokens
-                finally:
-                    closer = getattr(agen, "aclose", None)
-                    if closer is not None:
-                        await closer()
-                if think_cut and not content_buf and hasattr(self.provider, "stream_after_think"):
+                async for event in consume_stream(self.provider.stream(req)):
+                    yield event
+                if (
+                    think_cut
+                    and not content_buf
+                    and hasattr(self.provider, "stream_after_think")
+                ):
                     leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
-                    async for chunk in self.provider.stream_after_think(req, reasoning_buf, leftover):
-                        if chunk.keepalive:
-                            yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}
-                            continue
-                        if chunk.delta_content:
-                            content_buf += chunk.delta_content
-                            yield {
-                                "event": "delta",
-                                "data": {"content": chunk.delta_content},
-                            }
-                        if chunk.finish_reason:
-                            finish = chunk.finish_reason
-                        if chunk.prompt_tokens is not None:
-                            prompt_tokens = chunk.prompt_tokens
-                            usage_source = "upstream"
-                        if chunk.completion_tokens is not None:
-                            completion_tokens = chunk.completion_tokens
-                            usage_source = "upstream"
-                        if chunk.cached_tokens is not None:
-                            cached_tokens = chunk.cached_tokens
+                    async for event in consume_stream(
+                        self.provider.stream_after_think(req, reasoning_buf, leftover)
+                    ):
+                        yield event
                 if not reasoning_buf and content_buf:
-                    content_buf, reasoning_buf = split_thinking(content_buf)
-                if not completion_tokens:
-                    completion_tokens = self.tokenizer.count_text(
-                        (reasoning_buf or "") + (content_buf or "")
-                    )
+                    visible, hidden = split_thinking(content_buf)
+                    if hidden:
+                        content_buf, reasoning_buf = visible, hidden
+            if not completion_tokens:
+                completion_tokens = self.tokenizer.count_text(
+                    (reasoning_buf or "") + (content_buf or "")
+                )
+            ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
+            ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
+            if not stream and not ledger.http_eof and not ledger.saw_done_wire:
+                ledger.http_eof = True
         except (asyncio.CancelledError, GeneratorExit):
+            ledger.cancelled = True
             status = "cancelled"
-            finish = "abort"
             error = "cancelled"
             raise
         except TimeoutError as exc:
-            status = "error"
-            finish = "error"
+            ledger.exception = exc
             error = str(exc)
         except ConnectionError as exc:
-            status = "error"
-            finish = "error"
+            ledger.exception = exc
             error = str(exc)
         except Exception as exc:  # noqa: BLE001
-            status = "error"
-            finish = "error"
+            ledger.exception = exc
             error = str(exc)
         finally:
+            ledger.ended_ms = now_ms()
+            terminal = ledger.classify()
+            status = ledger.message_status(terminal)
+            finish = ledger.stored_finish_reason(terminal)
+            if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
+                error = "upstream stream ended before a reliable terminal"
             try:
                 if assistant_id:
                     if not snapshot_id:
@@ -1081,8 +1292,8 @@ class ChatService:
                         user_id=user_id,
                         content=content_buf,
                         reasoning=reasoning_buf,
-                        status="cancelled" if status == "cancelled" else status,
-                        finish_reason="abort" if status == "cancelled" else finish,
+                        status=status,
+                        finish_reason=finish,
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens
                         or self.tokenizer.count_text(reasoning_buf + content_buf),
@@ -1098,7 +1309,19 @@ class ChatService:
             finally:
                 self._busy.discard(cid)
 
-        if error and status == "error":
+        hard_fail = (
+            error
+            and status == "error"
+            and not content_buf
+            and not reasoning_buf
+            and terminal
+            in {
+                TerminalState.GENERATION_ERROR,
+                TerminalState.TIMEOUT,
+                TerminalState.INTERRUPTED_TRANSPORT,
+            }
+        )
+        if hard_fail:
             overflow = "exceeds practical context" in (error or "")
             yield {
                 "event": "error",
@@ -1113,29 +1336,43 @@ class ChatService:
             }
             return
 
+        metrics = ledger.to_metrics(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cached_tokens=cached_tokens,
+        )
         usage = {
             "input": prompt_tokens,
             "output": completion_tokens,
             "total": prompt_tokens + completion_tokens,
             "cached": cached_tokens,
             "source": usage_source,
+            "ttft_ms": metrics["ttft_ms"],
+            "total_latency_ms": metrics["total_latency_ms"],
+            "effective_output_tokens_per_sec": metrics["effective_output_tokens_per_sec"],
+            "decode_tokens_per_sec": metrics["decode_tokens_per_sec"],
         }
         yield {"event": "usage", "data": usage}
         yield {
             "event": "done",
             "data": {
                 "finish_reason": finish,
+                "terminal_state": terminal.value,
+                "incomplete": ledger.incomplete(terminal),
+                "metrics": metrics,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": prompt_tokens + completion_tokens,
                     "prompt_tokens_source": usage_source,
+                    "cached_tokens": cached_tokens,
                 },
                 "message": {
                     "id": assistant_id,
                     "role": "assistant",
                     "content": content_buf,
                     "reasoning_content": reasoning_buf or None,
+                    "status": status,
                 },
             },
         }

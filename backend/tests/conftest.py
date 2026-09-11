@@ -62,6 +62,7 @@ class FakeProvider:
             completion_tokens=4,
             cached_tokens=0,
         )
+        yield ChatChunk(id="chatcmpl-fake", model="qwen3.8-27b", wire_done=True)
 
     async def complete_after_think(self, request: ChatRequest, reasoning: str, max_tokens: int) -> ChatResult:
         self.calls.append(request)
@@ -88,6 +89,7 @@ class FakeProvider:
             completion_tokens=4,
             cached_tokens=0,
         )
+        yield ChatChunk(id="chatcmpl-fake", model="qwen3.8-27b", wire_done=True)
 
 
 @pytest.fixture
