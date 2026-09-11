@@ -11,21 +11,40 @@ CONTROL="${KILN_TUNNEL_CONTROL:-/tmp/kiln-web-tunnel.sock}"
 LISTEN_PORT="${LISTEN##*:}"
 VPS_IP="${KILN_VPS_IP:-175.24.134.228}"
 ROUTE_HELPER="${KILN_ROUTE_HELPER:-$HOME/Library/Application Support/kiln/ensure-vps-direct-route.sh}"
+ROUTE_WAIT_S="${KILN_ROUTE_WAIT_S:-45}"
 
-# Do not open SSH while Clash TUN still owns the VPS host route.
-# A TUN-zombied ESTABLISHED session is exactly how 17777 goes missing.
-if [[ -f "$ROUTE_HELPER" ]]; then
-  if ! bash "$ROUTE_HELPER" --check; then
-    echo "VPS ${VPS_IP} is routed via Clash TUN; refusing to open a zombie forward" >&2
+emit() { echo "STATE=$1 $2" >&2; }
+
+route_ready() {
+  if [[ -f "$ROUTE_HELPER" ]]; then
+    bash "$ROUTE_HELPER" --check
+  else
+    local vps_iface vps_gw
+    vps_iface=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/interface:/{print $2; exit}')
+    vps_gw=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/gateway:/{print $2; exit}')
+    [[ "$vps_iface" != utun* && "$vps_gw" != 198.18.* ]] && netstat -rn -f inet | awk -v ip="$VPS_IP" '$1==ip && $3 ~ /H/ {found=1} END{exit !found}'
+  fi
+}
+
+waited=0
+while ! route_ready; do
+  emit ROUTE_NOT_READY "waited=${waited}s vps=${VPS_IP}"
+  if [[ "$waited" -ge "$ROUTE_WAIT_S" ]]; then
+    emit ROUTE_NOT_READY "giving up after ${ROUTE_WAIT_S}s; refusing to open a zombie forward"
     exit 1
   fi
-else
-  vps_iface=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/interface:/{print $2; exit}')
-  vps_gw=$(/sbin/route -n get "$VPS_IP" 2>/dev/null | awk '/gateway:/{print $2; exit}')
-  if [[ "$vps_iface" == utun* || "$vps_gw" == 198.18.* ]]; then
-    echo "VPS ${VPS_IP} is routed via Clash TUN; refusing to open a zombie forward" >&2
-    exit 1
-  fi
+  sleep 2
+  waited=$((waited + 2))
+done
+
+if ! python3 -c "import socket; s=socket.create_connection(('127.0.0.1', int('${LOCAL##*:}')), 2); s.close()" 2>/dev/null; then
+  emit LOCAL_TARGET_DOWN "nothing listening on ${LOCAL}"
+  exit 1
+fi
+
+if ! python3 -c "import socket; s=socket.create_connection(('${VPS_IP}', 22), 3); s.close()" 2>/dev/null; then
+  emit ROUTE_OK_TCP22_FAIL "UGHS route present but ${VPS_IP}:22 did not accept"
+  exit 1
 fi
 
 if [[ ! "$LISTEN_PORT" =~ ^[0-9]+$ ]]; then
@@ -71,7 +90,7 @@ opened=0
 for _ in $(seq 1 25); do
   if ! kill -0 "$SSH_PID" >/dev/null 2>&1; then
     wait "$SSH_PID" || true
-    echo "ssh exited before remote ${LISTEN} opened" >&2
+    echo "STATE=SSH_CONNECT_FAILED ssh exited before remote ${LISTEN} opened" >&2
     exit 1
   fi
   if remote_listen_ok; then
@@ -82,7 +101,7 @@ for _ in $(seq 1 25); do
 done
 
 if [[ "$opened" -ne 1 ]]; then
-  echo "remote ${LISTEN} did not open" >&2
+  echo "STATE=REMOTE_FORWARD_FAILED remote ${LISTEN} did not open" >&2
   exit 1
 fi
 
@@ -91,7 +110,7 @@ echo "forward ${LISTEN} -> ${LOCAL} via ${REMOTE}"
 while kill -0 "$SSH_PID" >/dev/null 2>&1; do
   sleep 15
   if ! remote_listen_ok; then
-    echo "remote listen disappeared" >&2
+    echo "STATE=REMOTE_LISTENER_LOST remote listen disappeared" >&2
     exit 1
   fi
 done
