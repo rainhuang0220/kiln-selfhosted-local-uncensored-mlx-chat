@@ -65,6 +65,26 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+reclaim_stale_remote() {
+  # After a roam the old sshd child can keep 17777, so the new -R fails.
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$REMOTE" \
+    "python3 -c \"
+import os, signal, subprocess
+try:
+    out = subprocess.check_output(['lsof', '-nP', '-iTCP:${LISTEN_PORT}', '-sTCP:LISTEN'], text=True, stderr=subprocess.DEVNULL)
+except Exception:
+    raise SystemExit(0)
+for line in out.splitlines()[1:]:
+    parts = line.split()
+    if len(parts) >= 2 and parts[0].startswith('sshd'):
+        try:
+            os.kill(int(parts[1]), signal.SIGTERM)
+        except Exception:
+            pass
+\"" >/dev/null 2>&1 || true
+  emit STALE_REMOTE_FORWARD "asked VPS to drop stale ${LISTEN} holder"
+}
+
 rm -f "$CONTROL"
 
 ssh -M -S "$CONTROL" -N -T \
@@ -90,7 +110,8 @@ opened=0
 for _ in $(seq 1 25); do
   if ! kill -0 "$SSH_PID" >/dev/null 2>&1; then
     wait "$SSH_PID" || true
-    echo "STATE=SSH_CONNECT_FAILED ssh exited before remote ${LISTEN} opened" >&2
+    emit SSH_CONNECT_FAILED "ssh exited before remote ${LISTEN} opened"
+    reclaim_stale_remote
     exit 1
   fi
   if remote_listen_ok; then
@@ -101,7 +122,8 @@ for _ in $(seq 1 25); do
 done
 
 if [[ "$opened" -ne 1 ]]; then
-  echo "STATE=REMOTE_FORWARD_FAILED remote ${LISTEN} did not open" >&2
+  emit REMOTE_FORWARD_FAILED "remote ${LISTEN} did not open"
+  reclaim_stale_remote
   exit 1
 fi
 

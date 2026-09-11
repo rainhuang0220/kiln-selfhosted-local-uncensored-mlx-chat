@@ -10,6 +10,8 @@ bash -n "$installer"
 
 grep -q 'create_connection' "$wrapper"
 grep -q 'remote listen disappeared' "$wrapper"
+grep -q 'STALE_REMOTE_FORWARD' "$wrapper"
+grep -q 'reclaim_stale_remote' "$wrapper"
 grep -q 'run-web-tunnel.sh' "$installer"
 grep -q 'Application Support/kiln' "$installer"
 
