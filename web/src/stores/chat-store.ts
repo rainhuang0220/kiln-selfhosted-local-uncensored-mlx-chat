@@ -434,9 +434,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       reasoning: cont ? lastAsst?.reasoning || "" : "",
       status: "streaming",
     };
+    const original = get().messages;
     const prior = regen
-      ? get().messages.filter((m, i, arr) => !(m.role === "assistant" && i === arr.length - 1))
-      : get().messages;
+      ? original.filter((m, i, arr) => !(m.role === "assistant" && i === arr.length - 1))
+      : original;
     set({
       streaming: true,
       error: null,
@@ -671,14 +672,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } else {
         set((s) => ({
           error: (err as Error).message,
-          draft: accepted ? s.draft : text,
+          draft: accepted || cont || regen ? s.draft : text,
           messages: accepted
             ? s.messages.map((m) =>
                 m.id === asstId
                   ? { ...m, status: "error", error: (err as Error).message }
                   : m,
               )
-            : s.messages.filter((m) => m.id !== userId && m.id !== asstId),
+            : cont && lastAsst
+              ? s.messages.map((m) => (m.id === lastAsst.id ? { ...lastAsst } : m))
+            : regen
+              ? original
+              : s.messages.filter((m) => m.id !== userId && m.id !== asstId),
         }));
       }
     } finally {

@@ -10,6 +10,11 @@ from typing import Any, AsyncIterator
 from app.config import Settings
 from app.db import get_conn
 from app.providers.base import ChatChunk, ChatProvider, ChatRequest
+from app.services.continuation import (
+    TailStripper,
+    continue_assistant_message,
+    strip_regenerated_tail,
+)
 from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
 from app.services.ingest import pack_user_message
@@ -17,7 +22,7 @@ from app.services.memory import MemoryService
 from app.services.profiles import resolve_profile
 from app.services.repetition import hard_self_loop
 from app.services.sampling import THINKING, resolve_sampling
-from app.services.stream_protocol import StreamLedger, TerminalState
+from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
 from app.services.thinking import (
     normalize_effort,
     remap_assistant_for_history,
@@ -57,6 +62,8 @@ class ChatService:
         self.memory = memory or MemoryService()
         self._lock = asyncio.Lock()
         self._busy: set[str] = set()
+        self._timeouts = 0
+        self._last_inference_error: str | None = None
 
     def _conn(self) -> sqlite3.Connection:
         return get_conn()
@@ -286,6 +293,22 @@ class ChatService:
         conn.commit()
         return cur.rowcount > 0
 
+    def note_inference_success(self) -> None:
+        self._timeouts = 0
+        self._last_inference_error = None
+
+    def note_inference_timeout(self, message: str | None = None) -> None:
+        self._timeouts += 1
+        self._last_inference_error = message or "mlx timeout"
+
+    def inference_status(self) -> dict[str, Any]:
+        ready = self._timeouts < 3
+        return {
+            "ready": ready,
+            "consecutive_timeouts": self._timeouts,
+            "last_error": self._last_inference_error,
+        }
+
     def global_context(self) -> dict[str, Any]:
         return {
             "model": self.settings.model_name,
@@ -423,14 +446,48 @@ class ChatService:
         summary: str | None,
         params: dict[str, Any],
     ) -> None:
+        current = self._conversation_settings(conversation_id)
         payload = {
             **params,
             "dialogue_state": state.__dict__,
             "rolling_summary": summary,
         }
+        used = current.get("continue_completion_prompts")
+        if isinstance(used, list):
+            payload["continue_completion_prompts"] = used
         self._conn().execute(
             "UPDATE conversations SET settings_json=? WHERE id=?",
             (json.dumps(payload, ensure_ascii=False), conversation_id),
+        )
+        self._conn().commit()
+
+    def _used_continue_prompts(self, conversation_id: str) -> list[str]:
+        data = self._conversation_settings(conversation_id)
+        raw = data.get("continue_completion_prompts") or []
+        return [p for p in raw if isinstance(p, str)][-16:]
+
+    def _remember_continue_prompt(self, conversation_id: str, prompt: str) -> None:
+        if not prompt:
+            return
+        used = self._used_continue_prompts(conversation_id)
+        if prompt not in used:
+            used.append(prompt)
+        data = self._conversation_settings(conversation_id)
+        data["continue_completion_prompts"] = used[-16:]
+        self._conn().execute(
+            "UPDATE conversations SET settings_json=? WHERE id=?",
+            (json.dumps(data, ensure_ascii=False), conversation_id),
+        )
+        self._conn().commit()
+
+    def _clear_continue_prompts(self, conversation_id: str) -> None:
+        data = self._conversation_settings(conversation_id)
+        if not data.get("continue_completion_prompts"):
+            return
+        data["continue_completion_prompts"] = []
+        self._conn().execute(
+            "UPDATE conversations SET settings_json=? WHERE id=?",
+            (json.dumps(data, ensure_ascii=False), conversation_id),
         )
         self._conn().commit()
 
@@ -445,9 +502,11 @@ class ChatService:
         owner_id: str | None,
         prior_state: DialogueState | None = None,
         prior_summary: str | None = None,
+        prompt_budget: int | None = None,
+        prompt_soft_target: int | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
-        budget = self.settings.practical_prompt_budget
+        budget = prompt_budget or self.settings.practical_prompt_budget
         built = build_dialogue_context(
             history,
             budget=budget,
@@ -539,6 +598,7 @@ class ChatService:
             "memory_ids": [m.id for m in memories],
             "occupancy": {
                 "effective_window_tokens": budget,
+                "prompt_soft_target": prompt_soft_target or budget,
                 "model_max_tokens": self.settings.context_window,
                 "prompt_tokens": prompt_tokens,
                 "completion_budget": max_tokens,
@@ -1001,18 +1061,29 @@ class ChatService:
         finish = None
         snapshot_meta: dict[str, Any] = {}
 
+        continue_tail = ""
+
         def make_req(messages: list[dict[str, Any]], max_out: int) -> ChatRequest:
-            extra: dict[str, Any] = {}
+            nonlocal continue_tail
+            extra: dict[str, Any] = {
+                "used_continue_prompts": self._used_continue_prompts(cid),
+            }
             if resume_assistant and (resume_content or resume_reasoning):
                 if resume_content:
-                    prefix = resume_content
-                    if resume_reasoning and enable_thinking:
-                        prefix = f"<think>\n{resume_reasoning}\n</think>\n\n{resume_content}"
+                    asst = continue_assistant_message(resume_content, resume_reasoning)
+                    prompt, continue_tail = self.tokenizer.continuation_completion_prompt(
+                        [*messages, asst],
+                        enable_thinking=enable_thinking,
+                        used_prompts=extra["used_continue_prompts"],
+                    )
                 else:
-                    prefix = f"<think>\n{resume_reasoning}\n"
-                extra["raw_prompt"] = self.tokenizer.apply_chat_template(
-                    messages, assistant_prefix=prefix
-                )
+                    prompt, continue_tail = self.tokenizer.mid_think_completion_prompt(
+                        messages,
+                        resume_reasoning,
+                        used_prompts=extra["used_continue_prompts"],
+                    )
+                extra["raw_prompt"] = prompt
+                extra["continue_dropped_tail"] = continue_tail
             return ChatRequest(
                 messages=messages,
                 temperature=sampled["temperature"],
@@ -1035,6 +1106,7 @@ class ChatService:
         think_cut = False
         think_budget = None
         think_max = 0
+        tail_stripper = TailStripper("")
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
@@ -1069,16 +1141,18 @@ class ChatService:
                             think_cut = True
                             break
                     if chunk.delta_content:
-                        content_buf += chunk.delta_content
-                        ledger.had_output = True
-                        if ledger.first_any_ms is None:
-                            ledger.first_any_ms = now
-                        if ledger.first_visible_ms is None:
-                            ledger.first_visible_ms = now
-                        yield {"event": "delta", "data": {"content": chunk.delta_content}}
-                        if hard_self_loop(content_buf):
-                            ledger.repetition_guard = True
-                            break
+                        visible = tail_stripper.feed(chunk.delta_content)
+                        if visible:
+                            content_buf += visible
+                            ledger.had_output = True
+                            if ledger.first_any_ms is None:
+                                ledger.first_any_ms = now
+                            if ledger.first_visible_ms is None:
+                                ledger.first_visible_ms = now
+                            yield {"event": "delta", "data": {"content": visible}}
+                            if hard_self_loop(content_buf):
+                                ledger.repetition_guard = True
+                                break
                     if chunk.finish_reason:
                         ledger.observe_finish(chunk.finish_reason)
                     if chunk.prompt_tokens is not None:
@@ -1124,6 +1198,8 @@ class ChatService:
                 owner_id=owner_id,
                 prior_state=prior_state,
                 prior_summary=prior_summary,
+                prompt_budget=preset.get("prompt_budget"),
+                prompt_soft_target=preset.get("prompt_soft_target"),
             )
             occupancy = snapshot_meta["occupancy"]
             prompt_tokens = occupancy["prompt_tokens"]
@@ -1137,6 +1213,8 @@ class ChatService:
                 return
 
             snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
+            if not resume_assistant:
+                self._clear_continue_prompts(cid)
             self._save_dialogue_meta(
                 cid,
                 state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
@@ -1181,14 +1259,20 @@ class ChatService:
             )
             think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
             req = make_req(sent, max_tokens)
+            tail_stripper = TailStripper(continue_tail)
 
             if not stream:
                 first_max = max_tokens
                 if use_think_cut and think_budget and enable_thinking:
                     first_max = think_max
                 first_req = make_req(sent, first_max)
+                if (first_req.extra or {}).get("raw_prompt"):
+                    self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
                 result = await self.provider.complete(first_req)
-                content_buf = (resume_content + (result.content or "")) if resume_assistant else result.content
+                extra_content = result.content or ""
+                if resume_assistant:
+                    extra_content = strip_regenerated_tail(extra_content, continue_tail)
+                content_buf = (resume_content + extra_content) if resume_assistant else extra_content
                 extra_reason = result.reasoning or ""
                 reasoning_buf = (
                     (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
@@ -1206,7 +1290,13 @@ class ChatService:
                     extra = await self.provider.complete_after_think(
                         first_req, reasoning_buf, leftover
                     )
-                    content_buf = (resume_content + extra.content) if resume_assistant else extra.content
+                    think_prompt = (first_req.extra or {}).get("raw_prompt") or ""
+                    if think_prompt:
+                        self._remember_continue_prompt(cid, think_prompt)
+                    extra_visible = extra.content or ""
+                    if resume_assistant:
+                        extra_visible = strip_regenerated_tail(extra_visible, continue_tail)
+                    content_buf = (resume_content + extra_visible) if resume_assistant else extra_visible
                     result = extra
                 ledger.observe_finish(result.finish_reason)
                 ledger.observe_done_wire()
@@ -1222,6 +1312,8 @@ class ChatService:
                 if reasoning_buf:
                     yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
             else:
+                if (req.extra or {}).get("raw_prompt"):
+                    self._remember_continue_prompt(cid, req.extra["raw_prompt"])
                 async for event in consume_stream(self.provider.stream(req)):
                     yield event
                 if (
@@ -1234,6 +1326,9 @@ class ChatService:
                         self.provider.stream_after_think(req, reasoning_buf, leftover)
                     ):
                         yield event
+                    think_prompt = (req.extra or {}).get("raw_prompt") or ""
+                    if think_prompt:
+                        self._remember_continue_prompt(cid, think_prompt)
                 if not reasoning_buf and content_buf:
                     visible, hidden = split_thinking(content_buf)
                     if hidden:
@@ -1254,15 +1349,28 @@ class ChatService:
         except TimeoutError as exc:
             ledger.exception = exc
             error = str(exc)
+            self.note_inference_timeout(error)
         except ConnectionError as exc:
             ledger.exception = exc
             error = str(exc)
+            self.note_inference_timeout(error)
         except Exception as exc:  # noqa: BLE001
             ledger.exception = exc
             error = str(exc)
         finally:
             ledger.ended_ms = now_ms()
             terminal = ledger.classify()
+            if terminal in COMPLETE_STATES:
+                self.note_inference_success()
+            elif (
+                resume_assistant
+                and ledger.exception is None
+                and terminal is TerminalState.INTERRUPTED_TRANSPORT
+                and not ledger.had_output
+            ):
+                self.note_inference_timeout(
+                    "continue completions ended without a terminal"
+                )
             status = ledger.message_status(terminal)
             finish = ledger.stored_finish_reason(terminal)
             if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:

@@ -9,6 +9,7 @@ import httpx
 from app.config import Settings, settings as default_settings
 from app.providers.base import ChatChunk, ChatRequest, ChatResult
 from app.providers.sse import iter_sse_frames
+from app.services.continuation import TailStripper, strip_regenerated_tail
 from app.services.sampling import mlx_repetition_penalty
 from app.services.thinking import split_thinking
 
@@ -96,20 +97,27 @@ class MlxProvider:
             body["tools"] = request.tools
         return body
 
-    def _continuation_prompt(self, request: ChatRequest, reasoning: str) -> str:
-        parts: list[str] = []
-        for msg in request.messages:
-            role = msg.get("role") or "user"
-            content = msg.get("content") or ""
-            thought = msg.get("reasoning_content") or msg.get("reasoning") or ""
-            body = f"<think>\n{thought}\n</think>\n\n{content}" if role == "assistant" and thought else content
-            parts.append(f"<|im_start|>{role}\n{body}<|im_end|>\n")
-        return (
-            "".join(parts)
-            + "<|im_start|>assistant\n<think>\n"
-            + (reasoning or "").strip()
-            + "\n</think>\n\n"
+    def _continuation_prompt(self, request: ChatRequest, reasoning: str) -> tuple[str, str]:
+        from app.services.tokens import TokenEstimator
+
+        messages = [dict(m) for m in request.messages]
+        messages.append(
+            {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": (reasoning or "").strip(),
+            }
         )
+        extra = request.extra if request.extra is not None else {}
+        prompt, tail = TokenEstimator(self.settings.model_path).continuation_completion_prompt(
+            messages,
+            enable_thinking=True,
+            used_prompts=extra.get("used_continue_prompts") or [],
+        )
+        extra["raw_prompt"] = prompt
+        extra["continue_dropped_tail"] = tail
+        request.extra = extra
+        return prompt, tail
 
     def _usage(self, data: dict[str, Any]) -> tuple[int, int, int, str]:
         usage = data.get("usage") or {}
@@ -245,9 +253,10 @@ class MlxProvider:
         self, request: ChatRequest, reasoning: str, max_tokens: int
     ) -> ChatResult:
         client = await self._client_obj()
+        prompt, tail = self._continuation_prompt(request, reasoning)
         body: dict[str, Any] = {
             "model": "default_model",
-            "prompt": self._continuation_prompt(request, reasoning),
+            "prompt": prompt,
             "max_tokens": max(1, max_tokens),
             **self._sampling_fields(request),
             "stream": False,
@@ -262,7 +271,7 @@ class MlxProvider:
             raise RuntimeError(f"mlx error {resp.status_code}: {resp.text[:400]}")
         data = resp.json()
         choice = (data.get("choices") or [{}])[0]
-        text = choice.get("text") or ""
+        text = strip_regenerated_tail(choice.get("text") or "", tail)
         prompt, completion, cached, source = self._usage(data)
         return ChatResult(
             id=data.get("id") or f"chatcmpl-{uuid.uuid4()}",
@@ -282,9 +291,11 @@ class MlxProvider:
     ) -> AsyncIterator[ChatChunk]:
         req_id = f"chatcmpl-{uuid.uuid4()}"
         model = self.default_model()
+        prompt, tail = self._continuation_prompt(request, reasoning)
+        stripper = TailStripper(tail)
         body: dict[str, Any] = {
             "model": "default_model",
-            "prompt": self._continuation_prompt(request, reasoning),
+            "prompt": prompt,
             "max_tokens": max(1, max_tokens),
             **self._sampling_fields(request),
             "stream": True,
@@ -302,4 +313,7 @@ class MlxProvider:
                     completion_tokens=chunk.completion_tokens,
                     cached_tokens=chunk.cached_tokens,
                 )
+            if chunk.delta_content:
+                visible = stripper.feed(chunk.delta_content)
+                chunk.delta_content = visible or None
             yield chunk

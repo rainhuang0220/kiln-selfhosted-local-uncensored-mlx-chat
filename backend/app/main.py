@@ -238,12 +238,21 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         base = "" if accounts.user_count() else cfg.mlx_base_url
         media_svc: MediaService | None = getattr(request.app.state, "media", None)
         chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
+        chat = getattr(request.app.state, "chat", None)
+        inference = chat.inference_status() if chat is not None else {"ready": reachable}
+        status = "ok" if reachable and inference.get("ready", True) else "degraded"
         return {
-            "status": "ok",
+            "status": status,
             "provider": {
                 "name": getattr(provider, "name", "mlx"),
                 "reachable": reachable,
                 "base_url": base,
+                "http_alive": reachable,
+            },
+            "inference": {
+                "ready": bool(inference.get("ready")),
+                "consecutive_timeouts": inference.get("consecutive_timeouts", 0),
+                "last_error": inference.get("last_error"),
             },
             "chat": chat_life,
             "model": cfg.model_name,

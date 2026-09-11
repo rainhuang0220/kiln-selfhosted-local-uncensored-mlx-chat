@@ -47,6 +47,9 @@ def test_health(client):
     assert body["enable_thinking"] is False
     assert body["default_profile"] == "interactive_dialogue"
     assert body["max_tokens_cap"] >= 32768
+    assert body["provider"]["http_alive"] is True
+    assert body["inference"]["ready"] is True
+    assert body["inference"]["consecutive_timeouts"] == 0
 
 
 def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):
@@ -90,6 +93,7 @@ def test_ten_thousand_chars_reach_the_model(client, fake_provider):
     assert user["content"].count("甲") == 10_000
     snap = r.json()["context"]["occupancy"]
     assert not (snap.get("document_pack") or {}).get("applied")
+    assert snap["prompt_soft_target"] <= snap["effective_window_tokens"]
 
 
 def test_huge_file_is_packed_into_budget(tmp_settings, chat_service, fake_provider):

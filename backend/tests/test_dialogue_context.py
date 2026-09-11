@@ -23,7 +23,7 @@ def test_does_not_split_a_logical_turn():
     msgs = _turns(12, facts={0: "地点：旧书店 约定：周五见面 事件：丢了钥匙 偏好：不喝美式 还没给地址"})
     built = build_dialogue_context(
         msgs,
-        budget=180,
+        budget=80,
         estimate=lambda t: max(1, len(t) // 4),
         recent_turn_target=4,
         min_recent_turns=2,
@@ -65,6 +65,20 @@ def test_summary_does_not_rewrite_when_under_budget():
     assert first.summary == "keep-me"
     assert first.state.location == "旧书店"
     assert not any(m.get("id") == "dialogue-context" for m in first.messages)
+
+
+def test_does_not_fold_under_token_budget_just_because_turns_exceed_target():
+    built = build_dialogue_context(
+        _turns(12),
+        budget=50_000,
+        estimate=lambda t: 1,
+        recent_turn_target=4,
+        min_recent_turns=4,
+        fold_every_turns=4,
+    )
+    assert built.compressed is False
+    assert not any(m.get("id") == "dialogue-context" for m in built.messages)
+    assert built.recent_turns == 12
 
 
 def test_old_context_is_not_reinjected_into_every_user_turn():

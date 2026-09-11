@@ -40,7 +40,7 @@ def test_hf_identity_repetition_is_normalized_for_mlx():
     assert provider._payload(req, False)["repetition_penalty"] == 0.0
 
 
-def test_continue_prefix_uses_completions_not_chat(monkeypatch):
+def test_continue_uses_completions_with_native_prefix(monkeypatch):
     provider = MlxProvider(Settings(mlx_base_url="http://127.0.0.1:8081"))
     captured: dict = {}
 
@@ -53,7 +53,8 @@ def test_continue_prefix_uses_completions_not_chat(monkeypatch):
     monkeypatch.setattr(provider, "_stream_post", fake_stream_post)
     req = ChatRequest(
         messages=[{"role": "user", "content": "hi"}],
-        extra={"raw_prompt": "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\npartial"},
+        extra={"raw_prompt": "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n\n\nparti"},
+        enable_thinking=False,
     )
 
     async def run():
@@ -63,5 +64,6 @@ def test_continue_prefix_uses_completions_not_chat(monkeypatch):
 
     asyncio.run(run())
     assert captured["url"].endswith("/completions")
-    assert captured["body"]["prompt"].endswith("partial")
+    assert captured["body"]["prompt"].endswith("parti")
     assert "messages" not in captured["body"]
+    assert "continue_final_message" not in (captured["body"].get("chat_template_kwargs") or {})

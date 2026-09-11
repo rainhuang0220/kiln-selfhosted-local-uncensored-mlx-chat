@@ -246,10 +246,10 @@ def build_dialogue_context(
         extra = estimate(block) if block else 0
         return extra + _estimate_messages(system + flatten(kept_turns), estimate)
 
-    if total() <= limit and len(kept_turns) <= target:
+    if total() <= limit:
         return ContextBuild(system + flatten(kept_turns), summary, state, False, [], 0, len(kept_turns))
 
-    while (total() > limit or len(kept_turns) > target) and len(kept_turns) > min_recent_turns:
+    while total() > limit and len(kept_turns) > min_recent_turns:
         take = min(fold_every_turns, len(kept_turns) - min_recent_turns)
         if take <= 0:
             break

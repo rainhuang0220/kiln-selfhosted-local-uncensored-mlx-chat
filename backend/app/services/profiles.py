@@ -23,6 +23,8 @@ INTERACTIVE_DIALOGUE = {
     "frequency_context_size": 256,
     "repetition_penalty": 1.0,
     "repetition_context_size": 128,
+    "prompt_soft_target": 8192,
+    "prompt_budget": 10240,
 }
 
 BALANCED = {
@@ -32,6 +34,8 @@ BALANCED = {
     "presence_penalty": 0.0,
     "temperature": 0.7,
     "top_p": 0.9,
+    "prompt_soft_target": 12288,
+    "prompt_budget": 16384,
 }
 
 REASONING = {
@@ -50,6 +54,8 @@ REASONING = {
     "frequency_context_size": 20,
     "repetition_penalty": 1.0,
     "repetition_context_size": 20,
+    "prompt_soft_target": 16384,
+    "prompt_budget": 32768,
 }
 
 PROFILES: dict[str, dict[str, Any]] = {

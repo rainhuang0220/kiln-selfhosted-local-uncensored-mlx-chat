@@ -198,6 +198,99 @@ def test_continue_mid_think_does_not_close_think(chat_service, fake_provider):
             )
         )
     )
-    prompt = fake_provider.calls[-1].extra.get("raw_prompt") or ""
-    assert prompt.endswith("<think>\nhalf plan\n")
+    req = fake_provider.calls[-1]
+    prompt = req.extra.get("raw_prompt") or ""
+    assert "<think>" in prompt
+    assert "half" in prompt
     assert not prompt.rstrip().endswith("</think>")
+    assert "<|im_start|>user\ncontinue" not in prompt
+
+
+def test_second_continue_does_not_reuse_completion_prefix(chat_service, fake_provider):
+    async def first_gen(_request: ChatRequest):
+        yield ChatChunk(id="x", model="fake", delta_content="partial")
+        yield ChatChunk(id="x", model="fake", finish_reason="length")
+        yield ChatChunk(id="x", model="fake", wire_done=True)
+
+    async def continue_silent(request: ChatRequest):
+        fake_provider.calls.append(request)
+        yield ChatChunk(id="x", model="fake", finish_reason="length")
+        yield ChatChunk(id="x", model="fake", wire_done=True)
+
+    fake_provider.stream = first_gen  # type: ignore[method-assign]
+    events = asyncio.run(
+        _collect(
+            chat_service.chat(
+                message="写长一点",
+                conversation_id=None,
+                stream=True,
+                enable_thinking=False,
+            )
+        )
+    )
+    cid = next(ev for ev in events if ev["event"] == "meta")["data"]["conversation_id"]
+    fake_provider.stream = continue_silent  # type: ignore[method-assign]
+    asyncio.run(
+        _collect(
+            chat_service.chat(
+                message="",
+                conversation_id=cid,
+                stream=True,
+                continue_generation=True,
+                enable_thinking=False,
+            )
+        )
+    )
+    asyncio.run(
+        _collect(
+            chat_service.chat(
+                message="",
+                conversation_id=cid,
+                stream=True,
+                continue_generation=True,
+                enable_thinking=False,
+            )
+        )
+    )
+    prompts = [c.extra.get("raw_prompt") for c in fake_provider.calls if c.extra.get("raw_prompt")]
+    assert len(prompts) >= 2
+    assert prompts[-2] != prompts[-1]
+    assert len(prompts[-1]) < len(prompts[-2])
+
+
+def test_empty_continue_eof_counts_as_inference_fault(chat_service, fake_provider):
+    async def first_gen(_request: ChatRequest):
+        yield ChatChunk(id="x", model="fake", delta_content="partial")
+        yield ChatChunk(id="x", model="fake", finish_reason="length")
+        yield ChatChunk(id="x", model="fake", wire_done=True)
+
+    async def dead_continue(request: ChatRequest):
+        fake_provider.calls.append(request)
+        yield ChatChunk(id="x", model="fake", http_eof=True)
+
+    fake_provider.stream = first_gen  # type: ignore[method-assign]
+    events = asyncio.run(
+        _collect(
+            chat_service.chat(
+                message="写长一点",
+                conversation_id=None,
+                stream=True,
+                enable_thinking=False,
+            )
+        )
+    )
+    cid = next(ev for ev in events if ev["event"] == "meta")["data"]["conversation_id"]
+    assert chat_service.inference_status()["consecutive_timeouts"] == 0
+    fake_provider.stream = dead_continue  # type: ignore[method-assign]
+    asyncio.run(
+        _collect(
+            chat_service.chat(
+                message="",
+                conversation_id=cid,
+                stream=True,
+                continue_generation=True,
+                enable_thinking=False,
+            )
+        )
+    )
+    assert chat_service.inference_status()["consecutive_timeouts"] == 1

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     mlx_connect_timeout_s: float = 5.0
 
     model_name: str = DEFAULT_MODEL_NAME
-    model_path: str = ""
+    model_path: str = str(Path(__file__).resolve().parents[2].parent / DEFAULT_MODEL_NAME)
     model_library_path: str = str(ROOT.parent / "models")
     model_selection_state_path: str = str(ROOT / "data" / "active-model.json")
     model_switch_enabled: bool = sys.platform == "darwin"

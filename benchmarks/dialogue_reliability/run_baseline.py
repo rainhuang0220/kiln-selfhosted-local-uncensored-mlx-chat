@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import time
 import urllib.error
@@ -69,13 +70,15 @@ def _post_chat(api: str, body: dict, timeout: int) -> dict:
     first_visible_s = None
     first_any_s = None
     raw = ""
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         headers_s = time.perf_counter() - t0
         while True:
             chunk = resp.read(128)
             if not chunk:
+                raw += decoder.decode(b"", final=True)
                 break
-            raw += chunk.decode("utf-8", "replace")
+            raw += decoder.decode(chunk)
             now = time.perf_counter() - t0
             for event, data in _sse_events(raw):
                 if event != "delta" or not isinstance(data, dict):
@@ -151,6 +154,7 @@ def _post_chat(api: str, body: dict, timeout: int) -> dict:
         "malformed_sse_frames": malformed,
         "thinking_chars": len(reasoning),
         "visible_chars": len(content),
+        "content": content,
         "content_preview": content[:240],
     }
 

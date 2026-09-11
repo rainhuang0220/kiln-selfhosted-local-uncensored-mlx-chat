@@ -131,7 +131,8 @@ def test_continue_does_not_insert_user_message(chat_service, fake_provider):
 
     async def more(request: ChatRequest):
         fake_provider.calls.append(request)
-        yield ChatChunk(id="x", model="fake", delta_content=" more")
+        tail = request.extra.get("continue_dropped_tail") or ""
+        yield ChatChunk(id="x", model="fake", delta_content=f"{tail} more")
         yield ChatChunk(id="x", model="fake", finish_reason="stop")
         yield ChatChunk(id="x", model="fake", wire_done=True)
 
@@ -157,8 +158,11 @@ def test_continue_does_not_insert_user_message(chat_service, fake_provider):
     assert len(users) == 1
     assert len(assistants) == 1
     assert assistants[0]["content"] == "partial more"
-    assert fake_provider.calls[-1].extra.get("raw_prompt", "").endswith("partial")
-    assert "<|im_end|>" not in fake_provider.calls[-1].extra.get("raw_prompt", "").split("assistant\n")[-1]
+    req = fake_provider.calls[-1]
+    prompt = req.extra.get("raw_prompt") or ""
+    assert prompt
+    assert "<|im_start|>user\ncontinue" not in prompt
+    assert req.extra.get("continue_dropped_tail") is not None
 
 
 async def _collect(agen):

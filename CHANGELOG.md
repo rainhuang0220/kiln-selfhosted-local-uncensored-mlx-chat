@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Prompt-cache attribution for mlx-lm 0.31.3: per-request `chat_template_kwargs` does not bypass the LRU when token IDs match; streaming persists the same cache as non-streaming.
+- Continue sends `/v1/completions` with a tokenizer-native prefix. mlx-lm 0.31.3 dies on an exact prompt-cache hit; Kiln drops the last token and, on retry, further tokens so the same prefix is not resent. Think-cut uses the same shortening. A leftover exact hit can still kill the generate thread; a silent Continue EOF counts as an inference fault.
+- Mid-think Continue uses the official thinking generation prefix plus saved reasoning, not Kiln-built think tags.
+- Continue/Regenerate HTTP errors before `meta` no longer remove the last turn from the local UI.
+- Dialogue fold runs only when the prompt exceeds the hard profile budget. `prompt_soft_target` is occupancy metadata, not a fold trigger.
+- Interactive Dialogue hard prompt cap is 10240 (soft target 8192). Balanced 16384; Reasoning keeps 32768.
+- `/health` distinguishes MLX HTTP liveness from inference readiness after repeated timeouts.
+- Offline CJK quality metrics and a non-CI long-dialogue evaluation runner.
+- 250-turn Interactive Dialogue eval used `max_tokens=192`: warm TTFT p50 1.37s is a cache-hit floor (~96%), not a miss. Everyday/short-reply semantic repetition remains.
+
 ## v0.6.0 — Conversational Reliability Update
 
 - Classify every generation terminal; incomplete upstream streams are no longer stored as a normal stop.
