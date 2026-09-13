@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.6.1 — Final hardening
+
+- Local-open mode is limited to loopback Hosts (`127.0.0.0/8`, `::1`, `localhost`). RFC1918 and link-local Hosts fail closed with zero users.
+- Trusted HTTPS proxy requests cannot inherit local-open by spoofing `Host: 127.0.0.1`.
+- Tokenizer load defaults to `trust_remote_code=false`.
+- `python -m app.cli change-password` rotates an owner password and revokes sessions.
+- Public nginx now writes a kiln-only access log (no cookies/bodies).
+- Reverse SSH uses a dedicated `kiln-tunnel` user with `PermitListen 127.0.0.1:17777`.
+
 ## v0.6.0 — Private mode and conversational reliability
 
 - Private internet mode is fail-closed: auth is required even with zero users, public Host cannot inherit local open mode, and the first owner is created on the Mac CLI.

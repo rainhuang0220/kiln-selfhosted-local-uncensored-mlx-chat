@@ -363,3 +363,75 @@ def test_health_does_not_leak_internal_urls_when_private(tmp_settings, chat_serv
         assert "127.0.0.1" not in text
         assert "/Users/" not in text
         assert "chat.db" not in text
+
+
+def _local_client(tmp_settings, chat_service, host: str) -> TestClient:
+    tmp_settings.kiln_exposure = "local"
+    tmp_settings.cookie_secure = False
+    app = create_app(tmp_settings, chat=chat_service)
+    return TestClient(app, base_url=f"http://{host}", headers={"Host": host})
+
+
+def test_zero_users_loopback_hosts_may_stay_open(tmp_settings, chat_service):
+    for host in ("127.0.0.1", "localhost", "testserver"):
+        with _local_client(tmp_settings, chat_service, host) as c:
+            body = c.get("/auth/status").json()
+            assert body["required"] is False, host
+            assert body["ok"] is True, host
+            assert c.get("/conversation").status_code == 200, host
+
+
+def test_zero_users_ipv6_loopback_host_may_stay_open(tmp_settings, chat_service):
+    tmp_settings.kiln_exposure = "local"
+    tmp_settings.cookie_secure = False
+    app = create_app(tmp_settings, chat=chat_service)
+    with TestClient(app, base_url="http://127.0.0.1", headers={"Host": "[::1]"}) as c:
+        body = c.get("/auth/status").json()
+        assert body["required"] is False
+        assert c.get("/conversation").status_code == 200
+
+
+def test_zero_users_rfc1918_and_link_local_hosts_fail_closed(tmp_settings, chat_service):
+    tmp_settings.kiln_exposure = "local"
+    tmp_settings.cookie_secure = False
+    for host in ("192.168.1.10", "10.0.0.2", "172.16.0.2", "169.254.1.1"):
+        with _local_client(tmp_settings, chat_service, host) as c:
+            body = c.get("/auth/status").json()
+            assert body["required"] is True, host
+            assert body["ok"] is False, host
+            assert c.get("/conversation").status_code in {401, 403, 503}, host
+
+
+def test_zero_users_arbitrary_hostname_fail_closed(tmp_settings, chat_service):
+    tmp_settings.kiln_exposure = "local"
+    tmp_settings.cookie_secure = False
+    for host in ("kiln.internal", "macbook.local", "anything", "127.evil.com"):
+        with _local_client(tmp_settings, chat_service, host) as c:
+            body = c.get("/auth/status").json()
+            assert body["required"] is True, host
+            assert c.get("/conversation").status_code in {401, 403, 503}, host
+
+
+def test_trusted_https_proxy_does_not_honor_spoofed_loopback_host(tmp_settings, chat_service):
+    tmp_settings.kiln_exposure = "local"
+    tmp_settings.cookie_secure = False
+    tmp_settings.trust_proxy_headers = True
+    app = create_app(tmp_settings, chat=chat_service)
+    with TestClient(
+        app,
+        base_url="http://127.0.0.1",
+        headers={"Host": "127.0.0.1", "X-Forwarded-Proto": "https"},
+    ) as c:
+        body = c.get("/auth/status").json()
+        assert body["required"] is True
+        assert c.get("/conversation").status_code in {401, 403, 503}
+
+
+def test_private_exposure_ignores_loopback_host(tmp_settings, chat_service):
+    _private_settings(tmp_settings)
+    app = create_app(tmp_settings, chat=chat_service)
+    with TestClient(app, base_url="https://127.0.0.1", headers={"Host": "127.0.0.1"}) as c:
+        body = c.get("/auth/status").json()
+        assert body["required"] is True
+        assert body["ok"] is False
+        assert c.get("/conversation").status_code in {401, 403, 503}

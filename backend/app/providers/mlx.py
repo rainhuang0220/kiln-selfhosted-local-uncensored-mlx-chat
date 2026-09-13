@@ -109,7 +109,10 @@ class MlxProvider:
             }
         )
         extra = request.extra if request.extra is not None else {}
-        prompt, tail = TokenEstimator(self.settings.model_path).continuation_completion_prompt(
+        prompt, tail = TokenEstimator(
+            self.settings.model_path,
+            trust_remote_code=self.settings.trust_remote_code,
+        ).continuation_completion_prompt(
             messages,
             enable_thinking=True,
             used_prompts=extra.get("used_continue_prompts") or [],

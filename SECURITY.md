@@ -25,7 +25,7 @@ Kiln is a private local AI. It is not an “absolutely secure” hosted product.
 - `AUTH_SIGNUP` stays false. The first public visitor must not become the owner.
 - Public vhost serves `web/dist` and proxies API routes to a **loopback** SSH reverse tunnel into Mac `:8787`.
 - Public ports: 80 and 443. Do not publish 7777, 8787, 8081, or 17777.
-- SSH `-R` bind address must be `127.0.0.1`. Prefer a dedicated tunnel user with `restrict,port-forwarding,permitlisten="127.0.0.1:17777"`.
+- SSH `-R` bind address must be `127.0.0.1`. Production uses a dedicated `kiln-tunnel` account: `AllowTcpForwarding remote`, `PermitListen 127.0.0.1:17777`, `GatewayPorts no`, no PTY/X11/agent. `ubuntu` remains the admin login so SSH cannot be locked out.
 - Model download/activate is owner-only. Prefer keeping model management off the public proxy if you do not need it remotely.
 
 `deploy/.env`, SQLite files, TLS certificates, model weights, chat transcripts, and session records are runtime data. They must never be committed, uploaded to a public repository, or shared in an issue.

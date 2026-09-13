@@ -5,8 +5,9 @@ from typing import Any
 
 
 class TokenEstimator:
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, trust_remote_code: bool = False):
         self.model_path = Path(model_path)
+        self.trust_remote_code = trust_remote_code
         tok_file = self.model_path / "tokenizer.json"
         self._tok = None
         self._hf = None
@@ -32,7 +33,8 @@ class TokenEstimator:
             from transformers import AutoTokenizer
 
             self._hf = AutoTokenizer.from_pretrained(
-                str(self.model_path), trust_remote_code=True
+                str(self.model_path),
+                trust_remote_code=self.trust_remote_code,
             )
         except Exception as exc:  # noqa: BLE001
             self._load_error = str(exc)

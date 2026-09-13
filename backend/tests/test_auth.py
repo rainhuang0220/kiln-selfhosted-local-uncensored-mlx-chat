@@ -1,3 +1,23 @@
+def test_change_password_revokes_sessions(tmp_settings, chat_service):
+    from starlette.testclient import TestClient
+
+    from app.main import create_app
+    from app.services import accounts
+
+    user = accounts.create_user("rain", "correct-horse")
+    token = accounts.create_session(user.id)
+    assert accounts.resolve_session(token) is not None
+    accounts.change_password("rain", "correct-horse", "new-horse-battery")
+    assert accounts.resolve_session(token) is None
+    assert accounts.authenticate("rain", "correct-horse") is None
+    assert accounts.authenticate("rain", "new-horse-battery") is not None
+
+    app = create_app(tmp_settings, chat=chat_service)
+    with TestClient(app) as c:
+        bad = c.post("/auth/login", json={"username": "rain", "password": "correct-horse"})
+        assert bad.status_code == 401
+
+
 def test_auth_disabled_when_no_users(client):
     r = client.get("/auth/status")
     assert r.status_code == 200

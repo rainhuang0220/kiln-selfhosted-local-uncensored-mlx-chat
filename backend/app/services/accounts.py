@@ -150,6 +150,21 @@ def authenticate(username: str, password: str) -> User | None:
     return User(id=row["id"], username=row["username"], role=row["role"] or "user")
 
 
+def change_password(username: str, current: str, new: str) -> User:
+    user = authenticate(username, current)
+    if user is None:
+        raise ValueError("invalid username or password")
+    pw = validate_password(new)
+    ts = _now()
+    get_conn().execute(
+        "UPDATE users SET password_hash=?, failed_logins=0, locked_until=NULL, updated_at=? WHERE id=?",
+        (hash_password(pw), ts, user.id),
+    )
+    get_conn().commit()
+    revoke_all_sessions(user.id)
+    return user
+
+
 def create_session(
     user_id: str,
     days: int = SESSION_DAYS_DEFAULT,

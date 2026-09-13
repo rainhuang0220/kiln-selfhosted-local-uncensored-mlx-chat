@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     trust_proxy_headers: bool = False
     session_days: int = 7
     kiln_exposure: str = "local"
+    trust_remote_code: bool = False
     session_idle_minutes: int = 45
     session_absolute_hours: int = 12
     session_remember_days: int = 7

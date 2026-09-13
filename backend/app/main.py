@@ -222,7 +222,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 pass
         if chat is None:
             provider = MlxProvider(cfg)
-            tokenizer = TokenEstimator(cfg.model_path)
+            tokenizer = TokenEstimator(cfg.model_path, trust_remote_code=cfg.trust_remote_code)
             app.state.provider = provider
             app.state.chat = ChatService(cfg, provider, tokenizer, MemoryService())
         else:
@@ -230,7 +230,11 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             app.state.provider = getattr(chat, "provider", None)
         app.state.models = ModelManager(
             cfg,
-            on_activated=lambda: setattr(app.state.chat, "tokenizer", TokenEstimator(cfg.model_path)),
+            on_activated=lambda: setattr(
+                app.state.chat,
+                "tokenizer",
+                TokenEstimator(cfg.model_path, trust_remote_code=cfg.trust_remote_code),
+            ),
         )
         media_svc = media or MediaService(cfg)
         media_svc.recover_stale()

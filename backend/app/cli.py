@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> None:
     token = sub.add_parser("create-api-token", help="create a revocable API bearer token")
     token.add_argument("--username", required=True)
     token.add_argument("--name", default="cli")
+    chpw = sub.add_parser("change-password", help="change a local account password and revoke sessions")
+    chpw.add_argument("--username", required=True)
     args = parser.parse_args(argv)
     if args.cmd == "create-owner":
         password = os.environ.get("KILN_BOOTSTRAP_PASSWORD") or getpass.getpass("owner password: ")
@@ -50,6 +52,17 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "create-api-token":
         create_token(args.username, args.name)
+        return
+    if args.cmd == "change-password":
+        init_db(settings.sqlite_path)
+        current = os.environ.get("KILN_CURRENT_PASSWORD") or getpass.getpass("current password: ")
+        new = os.environ.get("KILN_NEW_PASSWORD") or getpass.getpass("new password: ")
+        try:
+            accounts.change_password(args.username, current, new)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        print("password updated; all sessions revoked")
+        return
 
 
 if __name__ == "__main__":

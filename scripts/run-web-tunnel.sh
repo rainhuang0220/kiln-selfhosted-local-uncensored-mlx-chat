@@ -5,10 +5,12 @@
 # a local ssh process can stay ESTABLISHED through a TUN proxy after sshd is gone.
 set -euo pipefail
 
-REMOTE="${KILN_TUNNEL_REMOTE:-ubuntu@175.24.134.228}"
+REMOTE="${KILN_TUNNEL_REMOTE:-kiln-tunnel@175.24.134.228}"
 LISTEN="${KILN_TUNNEL_LISTEN:-127.0.0.1:17777}"
 LOCAL="${KILN_TUNNEL_LOCAL:-127.0.0.1:8787}"
 CONTROL="${KILN_TUNNEL_CONTROL:-/tmp/kiln-web-tunnel.sock}"
+IDENTITY="${KILN_TUNNEL_IDENTITY:-$HOME/Library/Application Support/kiln/kiln-tunnel}"
+ADMIN="${KILN_TUNNEL_ADMIN:-ubuntu@175.24.134.228}"
 LISTEN_PORT="${LISTEN##*:}"
 VPS_IP="${KILN_VPS_IP:-175.24.134.228}"
 ROUTE_HELPER="${KILN_ROUTE_HELPER:-$HOME/Library/Application Support/kiln/ensure-vps-direct-route.sh}"
@@ -68,7 +70,8 @@ trap cleanup EXIT INT TERM
 
 reclaim_stale_remote() {
   # After a roam the old sshd child can keep 17777, so the new -R fails.
-  ssh -o BatchMode=yes -o ConnectTimeout=8 "$REMOTE" \
+  # Use ADMIN (shell-capable), not the tunnel-only user.
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$ADMIN" \
     "python3 -c \"
 import os, signal, subprocess
 try:
@@ -88,7 +91,12 @@ for line in out.splitlines()[1:]:
 
 rm -f "$CONTROL"
 
+SSH_ID=()
+if [[ -n "${IDENTITY}" && -f "${IDENTITY}" ]]; then
+  SSH_ID=(-i "$IDENTITY" -o IdentitiesOnly=yes)
+fi
 ssh -M -S "$CONTROL" -N -T \
+  "${SSH_ID[@]}" \
   -o ControlMaster=yes \
   -o ControlPersist=no \
   -o ExitOnForwardFailure=yes \
@@ -102,7 +110,8 @@ SSH_PID=$!
 
 remote_listen_ok() {
   # Independent SSH on purpose: ControlMaster/-O check cannot see a TUN-zombied session.
-  ssh -o BatchMode=yes -o ConnectTimeout=8 "$REMOTE" \
+  # ADMIN has a shell; the tunnel user does not.
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$ADMIN" \
     "python3 -c \"import socket; s=socket.create_connection(('127.0.0.1', ${LISTEN_PORT}), 2); s.close()\"" \
     >/dev/null 2>&1
 }

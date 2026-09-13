@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUPPORT="$HOME/Library/Application Support/kiln"
-REMOTE="${KILN_TUNNEL_REMOTE:-ubuntu@175.24.134.228}"
+REMOTE="${KILN_TUNNEL_REMOTE:-kiln-tunnel@175.24.134.228}"
 LISTEN="${KILN_TUNNEL_LISTEN:-127.0.0.1:17777}"
 # Production default: API-only. Vite stays on 127.0.0.1:7777 for local development.
 LOCAL="${KILN_TUNNEL_LOCAL:-127.0.0.1:8787}"
@@ -38,6 +38,8 @@ cat > "$PLIST" <<EOF
     <key>KILN_TUNNEL_REMOTE</key><string>${REMOTE}</string>
     <key>KILN_TUNNEL_LISTEN</key><string>${LISTEN}</string>
     <key>KILN_TUNNEL_LOCAL</key><string>${LOCAL}</string>
+    <key>KILN_TUNNEL_IDENTITY</key><string>${SUPPORT}/kiln-tunnel</string>
+    <key>KILN_TUNNEL_ADMIN</key><string>ubuntu@175.24.134.228</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
