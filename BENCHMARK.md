@@ -4,6 +4,10 @@ Hardware: Apple M4, 24 GB unified memory.
 Model: Qwen3.8-27B 4-bit MLX (`qwen3.8-27b`).
 Server: `mlx_lm.server` via Python 3.12 venv, `127.0.0.1:8081`.
 
+Do not treat `output_tokens / total_request_elapsed` as decode tok/s. Dialogue
+harness metrics split TTFT, total latency, effective output tok/s, and decode
+tok/s: `benchmarks/dialogue_reliability/`.
+
 Harness: `benchmarks/run_inference.py` (HTTP SSE, does **not** load a second copy of the weights).
 
 ```bash

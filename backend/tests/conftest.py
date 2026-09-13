@@ -62,6 +62,7 @@ class FakeProvider:
             completion_tokens=4,
             cached_tokens=0,
         )
+        yield ChatChunk(id="chatcmpl-fake", model="qwen3.8-27b", wire_done=True)
 
     async def complete_after_think(self, request: ChatRequest, reasoning: str, max_tokens: int) -> ChatResult:
         self.calls.append(request)
@@ -88,6 +89,7 @@ class FakeProvider:
             completion_tokens=4,
             cached_tokens=0,
         )
+        yield ChatChunk(id="chatcmpl-fake", model="qwen3.8-27b", wire_done=True)
 
 
 @pytest.fixture
@@ -105,6 +107,17 @@ def tmp_settings(tmp_path: Path) -> Settings:
 @pytest.fixture
 def fake_provider() -> FakeProvider:
     return FakeProvider()
+
+
+def chat_template_present(settings: Settings) -> bool:
+    path = Path(settings.model_path)
+    return (path / "chat_template.jinja").exists() or (path / "tokenizer_config.json").exists()
+
+
+@pytest.fixture
+def require_chat_template(tmp_settings: Settings) -> None:
+    if not chat_template_present(tmp_settings):
+        pytest.skip("chat template not present on this host")
 
 
 @pytest.fixture

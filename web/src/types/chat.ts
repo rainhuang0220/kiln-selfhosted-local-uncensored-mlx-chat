@@ -13,13 +13,26 @@ export interface TokenUsage {
   total: number;
   cached?: number;
   source?: string;
-  tokensPerSecond?: number;
+  ttftMs?: number | null;
+  totalLatencyMs?: number | null;
+  effectiveOutputTokensPerSec?: number | null;
+  decodeTokensPerSec?: number | null;
 }
 
+export type GenerationProfile = "interactive_dialogue" | "balanced" | "reasoning";
+
 export interface GenerationParams {
+  profile: GenerationProfile;
   temperature: number;
   topP: number;
   topK: number;
+  minP: number;
+  presencePenalty: number;
+  presenceContextSize: number;
+  frequencyPenalty: number;
+  frequencyContextSize: number;
+  repetitionPenalty: number;
+  repetitionContextSize: number;
   maxTokens: number;
   enableThinking: boolean;
   reasoningEffort: "low" | "medium" | "xhigh";
@@ -74,6 +87,8 @@ export interface Message {
   completion_tokens?: number | null;
   total_tokens?: number | null;
   finish_reason?: string | null;
+  terminal_state?: string | null;
+  incomplete?: boolean;
   error?: string | null;
   created_at?: number;
   snapshot?: ContextSnapshot;
@@ -108,6 +123,7 @@ export interface Health {
   default_max_tokens: number;
   max_tokens_cap?: number;
   enable_thinking: boolean;
+  default_profile?: GenerationProfile;
 }
 
 export interface LocalModel {

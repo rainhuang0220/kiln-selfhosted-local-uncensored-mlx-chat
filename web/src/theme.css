@@ -283,6 +283,17 @@ a { color: var(--copper-2); }
   background: var(--bg-2);
   border-radius: 8px;
 }
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.auth-remember input {
+  margin: 0;
+}
 .side-foot-right {
   display: flex;
   align-items: center;
@@ -496,6 +507,31 @@ a { color: var(--copper-2); }
   font-size: 12px;
 }
 .toggles label { display: flex; gap: 6px; align-items: center; }
+.advanced { position: relative; }
+.advanced summary { cursor: pointer; color: var(--muted); }
+.advanced-grid {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
+  gap: 8px;
+  min-width: 280px;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.advanced-grid input[type="number"], .advanced-grid select {
+  width: 72px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: inherit;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
 textarea:focus-visible, .btn:focus-visible, .conv-item:focus-visible {
   outline: 2px solid var(--copper);
   outline-offset: 2px;
@@ -650,6 +686,33 @@ textarea:focus-visible, .btn:focus-visible, .conv-item:focus-visible {
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--code);
+}
+.gen-inspect {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--raised);
+  font-size: 13px;
+}
+.gen-inspect summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.gen-inspect pre,
+.gen-inspect dd {
+  white-space: pre-wrap;
+  margin: 8px 0 0;
+  font-family: var(--mono, var(--serif));
+  line-height: 1.45;
+}
+.gen-inspect dl {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 8px 12px;
+  margin: 10px 0 0;
+}
+.gen-inspect dt {
+  color: var(--muted);
 }
 .gen-status {
   display: flex;

@@ -13,6 +13,10 @@ from app.services.media import MediaService
 from app.db import get_conn
 
 
+def _compiler(kind, prompt, mode):
+    return prompt if mode == "raw" else f"{prompt} [compiled]"
+
+
 class FakeLifecycle(ChatLifecycle):
     def __init__(self, settings):
         super().__init__(settings, park_fn=self._park, restore_fn=self._restore)
@@ -42,7 +46,12 @@ def media_app(tmp_settings, chat_service, tmp_path: Path):
     tmp_settings.generations_dir = str(tmp_path / "generations")
     tmp_settings.pause_chat_for_video = False
     life = FakeLifecycle(tmp_settings)
-    svc = MediaService(tmp_settings, runner=fake_runner, lifecycle=life)
+    svc = MediaService(
+        tmp_settings,
+        runner=fake_runner,
+        lifecycle=life,
+        compiler=_compiler,
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     app.state.fake_life = life
     return app
@@ -89,6 +98,17 @@ def test_generate_backends(media_app):
         ids = {x["id"] for x in body["image"]}
         assert "flux2-klein-4b" in ids
         assert "z-image-turbo" in ids
+        assert "flux1-dev" in ids
+        flux1 = next(x for x in body["image"] if x["id"] == "flux1-dev")
+        assert flux1["checkpoint_censorship"] == "not_claimed"
+        image_presets = {p["id"] for p in body["image_presets"]}
+        assert image_presets == {"fast", "quality"}
+        quality = next(p for p in body["image_presets"] if p["id"] == "quality")
+        assert quality["backend"] == "flux1-dev"
+        assert quality["steps"] == 20
+        fast_img = next(p for p in body["image_presets"] if p["id"] == "fast")
+        assert fast_img["backend"] == "z-image-turbo"
+        assert fast_img["steps"] == 9
         video_ids = {x["id"] for x in body["video"]}
         assert "nsfw-wan-1.3b" in video_ids
         zimg = next(x for x in body["image"] if x["id"] == "z-image-turbo")
@@ -98,9 +118,19 @@ def test_generate_backends(media_app):
         presets = {p["id"] for p in body["video_presets"]}
         assert presets == {"fast", "standard", "long"}
         std = next(p for p in body["video_presets"] if p["id"] == "standard")
+        fast = next(p for p in body["video_presets"] if p["id"] == "fast")
         assert std["recommended"] is True
-        assert std["steps"] == 10
+        assert std["steps"] == 20
         assert std["frames"] == 17
+        assert std["guide"] == 6.0
+        assert std["shift"] == 8.0
+        assert std["teacache"] == 0.0
+        assert fast["steps"] == 10
+        assert fast["guide"] == 5.0
+        video = next(x for x in body["video"] if x["id"] == "nsfw-wan-1.3b")
+        assert video["checkpoint_censorship"] == "nsfw_finetune_claimed"
+        zimg = next(x for x in body["image"] if x["id"] == "z-image-turbo")
+        assert zimg["checkpoint_censorship"] == "not_claimed"
 
 
 def test_health_and_chat_during_slow_generation(tmp_settings, chat_service, tmp_path: Path):
@@ -120,7 +150,9 @@ def test_health_and_chat_during_slow_generation(tmp_settings, chat_service, tmp_
 
     tmp_settings.generations_dir = str(tmp_path / "generations")
     tmp_settings.pause_chat_for_video = False
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=FakeLifecycle(tmp_settings))
+    svc = MediaService(
+        tmp_settings, runner=slow_runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "frames": 17, "seed": 1})
@@ -154,7 +186,7 @@ def test_chat_parked_returns_503(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "preset": "standard"})
@@ -186,7 +218,7 @@ def test_video_failure_restores_chat(tmp_settings, chat_service, tmp_path: Path)
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=boom, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=boom, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln"})
@@ -223,7 +255,7 @@ def test_cancel_queued_and_running(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = True
-    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life)
+    svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         a = c.post("/generate", json={"kind": "video", "prompt": "one"}).json()
@@ -286,7 +318,9 @@ def test_heavy_generation_is_serial(tmp_settings, chat_service, tmp_path: Path):
 
     tmp_settings.generations_dir = str(tmp_path / "g")
     tmp_settings.pause_chat_for_video = False
-    svc = MediaService(tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings))
+    svc = MediaService(
+        tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
     with TestClient(app) as c:
         a = c.post("/generate", json={"kind": "image", "prompt": "one"}).json()
@@ -297,3 +331,267 @@ def test_heavy_generation_is_serial(tmp_settings, chat_service, tmp_path: Path):
         assert _wait_status(c, a["id"])["status"] == "done"
         assert _wait_status(c, b["id"])["status"] == "done"
         assert current["max"] == 1
+
+
+def test_raw_prompt_reaches_runner_verbatim(tmp_settings, chat_service, tmp_path: Path):
+    seen = {}
+
+    async def runner(spec):
+        seen["prompt"] = spec["prompt"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    svc = MediaService(
+        tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
+    )
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "image", "prompt": "exactly three red cubes", "prompt_mode": "raw"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert seen["prompt"] == "exactly three red cubes"
+        assert got["original_prompt"] == "exactly three red cubes"
+        assert got["effective_prompt"] == "exactly three red cubes"
+        assert got["prompt_mode"] == "raw"
+
+
+def test_image_quality_preset_uses_flux1_dev_and_parks_chat(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        seen["steps"] = (spec.get("params") or {}).get("steps")
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={"steps": seen["steps"], "seed": 42})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={
+                "kind": "image",
+                "prompt": "exactly four yellow lemons",
+                "preset": "quality",
+                "prompt_mode": "enhanced",
+                "seed": 42,
+            },
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "flux1-dev"
+        assert seen["backend"] == "flux1-dev"
+        assert int(seen["steps"] or 0) == 20
+        assert life.parks == 1
+        assert life.restores >= 1
+
+
+def test_image_quality_preset_overrides_conflicting_backend(tmp_settings, chat_service, tmp_path: Path):
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={
+                "kind": "image",
+                "prompt": "exactly four yellow lemons",
+                "preset": "quality",
+                "backend": "z-image-turbo",
+                "prompt_mode": "raw",
+            },
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "flux1-dev"
+        assert seen["backend"] == "flux1-dev"
+
+
+def test_image_fast_preset_keeps_zimage_and_does_not_park(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    seen = {}
+
+    async def runner(spec):
+        seen["backend"] = spec["backend"]
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "image", "prompt": "a copper kiln", "preset": "fast", "prompt_mode": "raw"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done"
+        assert got["backend"] == "z-image-turbo"
+        assert seen["backend"] == "z-image-turbo"
+        assert life.parks == 0
+
+
+def test_video_enhances_before_parking_chat(tmp_settings, chat_service, tmp_path: Path):
+    life = FakeLifecycle(tmp_settings)
+    order = []
+
+    def compiler(kind, prompt, mode):
+        order.append(("compile", life.parks))
+        return f"{prompt} | compiled"
+
+    async def runner(spec):
+        order.append(("run", life.parks, spec["prompt"]))
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.mp4"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_video = True
+    svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=compiler)
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+    with TestClient(app) as c:
+        r = c.post(
+            "/generate",
+            json={"kind": "video", "prompt": "a copper kiln steaming", "prompt_mode": "enhanced"},
+        )
+        got = _wait_status(c, r.json()["id"])
+        assert got["status"] == "done", got
+        assert order[0] == ("compile", 0)
+        assert order[1][0] == "run"
+        assert order[1][1] == 1
+        assert order[1][2] == "a copper kiln steaming | compiled"
+        assert got["effective_prompt"] == "a copper kiln steaming | compiled"
+        assert got["params"]["model"]
+        assert life.parks == 1
+
+
+def test_compile_endpoint_does_not_block_health(tmp_settings, chat_service, tmp_path, monkeypatch):
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.services.prompt_compiler import CompiledPrompt
+
+    def slow_compile(original, kind, mode="enhanced", complete_fn=None, settings=None):
+        time.sleep(1.0)
+        return CompiledPrompt(original=original, effective=original + " [x]", mode=mode, kind=kind)
+
+    monkeypatch.setattr("app.services.prompt_compiler.compile_visual_prompt", slow_compile)
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_video = False
+    svc = MediaService(
+        tmp_settings,
+        lifecycle=FakeLifecycle(tmp_settings),
+        compiler=_compiler,
+    )
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+
+    async def run() -> None:
+        async with app.router.lifespan_context(app):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                lags: list[float] = []
+
+                async def monitor() -> None:
+                    deadline = time.perf_counter() + 1.4
+                    while time.perf_counter() < deadline:
+                        t0 = time.perf_counter()
+                        await asyncio.sleep(0.05)
+                        lags.append(time.perf_counter() - t0)
+
+                mon = asyncio.create_task(monitor())
+                compiled = await client.post(
+                    "/generate/compile",
+                    json={"kind": "image", "prompt": "一只橙色的猫", "prompt_mode": "enhanced"},
+                )
+                await mon
+                health = await client.get("/health")
+                listing = await client.get("/generate")
+                assert compiled.status_code == 200
+                assert health.status_code == 200
+                assert listing.status_code == 200
+                assert lags
+                assert max(lags) < 0.35, f"event loop lagged {max(lags):.3f}s during compile"
+
+    asyncio.run(run())
+
+
+def test_enhanced_job_compile_does_not_block_event_loop(tmp_settings, chat_service, tmp_path, monkeypatch):
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.services.generation_errors import RunResult
+    from app.services.prompt_compiler import CompiledPrompt
+
+    def slow_compile(original, kind, mode="enhanced", complete_fn=None, settings=None):
+        time.sleep(0.8)
+        return CompiledPrompt(original=original, effective=original, mode=mode, kind=kind)
+
+    async def fake_runner(spec):
+        out = Path(tmp_settings.generations_dir) / f"{spec['id']}.png"
+        out.write_bytes(b"x")
+        return RunResult(output_path=str(out), metrics={})
+
+    monkeypatch.setattr("app.services.prompt_compiler.compile_visual_prompt", slow_compile)
+    tmp_settings.generations_dir = str(tmp_path / "g")
+    tmp_settings.pause_chat_for_image = False
+    svc = MediaService(tmp_settings, runner=fake_runner, lifecycle=FakeLifecycle(tmp_settings))
+    app = create_app(tmp_settings, chat=chat_service, media=svc)
+
+    async def run() -> None:
+        async with app.router.lifespan_context(app):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                lags: list[float] = []
+
+                async def monitor() -> None:
+                    deadline = time.perf_counter() + 1.2
+                    while time.perf_counter() < deadline:
+                        t0 = time.perf_counter()
+                        await asyncio.sleep(0.05)
+                        lags.append(time.perf_counter() - t0)
+
+                mon = asyncio.create_task(monitor())
+                posted = await client.post(
+                    "/generate",
+                    json={"kind": "image", "prompt": "四个杯子", "prompt_mode": "enhanced"},
+                )
+                assert posted.status_code == 200
+                await mon
+                assert lags
+                assert max(lags) < 0.35, f"event loop lagged {max(lags):.3f}s during image compile"
+
+    asyncio.run(run())
+
+
+def test_compile_endpoint_does_not_rewrite_in_raw_mode(media_app):
+    with TestClient(media_app) as c:
+        r = c.post(
+            "/generate/compile",
+            json={"kind": "image", "prompt": "red cube left of blue sphere", "prompt_mode": "raw"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["original_prompt"] == "red cube left of blue sphere"
+        assert body["effective_prompt"] == body["original_prompt"]
+        assert body["violations"] == []

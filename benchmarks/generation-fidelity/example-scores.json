@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": "example-a",
+      "mode": "raw",
+      "wall_s": 1,
+      "constraints": [
+        {"id": "C1", "axis": "count", "text": "two", "verdict": "FAIL"},
+        {"id": "C2", "axis": "spatial", "text": "left", "verdict": "PASS"}
+      ]
+    },
+    {
+      "id": "example-a",
+      "mode": "enhanced",
+      "wall_s": 1,
+      "constraints": [
+        {"id": "C1", "axis": "count", "text": "two", "verdict": "PASS"},
+        {"id": "C2", "axis": "spatial", "text": "left", "verdict": "PASS"}
+      ]
+    }
+  ]
+}

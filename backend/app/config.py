@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     mlx_connect_timeout_s: float = 5.0
 
     model_name: str = DEFAULT_MODEL_NAME
-    model_path: str = ""
+    model_path: str = str(Path(__file__).resolve().parents[2].parent / DEFAULT_MODEL_NAME)
     model_library_path: str = str(ROOT.parent / "models")
     model_selection_state_path: str = str(ROOT / "data" / "active-model.json")
     model_switch_enabled: bool = sys.platform == "darwin"
@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     media_python: str = str(ROOT.parent / ".media-venv" / "bin" / "python")
     image_flux_dir: str = str(ROOT.parent / "image-flux2-klein-4b-mflux-4bit")
     image_zimage_dir: str = str(ROOT.parent / "image-z-image-turbo-mflux-4bit")
+    image_flux1_dev_dir: str = str(ROOT.parent / "image-flux1-dev-mflux-4bit")
     video_wan_aux_dir: str = str(ROOT.parent / "video-wan21-t2v-1.3b-aux")
     video_wan_dit: str = str(ROOT.parent / "video-nsfw-wan-1.3b" / "wan_1.3B_exp_e14.safetensors")
     video_wan_mlx_dir: str = str(ROOT.parent / "video-nsfw-wan-1.3b-mlx")
@@ -51,14 +52,23 @@ class Settings(BaseSettings):
     context_window: int = 262144
     # Prompt-only. Do not subtract max_tokens from this (Qwen3.5-9B hybrid KV is ~1GB @ 32k).
     practical_prompt_budget: int = 32768
-    default_max_tokens: int = 8192
+    default_profile: str = "interactive_dialogue"
+    default_max_tokens: int = 1536
     max_tokens_cap: int = 32768
-    default_temperature: float = 1.0
-    default_top_p: float = 0.95
+    default_temperature: float = 0.7
+    default_top_p: float = 0.8
     default_top_k: int = 20
+    default_min_p: float = 0.0
+    default_presence_penalty: float = 0.5
+    default_presence_context_size: int = 256
+    default_frequency_penalty: float = 0.0
+    default_frequency_context_size: int = 256
+    default_repetition_penalty: float = 1.0
+    default_repetition_context_size: int = 128
     default_system: str = ""
-    enable_thinking: bool = True
+    enable_thinking: bool = False
     reasoning_effort: str = "medium"
+    thinking_continuation: bool = False
     thinking_budget_low: int = 256
     thinking_budget_medium: int = 1024
     thinking_budget_xhigh: int = 0
@@ -71,11 +81,25 @@ class Settings(BaseSettings):
     auth_signup: bool = False
     cookie_secure: bool = False
     trust_proxy_headers: bool = False
-    session_days: int = 14
+    session_days: int = 7
+    kiln_exposure: str = "local"
+    trust_remote_code: bool = False
+    session_idle_minutes: int = 45
+    session_absolute_hours: int = 12
+    session_remember_days: int = 7
     chat_per_minute: int = 20
     login_per_minute: int = 5
     max_request_bytes: int = 12_582_912
     max_message_chars: int = 8_000_000
+
+    def validate_private_startup(self) -> None:
+        mode = (self.kiln_exposure or "local").strip().lower()
+        if mode not in {"local", "private"}:
+            raise RuntimeError("KILN_EXPOSURE must be local or private")
+        if mode == "private" and not self.cookie_secure:
+            raise RuntimeError("COOKIE_SECURE must be true when KILN_EXPOSURE=private")
+        if mode == "private" and self.app_host not in {"127.0.0.1", "localhost", "::1"}:
+            raise RuntimeError("APP_HOST must be loopback when KILN_EXPOSURE=private")
 
     def cors_origin_list(self) -> list[str]:
         return [x.strip() for x in self.cors_origins.split(",") if x.strip()]

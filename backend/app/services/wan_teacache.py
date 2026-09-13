@@ -1,4 +1,4 @@
-"""Training-free TeaCache for Wan 1.3B (MLX)."""
+"""Training-free TeaCache for Wan 1.3B (MLX).
 
 Does not change checkpoints. Skip decision uses the Wan 1.3B polynomial
 from ali-vilab/TeaCache; residual is applied in transformer hidden space.

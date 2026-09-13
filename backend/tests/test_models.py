@@ -195,7 +195,9 @@ def test_download_refuses_a_hub_model_that_is_not_mlx_ready(client):
             assert revision is None
             return SimpleNamespace(tags=["transformers", "text-generation"])
 
-    manager = ModelManager(client.app.state.models.settings, hub=Hub())
+    settings = client.app.state.models.settings
+    settings.model_downloads_enabled = True
+    manager = ModelManager(settings, hub=Hub())
 
     with pytest.raises(ValueError, match="not MLX-ready"):
         manager.validate_hub_model("Qwen/Qwen3.5-4B")
@@ -219,7 +221,9 @@ def test_download_preflight_checks_the_requested_hub_revision(client):
                 ],
             )
 
-    manager = ModelManager(client.app.state.models.settings, hub=Hub())
+    settings = client.app.state.models.settings
+    settings.model_downloads_enabled = True
+    manager = ModelManager(settings, hub=Hub())
 
     manager.validate_hub_model("mlx-community/Qwen3.5-4B-4bit", "safe-commit")
 
@@ -245,7 +249,9 @@ def test_download_preflight_rejects_an_mlx_tag_without_model_files(client):
                 ],
             )
 
-    manager = ModelManager(client.app.state.models.settings, hub=Hub())
+    settings = client.app.state.models.settings
+    settings.model_downloads_enabled = True
+    manager = ModelManager(settings, hub=Hub())
 
     with pytest.raises(ValueError, match="MLX weight files"):
         manager.validate_hub_model("mlx-community/Qwen3.5-4B-4bit", "unsafe-branch")

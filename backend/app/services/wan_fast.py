@@ -45,6 +45,7 @@ def generate(
     num_frames: int = 17,
     steps: int = 10,
     guide_scale: float = 5.0,
+    shift: float | None = None,
     seed: int = 42,
     tiling: str = "auto",
     negative_prompt: str | None = None,
@@ -72,6 +73,7 @@ def generate(
         num_frames=num_frames,
         steps=steps,
         guide_scale=guide_scale,
+        shift=shift,
         seed=seed,
         output_path=output_path,
         tiling=tiling,
@@ -94,6 +96,7 @@ if __name__ == "__main__":
     p.add_argument("--num-frames", type=int, default=17)
     p.add_argument("--steps", type=int, default=10)
     p.add_argument("--guide-scale", type=float, default=5.0)
+    p.add_argument("--shift", type=float, default=None)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--tiling", default="auto")
     p.add_argument("--teacache", type=float, default=float(os.environ.get("VIDEO_TEACACHE_THRESHOLD", "0.05")))
@@ -109,6 +112,7 @@ if __name__ == "__main__":
         num_frames=a.num_frames,
         steps=a.steps,
         guide_scale=a.guide_scale,
+        shift=a.shift,
         seed=a.seed,
         tiling=a.tiling,
         teacache=a.teacache,

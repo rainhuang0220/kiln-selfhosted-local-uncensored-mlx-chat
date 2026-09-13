@@ -19,8 +19,14 @@ mkdir -p "$SUPPORT" "$AGENTS"
 cat > "$SUPPORT/start-api.sh" <<EOF
 #!/bin/bash
 set -euo pipefail
+ENV_FILE="\$HOME/Library/Application Support/kiln/api.env"
+if [[ -f "\$ENV_FILE" ]]; then
+  set -a
+  source "\$ENV_FILE"
+  set +a
+fi
 cd "$ROOT/backend"
-exec "$PY" -m uvicorn app.main:app --host 127.0.0.1 --port 8787
+exec "$PY" -m uvicorn app.main:app --host 127.0.0.1 --port 8787 --proxy-headers --forwarded-allow-ips=127.0.0.1
 EOF
 chmod 755 "$SUPPORT/start-api.sh"
 

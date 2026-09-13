@@ -37,13 +37,13 @@ def _run(
     )
 
 
-def _port_open(port: int) -> bool:
-    probe = subprocess.run(
-        ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-        capture_output=True,
-        text=True,
-    )
-    return probe.returncode == 0 and bool(probe.stdout.strip())
+def _port_open(port: int, host: str = "127.0.0.1") -> bool:
+    # LaunchAgents often have a PATH without /usr/sbin/lsof. Probe with a socket.
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.3)
+        return sock.connect_ex((host, port)) == 0
 
 
 def pause_mlx(settings: Settings) -> None:
@@ -233,26 +233,51 @@ def _run_image(settings: Settings, spec: dict[str, Any]) -> RunResult:
             "--seed", str(seed),
             "--output", str(out),
         ]
+    elif backend == "flux1-dev":
+        steps = int(params.get("steps") or 20)
+        guidance = float(params.get("guidance") if params.get("guidance") is not None else 3.5)
+        model = settings.image_flux1_dev_dir
+        cli = shutil.which("mflux-generate", path=str(Path(py).parent))
+        if not cli:
+            raise RuntimeError("mflux-generate not installed in media venv")
+        cmd = [
+            cli,
+            "--model", model,
+            "--base-model", "dev",
+            "--prompt", spec["prompt"],
+            "--width", str(width),
+            "--height", str(height),
+            "--steps", str(steps),
+            "--guidance", str(guidance),
+            "--seed", str(seed),
+            "--output", str(out),
+            "--low-ram",
+            "--vae-tiling",
+        ]
     else:
         raise ValueError(f"unknown image backend {backend}")
     if not Path(model).exists():
         raise RuntimeError(f"image weights missing: {model}")
     cancel = spec.get("cancel")
-    proc = _run_cancellable(cmd, timeout=1800, env=None, cancel=cancel)
+    timeout = 3600 if backend == "flux1-dev" else 1800
+    proc = _run_cancellable(cmd, timeout=timeout, env=None, cancel=cancel)
     if proc.returncode != 0 or not out.is_file():
         err = (proc.stderr or proc.stdout or "image generation failed")[-1500:]
         raise RuntimeError(err)
+    metrics: dict[str, Any] = {
+        "wall_s": round(time.perf_counter() - t0, 3),
+        "width": width,
+        "height": height,
+        "steps": steps,
+        "seed": seed,
+        "backend": backend,
+        "bytes": out.stat().st_size,
+    }
+    if backend == "flux1-dev":
+        metrics["guidance"] = float(params.get("guidance") if params.get("guidance") is not None else 3.5)
     return RunResult(
         output_path=str(out),
-        metrics={
-            "wall_s": round(time.perf_counter() - t0, 3),
-            "width": width,
-            "height": height,
-            "steps": steps,
-            "seed": seed,
-            "backend": backend,
-            "bytes": out.stat().st_size,
-        },
+        metrics=metrics,
     )
 
 
@@ -290,6 +315,7 @@ def _run_video(settings: Settings, spec: dict[str, Any]) -> RunResult:
         "--num-frames", str(frames),
         "--steps", str(steps),
         "--guide-scale", str(params["guide"]),
+        "--shift", str(params["shift"]),
         "--seed", str(seed),
         "--tiling", "auto",
         "--teacache", str(params["teacache"]),
@@ -318,6 +344,8 @@ def _run_video(settings: Settings, spec: dict[str, Any]) -> RunResult:
             "seed": seed,
             "preset": params.get("preset"),
             "teacache": params["teacache"],
+            "guide": params["guide"],
+            "shift": params["shift"],
             "output_resolution": output_res,
             "backend": spec["backend"],
             "bytes": out.stat().st_size,

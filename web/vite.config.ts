@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -30,7 +31,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 7777,
     strictPort: true,
-    allowedHosts: ["kiln.plainlist.space", "127.0.0.1", "localhost"],
+    allowedHosts: ["127.0.0.1", "localhost"],
     proxy: {
       "/auth": api,
       "/chat": api,
@@ -52,5 +53,8 @@ export default defineConfig({
         },
       },
     },
+  },
+  test: {
+    environment: "node",
   },
 });

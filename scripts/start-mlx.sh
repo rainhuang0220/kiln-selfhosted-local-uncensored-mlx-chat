@@ -26,7 +26,7 @@ exec "$PY" -m mlx_lm.server \
   --host 127.0.0.1 \
   --port 8081 \
   --max-tokens 32768 \
-  --temp 1.0 \
+  --temp 0.6 \
   --top-p 0.95 \
   --top-k 20 \
   --decode-concurrency 1 \
@@ -34,4 +34,4 @@ exec "$PY" -m mlx_lm.server \
   --prefill-step-size 1024 \
   --prompt-cache-size 4 \
   --prompt-cache-bytes 4G \
-  --chat-template-args '{"enable_thinking":true,"reasoning_effort":"medium"}'
+  --chat-template-args '{"enable_thinking":false,"reasoning_effort":"medium"}'

@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS context_snapshots (
 
 CREATE TABLE IF NOT EXISTS memories (
   id                      TEXT PRIMARY KEY,
+  user_id                 TEXT,
   memory_type             TEXT NOT NULL
                           CHECK (memory_type IN (
                             'fact', 'preference', 'user_profile',
@@ -180,9 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_active
   ON memories(memory_type, importance DESC, updated_at DESC)
   WHERE status = 'active' AND deleted_at IS NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_slot
-  ON memories(memory_type, key)
-  WHERE key IS NOT NULL AND status = 'active' AND deleted_at IS NULL;
+-- Owner-scoped unique slot is created in migrate() after user_id exists.
 
 INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
 VALUES (1, '0001_init', CAST(strftime('%s','now') AS INTEGER) * 1000);

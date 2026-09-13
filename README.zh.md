@@ -22,14 +22,15 @@
 
 ## 现在能做什么
 
-- 连续多轮对话（不是问完就结束）
+- 连续多轮对话（不是问完就结束）；默认 Interactive Dialogue，thinking 关闭
+- 生成中断会标成「生成未正常完成」，可 Continue / Regenerate，不会把半截回复当成正常 stop
 - 左侧历史：今天 / 昨天 / 更早，搜索、双击改名、删除、收起/展开
 - 中间聊天：Markdown、代码高亮、复制、引用、删除单条、再生成、停止
-- 右侧 Context：真正发给模型的 system + 历史 + token 占用条
+- 右侧 Context：真正发给模型的 system + 滚动对话状态 + token 占用条
 - Model Workbench：不离开 Kiln 检索 Hugging Face，查看仓库，下载 MLX-ready 权重到本机模型库并切换
 - 每条消息的 ↑输入 / ↓输出 token
 - 默认深色窑炉界面，左下角可切 Light / Dark / System
-- 本机 Generate：默认图 Z-Image Turbo；默认视频 Wan 1.3B MLX 4bit（T5 bf16 + TeaCache）
+- 本机 Generate：图 Z-Image Turbo（Raw / Enhanced 本地扩写）；视频 Wan2.1 1.3B。应用层无内容过滤器。这不等于「模型没有学到的安全偏好」。各后端证据见 [MODEL.md](MODEL.md)。「能生成」也不等于「听得懂要求」。
 - 长期记忆接口已接 SQLite（不会自动把模型胡话写进记忆）
 
 ---
@@ -49,15 +50,7 @@
 
 一键下载/切换需要按上面的原生 macOS 方式启动，因为它会控制宿主机的 Metal LaunchAgent；Docker 的 Linux 容器不能替宿主机切模型。Docker 仅挂载模型库并连接已运行的推理服务。
 
-公网部署使用独立账号：密码只以 Argon2id 哈希保存，浏览器持有随机 session，数据库中同样只保存其哈希；对话按账号隔离。首次账号由私有 `deploy/.env` 中的 `BOOTSTRAP_USERNAME` 与 `BOOTSTRAP_PASSWORD` 创建，默认禁止开放注册。
-
-公网必须走 HTTPS。将 `deploy/.env.example` 复制为不入库的 `deploy/.env`，填写域名、ACME 邮箱和强密码，确保 80/443 可从公网访问，再执行：
-
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
-```
-
-部署使用 Caddy 自动签发、续期 TLS 证书。不要暴露 API 端口，也不要提交 `.env`、数据库、证书或运行时数据。
+本地开发（`KILN_EXPOSURE=local`）只绑 `127.0.0.1`，可以无账号使用。公网（`KILN_EXPOSURE=private`）永远要求登录，`COOKIE_SECURE` 必须为 true，空用户表不是开放应用。首个所有者在 Mac 上用 `python -m app.cli create-owner` 创建，禁止第一个公网访问者自助注册。Vite 开发服务器不得作为公网入口；公网由 `web/dist` + 回环 SSH 隧道到 `:8787`。对话、记忆、生成按所有者隔离。详见 [SECURITY.md](SECURITY.md)。
 
 ---
 

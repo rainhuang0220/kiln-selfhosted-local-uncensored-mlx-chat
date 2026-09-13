@@ -7,13 +7,20 @@ from typing import Any, AsyncIterator, Protocol
 @dataclass
 class ChatRequest:
     messages: list[dict[str, Any]]
-    temperature: float = 1.0
-    top_p: float = 0.95
+    temperature: float = 0.7
+    top_p: float = 0.8
     top_k: int = 20
-    max_tokens: int = 8192
+    min_p: float = 0.0
+    presence_penalty: float = 0.0
+    presence_context_size: int = 20
+    frequency_penalty: float = 0.0
+    frequency_context_size: int = 20
+    repetition_penalty: float = 1.0
+    repetition_context_size: int = 20
+    max_tokens: int = 1536
     stop: list[str] | None = None
     tools: list[dict[str, Any]] | None = None
-    enable_thinking: bool = True
+    enable_thinking: bool = False
     reasoning_effort: str = "medium"
     preserve_thinking: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
@@ -25,7 +32,7 @@ class ChatResult:
     model: str
     content: str
     reasoning: str
-    finish_reason: str
+    finish_reason: str | None
     prompt_tokens: int
     completion_tokens: int
     cached_tokens: int
@@ -44,6 +51,9 @@ class ChatChunk:
     completion_tokens: int | None = None
     cached_tokens: int | None = None
     keepalive: str | None = None
+    wire_done: bool = False
+    malformed: bool = False
+    http_eof: bool = False
 
 
 class ChatProvider(Protocol):

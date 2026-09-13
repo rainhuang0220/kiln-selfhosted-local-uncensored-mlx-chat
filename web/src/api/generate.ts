@@ -1,12 +1,17 @@
 import { apiFetch } from "./http";
 
 export type MediaKind = "image" | "video";
+export type PromptMode = "raw" | "enhanced" | "translate_enhance";
 
 export interface MediaBackend {
   id: string;
   label: string;
   ready: boolean;
   default?: boolean;
+  checkpoint?: string;
+  application_filter?: string;
+  checkpoint_censorship?: string;
+  provenance?: string;
 }
 
 export interface VideoPreset {
@@ -17,7 +22,24 @@ export interface VideoPreset {
   frames: number;
   steps: number;
   fps: number;
+  guide?: number;
+  shift?: number;
+  teacache?: number;
   clip_s: number;
+  typical_wall_s: number;
+  typical_note: string;
+  hint: string;
+  recommended: boolean;
+}
+
+export interface ImagePreset {
+  id: string;
+  label: string;
+  backend: string;
+  width: number;
+  height: number;
+  steps: number;
+  guidance?: number | null;
   typical_wall_s: number;
   typical_note: string;
   hint: string;
@@ -30,6 +52,9 @@ export interface MediaJob {
   backend: string;
   status: string;
   prompt: string;
+  original_prompt?: string;
+  effective_prompt?: string;
+  prompt_mode?: PromptMode;
   params: Record<string, unknown>;
   output_url: string | null;
   error: string | null;
@@ -44,8 +69,29 @@ export async function fetchBackends(): Promise<{
   image: MediaBackend[];
   video: MediaBackend[];
   video_presets?: VideoPreset[];
+  image_presets?: ImagePreset[];
 }> {
   const r = await apiFetch("/generate/backends");
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function compilePrompt(body: {
+  kind: MediaKind;
+  prompt: string;
+  prompt_mode?: PromptMode;
+}): Promise<{
+  original_prompt: string;
+  effective_prompt: string;
+  prompt_mode: PromptMode;
+  violations: string[];
+  compiler_model?: string | null;
+}> {
+  const r = await apiFetch("/generate/compile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -54,6 +100,7 @@ export async function createJob(body: {
   kind: MediaKind;
   prompt: string;
   backend?: string;
+  prompt_mode?: PromptMode;
   width?: number;
   height?: number;
   steps?: number;

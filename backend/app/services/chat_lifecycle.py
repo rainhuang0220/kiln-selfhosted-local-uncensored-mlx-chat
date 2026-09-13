@@ -56,6 +56,12 @@ class ChatLifecycle:
                 self.state = PARKED
             except Exception:
                 self.state = RECOVERY_FAILED
+                try:
+                    await self._call(self._restore_fn, default="restore")
+                    self.state = RUNNING
+                    self.reason = None
+                except Exception:
+                    self.state = RECOVERY_FAILED
                 raise
 
     async def restore(self) -> None:

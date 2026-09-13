@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import threading
 import time
@@ -12,10 +13,13 @@ from app.config import Settings
 from app.db import get_conn
 from app.services.chat_lifecycle import ChatLifecycle
 from app.services.generation_errors import GenerationCancelled, RunResult
+from app.services.prompt_compiler import CompiledPrompt, compile_visual_prompt
+from app.services import image_presets as ip
 from app.services import video_presets as vp
 
 ACTIVE_STATUSES = (
     "queued",
+    "enhancing_prompt",
     "parking_chat",
     "loading",
     "generating",
@@ -26,7 +30,7 @@ ACTIVE_STATUSES = (
 TERMINAL = {"done", "failed", "cancelled", "interrupted"}
 IN_FLIGHT = tuple(s for s in ACTIVE_STATUSES if s != "queued")
 
-IMAGE_BACKENDS = ("flux2-klein-4b", "z-image-turbo")
+IMAGE_BACKENDS = ("z-image-turbo", "flux1-dev", "flux2-klein-4b")
 VIDEO_BACKENDS = ("nsfw-wan-1.3b",)
 
 Runner = Callable[[dict[str, Any]], Awaitable[RunResult]]
@@ -48,6 +52,9 @@ def _row(r) -> dict[str, Any]:
         "backend": r["backend"],
         "status": r["status"],
         "prompt": r["prompt"],
+        "original_prompt": r["prompt"],
+        "effective_prompt": params.get("effective_prompt") or r["prompt"],
+        "prompt_mode": params.get("prompt_mode") or "raw",
         "params": params,
         "output_url": output_url,
         "error": r["error"],
@@ -65,10 +72,12 @@ class MediaService:
         settings: Settings,
         runner: Runner | None = None,
         lifecycle: ChatLifecycle | None = None,
+        compiler: Callable[..., Any] | None = None,
     ):
         self.settings = settings
         self._runner = runner
         self.lifecycle = lifecycle or ChatLifecycle(settings)
+        self._compiler = compiler
         self._lock = asyncio.Lock()
         self._cancels: dict[str, threading.Event] = {}
         Path(settings.generations_dir).mkdir(parents=True, exist_ok=True)
@@ -76,6 +85,7 @@ class MediaService:
     def backends(self) -> dict[str, Any]:
         flux = Path(self.settings.image_flux_dir)
         zimg = Path(self.settings.image_zimage_dir)
+        flux1 = Path(self.settings.image_flux1_dev_dir)
         dit = Path(self.settings.video_wan_dit)
         aux = Path(self.settings.video_wan_aux_dir)
         mlx_dir = Path(self.settings.video_wan_mlx_dir)
@@ -91,6 +101,9 @@ class MediaService:
                 "vae/0.safetensors",
             )
         )
+        flux1_files = list((flux1 / "transformer").glob("*.safetensors")) if (flux1 / "transformer").is_dir() else []
+        flux1_vae = list((flux1 / "vae").glob("*.safetensors")) if (flux1 / "vae").is_dir() else []
+        flux1_ready = bool(flux1_files) and flux1_files[0].stat().st_size > 50_000_000 and bool(flux1_vae)
         mlx_ready = all(
             (mlx_dir / name).is_file()
             for name in ("config.json", "model.safetensors", "t5_encoder.safetensors", "vae.safetensors")
@@ -110,20 +123,44 @@ class MediaService:
                     "label": "Z-Image Turbo",
                     "ready": zimg_ready,
                     "default": self.settings.default_image_backend == "z-image-turbo",
+                    "checkpoint": "Tongyi-MAI/Z-Image-Turbo via mflux 4-bit",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "not_claimed",
+                    "provenance": "verified_standard_upstream",
+                },
+                {
+                    "id": "flux1-dev",
+                    "label": "FLUX.1 [dev] Q4 (Quality)",
+                    "ready": flux1_ready,
+                    "default": self.settings.default_image_backend == "flux1-dev",
+                    "checkpoint": "black-forest-labs/FLUX.1-dev via mflux 4-bit",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "not_claimed",
+                    "provenance": "verified_standard_upstream",
+                    "license": "FLUX.1 [dev] Non-Commercial License",
                 },
                 {
                     "id": "flux2-klein-4b",
-                    "label": "FLUX.2 Klein 4B (faster; official text encoder may sanitize prompts)",
+                    "label": "FLUX.2 Klein 4B (official text encoder may sanitize prompts)",
                     "ready": flux_ready,
                     "default": self.settings.default_image_backend == "flux2-klein-4b",
+                    "checkpoint": "FLUX.2 Klein 4B",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "encoder_may_sanitize",
+                    "provenance": "verified_standard_upstream",
                 },
             ],
+            "image_presets": ip.public_presets(),
             "video": [
                 {
                     "id": "nsfw-wan-1.3b",
-                    "label": "Wan 1.3B (unfiltered)",
+                    "label": "Wan2.1 T2V 1.3B NSFW-finetuned (exp e14)",
                     "ready": mlx_ready or src_ready,
                     "default": True,
+                    "checkpoint": "wan_1.3B_exp_e14 from Wan-AI/Wan2.1-T2V-1.3B fine-tune",
+                    "application_filter": "none",
+                    "checkpoint_censorship": "nsfw_finetune_claimed",
+                    "provenance": "verified_finetune_card",
                 }
             ],
             "video_presets": vp.public_presets(),
@@ -132,6 +169,10 @@ class MediaService:
         }
 
     def get(self, job_id: str, owner_id: str | None) -> dict[str, Any] | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         conn = get_conn()
         if owner_id:
             row = conn.execute(
@@ -143,6 +184,10 @@ class MediaService:
         return _row(row) if row else None
 
     def list_jobs(self, owner_id: str | None, limit: int = 20) -> list[dict[str, Any]]:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return []
         conn = get_conn()
         if owner_id:
             rows = conn.execute(
@@ -157,6 +202,10 @@ class MediaService:
         return [_row(r) for r in rows]
 
     def output_path(self, job_id: str, owner_id: str | None) -> Path | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         conn = get_conn()
         if owner_id:
             row = conn.execute(
@@ -193,6 +242,7 @@ class MediaService:
         if not prompt:
             raise ValueError("prompt is required")
         if kind == "image":
+            params, backend = ip.resolve(params, backend)
             backend = backend or self.settings.default_image_backend
             if backend not in IMAGE_BACKENDS:
                 raise ValueError(f"unknown image backend: {backend}")
@@ -267,9 +317,24 @@ class MediaService:
         )
         conn.commit()
 
-    def _should_park(self, kind: str) -> bool:
+    async def _compile_prompt(self, kind: str, prompt: str, mode: str) -> CompiledPrompt:
+        if self._compiler is not None:
+            result = self._compiler(kind, prompt, mode)
+            if inspect.isawaitable(result):
+                result = await result
+            if isinstance(result, CompiledPrompt):
+                return result
+            text = str(result)
+            return CompiledPrompt(original=prompt, effective=text, mode=mode, kind=kind)  # type: ignore[arg-type]
+        return await asyncio.to_thread(
+            compile_visual_prompt, prompt, kind, mode, None, self.settings
+        )
+
+    def _should_park(self, kind: str, backend: str | None = None) -> bool:
         if kind == "video":
             return bool(self.settings.pause_chat_for_video)
+        if backend == "flux1-dev":
+            return True
         return bool(self.settings.pause_chat_for_image)
 
     async def pump(self) -> None:
@@ -288,11 +353,28 @@ class MediaService:
     async def _run_job(self, job: dict[str, Any]) -> None:
         job_id = job["id"]
         kind = job["kind"]
-        park = self._should_park(kind)
+        park = self._should_park(kind, job.get("backend"))
         parked = False
         cancel = self._cancels.setdefault(job_id, threading.Event())
-        self._set(job_id, status="loading", started_at=_now())
+        self._set(job_id, status="enhancing_prompt", started_at=_now())
         try:
+            if cancel.is_set():
+                raise GenerationCancelled()
+            params = dict(job.get("params") or {})
+            mode = str(params.get("prompt_mode") or "enhanced")
+            if mode not in ("raw", "enhanced", "translate_enhance"):
+                mode = "enhanced"
+            compiled = await self._compile_prompt(kind, job["prompt"], mode)
+            params["prompt_mode"] = compiled.mode
+            params["original_prompt"] = compiled.original
+            params["effective_prompt"] = compiled.effective
+            params["compiler_violations"] = compiled.violations
+            params["compiler_model"] = compiled.compiler_model
+            catalog = self.backends().get(kind) or []
+            match = next((b for b in catalog if b.get("id") == job["backend"]), None)
+            if match:
+                params["model"] = match.get("checkpoint") or match.get("label") or job["backend"]
+            self._set(job_id, params_json=json.dumps(params, ensure_ascii=False))
             if cancel.is_set():
                 raise GenerationCancelled()
             if park:
@@ -308,8 +390,8 @@ class MediaService:
                     "id": job_id,
                     "kind": kind,
                     "backend": job["backend"],
-                    "prompt": job["prompt"],
-                    "params": job["params"],
+                    "prompt": compiled.effective,
+                    "params": params,
                     "cancel": cancel,
                 }
             )

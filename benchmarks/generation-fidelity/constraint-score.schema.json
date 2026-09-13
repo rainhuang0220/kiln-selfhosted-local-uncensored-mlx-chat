@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "required": ["id", "kind", "mode", "seed", "constraints"],
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "enum": ["image", "video"] },
+    "mode": { "type": "string" },
+    "seed": { "type": "integer" },
+    "original_prompt": { "type": "string" },
+    "effective_prompt": { "type": "string" },
+    "wall_s": { "type": "number" },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "axis", "text", "verdict"],
+        "properties": {
+          "id": { "type": "string" },
+          "axis": { "type": "string" },
+          "text": { "type": "string" },
+          "verdict": { "enum": ["PASS", "FAIL", "UNCERTAIN"] }
+        }
+      }
+    }
+  }
+}

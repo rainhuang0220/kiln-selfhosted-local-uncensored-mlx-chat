@@ -7,7 +7,9 @@ import { ModelWorkbench } from "./components/ModelWorkbench";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
+import { PROFILE_LABELS, isIncompleteTerminal, terminalCopy } from "./lib/profiles";
 import { useChatStore } from "./stores/chat-store";
+import type { GenerationProfile } from "./types/chat";
 
 const STARTERS = [
   "Explain this machine's local Qwen setup in one paragraph.",
@@ -26,13 +28,18 @@ export function App() {
   useEffect(() => {
     applyTheme(readThemePref());
     const onUnauth = () => {
-      store.stop();
-      useChatStore.setState({ authRequired: true, authOk: false });
+      store.wipePrivateState();
+      useChatStore.setState({ authRequired: true, authOk: false, authChecked: true });
     };
     window.addEventListener("kiln:unauthorized", onUnauth);
-    void store.loadHealth();
-    void store.loadConversations();
-    void store.loadModels();
+    void (async () => {
+      await store.loadHealth();
+      const s = useChatStore.getState();
+      if (!s.authRequired || s.authOk) {
+        await store.loadConversations();
+        if (s.role === "owner" || !s.authRequired) await store.loadModels();
+      }
+    })();
     const t = window.setInterval(() => void store.loadHealth(), 10000);
     const onVis = () => {
       if (document.visibilityState === "visible") void store.loadHealth();
@@ -87,6 +94,7 @@ export function App() {
 
   const [gateUser, setGateUser] = useState("");
   const [gatePass, setGatePass] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [view, setView] = useState<"chat" | "generate">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -134,35 +142,66 @@ export function App() {
       return next;
     });
   };
+  if (!store.authChecked) {
+    return (
+      <div className="auth-gate">
+        <div className="auth-card">
+          <p className="auth-kicker">Kiln</p>
+          <h1>Private local AI</h1>
+          <p>正在确认登录状态…</p>
+        </div>
+      </div>
+    );
+  }
   if (store.authRequired && !store.authOk) {
+    const locked = Boolean(store.lockedUser);
     return (
       <div className="auth-gate">
         <form
           className="auth-card"
           onSubmit={(e) => {
             e.preventDefault();
+            const user = store.authSetup ? gateUser : gateUser || store.lockedUser || "";
             if (store.authSetup) {
-              void store.register(gateUser, gatePass);
+              void store.register(user, gatePass).then((ok) => {
+                if (ok) {
+                  setGatePass("");
+                  setRememberMe(false);
+                }
+              });
             } else {
-              void store.login(gateUser, gatePass);
+              void store.login(user, gatePass, rememberMe).then((ok) => {
+                if (ok) {
+                  setGatePass("");
+                  setRememberMe(false);
+                }
+              });
             }
           }}
         >
-          <p className="auth-kicker">Kiln · public kiln</p>
-          <h1>{store.authSetup ? "创建账号" : "登录"}</h1>
+          <p className="auth-kicker">Kiln</p>
+          <h1>{store.authSetup ? "创建账号" : locked ? "已锁定" : "Private local AI"}</h1>
           <p>
-            {store.authSetup
-              ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
-              : "用户名和密码登录。会话存在本机 Cookie，密码只存 Argon2 哈希。"}
+            {!store.authReady
+              ? "还没有本机所有者。请在这台 Mac 上运行 create-owner，而不是从公网注册。"
+              : store.authSetup
+                ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
+                : locked
+                  ? `当前账号 ${store.lockedUser} 已锁定。输入密码继续。`
+                  : "用户名和密码进入。默认只在关闭浏览器前保持登录。"}
           </p>
-          <input
-            type="text"
-            autoFocus
-            autoComplete="username"
-            placeholder="用户名"
-            value={gateUser}
-            onChange={(e) => setGateUser(e.target.value)}
-          />
+          {store.authSetup || !locked ? (
+            <input
+              type="text"
+              autoFocus
+              autoComplete="username"
+              placeholder="用户名"
+              value={gateUser}
+              onChange={(e) => setGateUser(e.target.value)}
+            />
+          ) : (
+            <input type="text" readOnly value={store.lockedUser || ""} autoComplete="username" />
+          )}
           <input
             type="password"
             autoComplete={store.authSetup ? "new-password" : "current-password"}
@@ -170,9 +209,23 @@ export function App() {
             value={gatePass}
             onChange={(e) => setGatePass(e.target.value)}
           />
+          {!store.authSetup ? (
+            <label className="auth-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              在此设备保持登录
+            </label>
+          ) : null}
           {store.authError ? <p className="auth-error">{store.authError}</p> : null}
-          <button className="btn primary" type="submit" disabled={!gateUser.trim() || !gatePass}>
-            {store.authSetup ? "创建并进入" : "进入"}
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={!gatePass || (!locked && !gateUser.trim()) || (!store.authReady && !store.authSetup)}
+          >
+            {store.authSetup ? "创建并进入" : locked ? "解锁" : "进入"}
           </button>
         </form>
       </div>
@@ -236,9 +289,11 @@ export function App() {
           >
             <Plus size={15} /> New chat
           </button>
-          <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
-            <LibraryBig size={15} /> Model library
-          </button>
+          {store.role === "owner" || !store.authRequired ? (
+            <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+              <LibraryBig size={15} /> Model library
+            </button>
+          ) : null}
           <input
             className="search"
             placeholder="Search"
@@ -288,9 +343,14 @@ export function App() {
           <div className="side-foot-right">
             {store.username ? <span className="who">{store.username}</span> : null}
             {store.authRequired ? (
-              <button type="button" className="btn ghost" onClick={() => void store.logout()}>
-                退出
-              </button>
+              <>
+                <button type="button" className="btn ghost" onClick={() => void store.lock()}>
+                  锁定
+                </button>
+                <button type="button" className="btn ghost" onClick={() => void store.logout()}>
+                  退出
+                </button>
+              </>
             ) : null}
             <ThemeSwitch />
           </div>
@@ -344,9 +404,16 @@ export function App() {
                 <Trash2 size={15} /> Delete
               </button>
             ) : null}
-            <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
-              Models
-            </button>
+            {store.role === "owner" || !store.authRequired ? (
+              <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+                Models
+              </button>
+            ) : null}
+            {store.authRequired ? (
+              <button type="button" className="btn ghost" onClick={() => void store.lock()}>
+                锁定
+              </button>
+            ) : null}
             <button
               className="btn ghost desktop-only"
               aria-expanded={store.inspectorOpen}
@@ -395,7 +462,7 @@ export function App() {
                 <div className="role">{m.role}</div>
                 <div className="body">
                   {m.role === "assistant" && m.reasoning ? (
-                    <details className="think">
+                    <details className="think" open={m.status === "streaming" && !m.content}>
                       <summary>Thought</summary>
                       <pre>{m.reasoning}</pre>
                     </details>
@@ -410,11 +477,16 @@ export function App() {
                       <span>↑ {formatTokens(m.usage.input)}</span>
                       <span>↓ {formatTokens(m.usage.output)}</span>
                       <span>Σ {formatTokens(m.usage.total)}</span>
-                      {m.usage.tokensPerSecond ? (
-                        <span>{m.usage.tokensPerSecond.toFixed(1)} tok/s</span>
+                      {m.usage.ttftMs != null ? <span>TTFT {m.usage.ttftMs}ms</span> : null}
+                      {m.usage.decodeTokensPerSec != null ? (
+                        <span>decode {m.usage.decodeTokensPerSec.toFixed(1)} tok/s</span>
+                      ) : m.usage.effectiveOutputTokensPerSec != null ? (
+                        <span>out {m.usage.effectiveOutputTokensPerSec.toFixed(1)} tok/s</span>
                       ) : null}
-                      {m.finish_reason === "length" ? (
-                        <span style={{ color: "var(--copper-2)" }}>hit max tokens</span>
+                      {terminalCopy(m.finish_reason, m.terminal_state) ? (
+                        <span style={{ color: "var(--copper-2)" }}>
+                          {terminalCopy(m.finish_reason, m.terminal_state)}
+                        </span>
                       ) : null}
                     </div>
                   ) : null}
@@ -431,9 +503,13 @@ export function App() {
                           <button className="btn ghost" onClick={() => void store.send("regenerate")}>
                             Regenerate
                           </button>
-                          {m.status === "error" || m.status === "interrupted" ? (
-                            <button className="btn ghost" onClick={() => void store.send("regenerate")}>
-                              Retry
+                          {m.incomplete ||
+                          m.status === "error" ||
+                          m.status === "interrupted" ||
+                          isIncompleteTerminal(m.finish_reason, m.terminal_state) ||
+                          m.finish_reason === "length" ? (
+                            <button className="btn ghost" onClick={() => void store.send("continue")}>
+                              Continue
                             </button>
                           ) : null}
                         </>
@@ -528,38 +604,100 @@ export function App() {
             />
             <div className="composer-bar">
               <div className="toggles">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={store.params.enableThinking}
-                    onChange={(e) => store.setParams({ enableThinking: e.target.checked })}
-                  />
-                  thinking
-                </label>
                 <select
-                  value={store.params.reasoningEffort}
-                  onChange={(e) =>
-                    store.setParams({
-                      reasoningEffort: e.target.value as "low" | "medium" | "xhigh",
-                    })
-                  }
+                  value={store.params.profile}
+                  onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
+                  aria-label="Generation profile"
                 >
-                  <option value="low">low</option>
-                  <option value="medium">mid</option>
-                  <option value="xhigh">max</option>
+                  {(Object.keys(PROFILE_LABELS) as GenerationProfile[]).map((key) => (
+                    <option key={key} value={key}>
+                      {PROFILE_LABELS[key]}
+                    </option>
+                  ))}
                 </select>
-                <label>
-                  max
-                  <input
-                    type="number"
-                    min={64}
-                    max={store.health?.max_tokens_cap || 32768}
-                    step={64}
-                    value={store.params.maxTokens}
-                    onChange={(e) => store.setParams({ maxTokens: Number(e.target.value) })}
-                    style={{ width: 80, background: "transparent", border: 0, color: "inherit" }}
-                  />
-                </label>
+                <details className="advanced">
+                  <summary>Advanced</summary>
+                  <div className="advanced-grid">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={store.params.enableThinking}
+                        onChange={(e) => store.setParams({ enableThinking: e.target.checked })}
+                      />
+                      thinking
+                    </label>
+                    <label>
+                      effort
+                      <select
+                        value={store.params.reasoningEffort}
+                        onChange={(e) =>
+                          store.setParams({
+                            reasoningEffort: e.target.value as "low" | "medium" | "xhigh",
+                          })
+                        }
+                      >
+                        <option value="low">low</option>
+                        <option value="medium">mid</option>
+                        <option value="xhigh">max</option>
+                      </select>
+                    </label>
+                    <label>
+                      temp
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.05}
+                        value={store.params.temperature}
+                        onChange={(e) => store.setParams({ temperature: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      top_p
+                      <input
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={store.params.topP}
+                        onChange={(e) => store.setParams({ topP: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      presence
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        value={store.params.presencePenalty}
+                        onChange={(e) => store.setParams({ presencePenalty: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      repetition
+                      <input
+                        type="number"
+                        min={1}
+                        max={1.3}
+                        step={0.01}
+                        value={store.params.repetitionPenalty}
+                        onChange={(e) => store.setParams({ repetitionPenalty: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      max
+                      <input
+                        type="number"
+                        min={64}
+                        max={store.health?.max_tokens_cap || 32768}
+                        step={64}
+                        value={store.params.maxTokens}
+                        onChange={(e) => store.setParams({ maxTokens: Number(e.target.value) })}
+                      />
+                    </label>
+                  </div>
+                </details>
                 <label className="file-btn">
                   file
                   <input
@@ -775,10 +913,18 @@ function Inspector() {
           <b>{formatTokens(last?.usage?.total)}</b>
           <span>cached</span>
           <b>{formatTokens(last?.usage?.cached)}</b>
-          <span>tok/s</span>
+          <span>TTFT</span>
+          <b>{last?.usage?.ttftMs != null ? `${last.usage.ttftMs}ms` : "—"}</b>
+          <span>decode tok/s</span>
           <b>
-            {last?.usage?.tokensPerSecond != null
-              ? last.usage.tokensPerSecond.toFixed(1)
+            {last?.usage?.decodeTokensPerSec != null
+              ? last.usage.decodeTokensPerSec.toFixed(1)
+              : "—"}
+          </b>
+          <span>effective tok/s</span>
+          <b>
+            {last?.usage?.effectiveOutputTokensPerSec != null
+              ? last.usage.effectiveOutputTokensPerSec.toFixed(1)
               : "—"}
           </b>
         </div>
