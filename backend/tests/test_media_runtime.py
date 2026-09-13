@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from app.services.media_runtime import _port_open, _run_image, _run_video
 
 
@@ -8,6 +10,7 @@ class _Ok:
 
 
 def test_wan_teacache_module_imports():
+    pytest.importorskip("mlx")
     from app.services import wan_teacache
 
     assert wan_teacache.COEFFS_1_3B

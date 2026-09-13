@@ -109,6 +109,17 @@ def fake_provider() -> FakeProvider:
     return FakeProvider()
 
 
+def chat_template_present(settings: Settings) -> bool:
+    path = Path(settings.model_path)
+    return (path / "chat_template.jinja").exists() or (path / "tokenizer_config.json").exists()
+
+
+@pytest.fixture
+def require_chat_template(tmp_settings: Settings) -> None:
+    if not chat_template_present(tmp_settings):
+        pytest.skip("chat template not present on this host")
+
+
 @pytest.fixture
 def chat_service(tmp_settings: Settings, fake_provider: FakeProvider) -> ChatService:
     from app import db as dbmod

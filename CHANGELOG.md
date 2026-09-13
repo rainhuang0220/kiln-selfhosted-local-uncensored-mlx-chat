@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.6.2 — CI isolation for the private-mode gate
+
+- Injected TestClient chat no longer runs live MLX restore, so Ubuntu CI cannot mark chat `recovery_failed`.
+- Hub preflight tests enable downloads explicitly. MLX-only and local-tokenizer tests skip on hosts that lack those files.
+
 ## v0.6.1 — Final hardening
 
 - Local-open mode is limited to loopback Hosts (`127.0.0.0/8`, `::1`, `localhost`). RFC1918 and link-local Hosts fail closed with zero users.

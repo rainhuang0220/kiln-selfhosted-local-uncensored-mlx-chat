@@ -124,7 +124,7 @@ def test_repetition_guard_keeps_text(chat_service, fake_provider):
     assert "窗外" in done["data"]["message"]["content"]
 
 
-def test_continue_does_not_insert_user_message(chat_service, fake_provider):
+def test_continue_does_not_insert_user_message(require_chat_template, chat_service, fake_provider):
     async def first(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_content="partial")
         yield ChatChunk(id="x", model="fake", http_eof=True)

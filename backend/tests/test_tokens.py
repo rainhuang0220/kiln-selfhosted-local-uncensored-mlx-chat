@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from app.services.tokens import TokenEstimator
 
 
@@ -11,6 +13,8 @@ def test_count_messages_survives_missing_model_dir():
 
 def test_estimator_counts_messages():
     model = Path(__file__).resolve().parents[3] / "qwen3.8-27b"
+    if not (model / "tokenizer.json").exists():
+        pytest.skip("local model tokenizer not present")
     est = TokenEstimator(str(model))
     n = est.count_messages(
         [

@@ -162,7 +162,7 @@ def test_max_tokens_during_visible_output_is_length(chat_service, fake_provider)
     assert done["data"]["message"]["content"] == "visible cut"
 
 
-def test_continue_mid_think_does_not_close_think(chat_service, fake_provider):
+def test_continue_mid_think_does_not_close_think(require_chat_template, chat_service, fake_provider):
     async def cut(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_reasoning="half plan")
         yield ChatChunk(id="x", model="fake", http_eof=True)
@@ -206,7 +206,7 @@ def test_continue_mid_think_does_not_close_think(chat_service, fake_provider):
     assert "<|im_start|>user\ncontinue" not in prompt
 
 
-def test_second_continue_does_not_reuse_completion_prefix(chat_service, fake_provider):
+def test_second_continue_does_not_reuse_completion_prefix(require_chat_template, chat_service, fake_provider):
     async def first_gen(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_content="partial")
         yield ChatChunk(id="x", model="fake", finish_reason="length")
@@ -258,7 +258,7 @@ def test_second_continue_does_not_reuse_completion_prefix(chat_service, fake_pro
     assert len(prompts[-1]) < len(prompts[-2])
 
 
-def test_empty_continue_eof_counts_as_inference_fault(chat_service, fake_provider):
+def test_empty_continue_eof_counts_as_inference_fault(require_chat_template, chat_service, fake_provider):
     async def first_gen(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_content="partial")
         yield ChatChunk(id="x", model="fake", finish_reason="length")

@@ -242,7 +242,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         app.state.chat_lifecycle = media_svc.lifecycle
         app.state.settings = cfg
         try:
-            if media is None and cfg.pause_chat_for_video:
+            if media is None and chat is None and cfg.pause_chat_for_video:
                 from app.services.media_runtime import _health_ok, restore_mlx
 
                 if _health_ok(cfg.mlx_health_url()):

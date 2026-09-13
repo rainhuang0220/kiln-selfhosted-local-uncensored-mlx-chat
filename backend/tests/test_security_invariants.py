@@ -430,8 +430,9 @@ def test_trusted_https_proxy_does_not_honor_spoofed_loopback_host(tmp_settings, 
 def test_private_exposure_ignores_loopback_host(tmp_settings, chat_service):
     _private_settings(tmp_settings)
     app = create_app(tmp_settings, chat=chat_service)
-    with TestClient(app, base_url="https://127.0.0.1", headers={"Host": "127.0.0.1"}) as c:
-        body = c.get("/auth/status").json()
-        assert body["required"] is True
-        assert body["ok"] is False
-        assert c.get("/conversation").status_code in {401, 403, 503}
+    for host in ("127.0.0.1", "localhost", "[::1]", "192.168.1.10"):
+        with TestClient(app, base_url="https://127.0.0.1", headers={"Host": host}) as c:
+            body = c.get("/auth/status").json()
+            assert body["required"] is True, host
+            assert body["ok"] is False, host
+            assert c.get("/conversation").status_code in {401, 403, 503}, host
