@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.6.3 — CI test runner cwd
+
+- `npm test` no longer `cd`s into `backend` before the frontend suite, so Ubuntu CI can finish after pytest.
+
 ## v0.6.2 — CI isolation for the private-mode gate
 
 - Injected TestClient chat no longer runs live MLX restore, so Ubuntu CI cannot mark chat `recovery_failed`.
