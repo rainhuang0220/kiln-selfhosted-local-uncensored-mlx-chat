@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.6.4 — CI uses repo-root npm test
+
+- GitHub Actions `verify` runs `npm test` from the repository root so pytest uses the root `.venv`.
+
 ## v0.6.3 — CI test runner cwd
 
 - `npm test` no longer `cd`s into `backend` before the frontend suite, so Ubuntu CI can finish after pytest.
