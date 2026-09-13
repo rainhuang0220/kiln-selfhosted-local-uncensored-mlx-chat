@@ -3,6 +3,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   const res = await fetch(input, {
     ...init,
     credentials: "include",
+    cache: "no-store",
     headers,
   });
   if (res.status === 401) {

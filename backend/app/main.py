@@ -19,6 +19,13 @@ from app.auth import AuthRateMiddleware
 from app.config import Settings, settings as default_settings
 from app.db import init_db
 from app.errors import error_body, install_error_handlers
+from app.security import (
+    SESSION_COOKIE,
+    apply_private_cache_headers,
+    cookie_name,
+    cookie_should_be_secure,
+    exposure_for,
+)
 from app.providers.mlx import MlxProvider
 from app.services import accounts
 from app.services.chat import ChatService
@@ -72,6 +79,13 @@ class MemoryBody(BaseModel):
 class LoginBody(BaseModel):
     username: str = Field(min_length=1, max_length=32)
     password: str = Field(min_length=1, max_length=128)
+    remember_me: bool = False
+
+
+class MemoryPatchBody(BaseModel):
+    content: str | None = Field(default=None, min_length=1, max_length=4000)
+    key: str | None = None
+    importance: float | None = Field(default=None, ge=0, le=1)
 
 
 class RegisterBody(BaseModel):
@@ -139,20 +153,62 @@ def _sse(event: str, data: Any) -> bytes:
 
 def create_app(settings: Settings | None = None, chat: ChatService | None = None, media: MediaService | None = None) -> FastAPI:
     cfg = settings or default_settings
+    cfg.validate_private_startup()
 
     def _owner(request: Request) -> str | None:
         return getattr(request.state, "user_id", None)
 
-    def _session_cookie(resp: JSONResponse, token: str) -> JSONResponse:
-        resp.set_cookie(
-            accounts.COOKIE,
-            token,
-            httponly=True,
-            samesite="lax",
-            secure=bool(cfg.cookie_secure),
-            max_age=max(1, cfg.session_days) * 24 * 3600,
-            path="/",
+    def _is_owner_role(request: Request) -> bool:
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return accounts.user_count() == 0 and exposure_for(request, cfg) == "local"
+        return getattr(user, "role", "user") == "owner"
+
+    def _require_owner_role(request: Request):
+        if _is_owner_role(request):
+            return None
+        return error_body("admin required", "authentication_error", "admin_required", status=403)
+
+    def _cookie_token(request: Request) -> str:
+        return (
+            request.cookies.get(cookie_name(secure=True))
+            or request.cookies.get(cookie_name(secure=False))
+            or request.cookies.get(SESSION_COOKIE)
+            or ""
         )
+
+    def _session_cookie(
+        resp: JSONResponse,
+        token: str,
+        *,
+        request: Request,
+        remember: bool,
+    ) -> JSONResponse:
+        secure = cookie_should_be_secure(request, cfg)
+        name = cookie_name(secure=secure)
+        kwargs: dict[str, Any] = {
+            "httponly": True,
+            "samesite": "strict",
+            "secure": secure,
+            "path": "/",
+        }
+        if remember:
+            kwargs["max_age"] = max(1, cfg.session_remember_days) * 24 * 3600
+        resp.set_cookie(name, token, **kwargs)
+        apply_private_cache_headers(resp)
+        return resp
+
+    def _clear_session_cookie(resp: JSONResponse, request: Request) -> JSONResponse:
+        secure = cookie_should_be_secure(request, cfg)
+        for name in {cookie_name(secure=True), cookie_name(secure=False), SESSION_COOKIE}:
+            resp.delete_cookie(
+                name,
+                path="/",
+                secure=secure if name.startswith("__Host-") else (name == cookie_name(secure=True) or secure),
+                httponly=True,
+                samesite="strict",
+            )
+        apply_private_cache_headers(resp)
         return resp
 
     @asynccontextmanager
@@ -203,11 +259,12 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             if provider is not None and hasattr(provider, "aclose"):
                 await provider.aclose()
 
-    gated = bool(cfg.bootstrap_username or cfg.bootstrap_password)
+    private = (cfg.kiln_exposure or "local").strip().lower() == "private"
+    gated = private or bool(cfg.bootstrap_username or cfg.bootstrap_password)
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.5.0",
+        version="0.6.0",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",
@@ -220,6 +277,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         login_per_minute=cfg.login_per_minute,
         max_request_bytes=cfg.max_request_bytes,
         trust_proxy_headers=cfg.trust_proxy_headers,
+        settings=cfg,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -235,7 +293,10 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         reachable = False
         if provider is not None:
             reachable = await provider.health()
-        base = "" if accounts.user_count() else cfg.mlx_base_url
+        hide_internal = (
+            exposure_for(request, cfg) == "private" or accounts.user_count() > 0
+        )
+        base = "" if hide_internal else cfg.mlx_base_url
         media_svc: MediaService | None = getattr(request.app.state, "media", None)
         chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
         chat = getattr(request.app.state, "chat", None)
@@ -267,20 +328,42 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.get("/auth/status")
     async def auth_status(request: Request):
         n = accounts.user_count()
-        required = n > 0
+        private = exposure_for(request, cfg) == "private"
+        required = private or n > 0
         user = getattr(request.state, "user", None)
+        ready = (not private) or n > 0
+        signup = bool(cfg.auth_signup) and not private
+        if not private and n == 0:
+            signup = True
         return {
             "required": required,
             "ok": (not required) or user is not None,
-            "setup": n == 0,
-            "signup": bool(cfg.auth_signup) or n == 0,
+            "setup": False if private else n == 0,
+            "signup": signup,
             "username": user.username if user else None,
+            "role": getattr(user, "role", None) if user else None,
+            "ready": ready,
+            "exposure": "private" if private else "local",
         }
 
     @app.post("/auth/register")
-    async def auth_register(body: RegisterBody):
+    async def auth_register(body: RegisterBody, request: Request):
         n = accounts.user_count()
+        if exposure_for(request, cfg) == "private" and n == 0:
+            return error_body(
+                "owner account is not ready",
+                "authentication_error",
+                "not_ready",
+                status=503,
+            )
         if n > 0 and not cfg.auth_signup:
+            return error_body(
+                "signup disabled",
+                "authentication_error",
+                "signup_disabled",
+                status=403,
+            )
+        if exposure_for(request, cfg) == "private" and not cfg.auth_signup:
             return error_body(
                 "signup disabled",
                 "authentication_error",
@@ -298,15 +381,28 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "username_taken",
                 status=409,
             )
-        token = accounts.create_session(user.id, days=cfg.session_days)
-        resp = JSONResponse(
-            {"ok": True, "required": True, "username": user.username, "setup": False}
+        token = accounts.create_session(
+            user.id,
+            remember=False,
+            idle_minutes=cfg.session_idle_minutes,
+            absolute_hours=cfg.session_absolute_hours,
+            remember_days=cfg.session_remember_days,
         )
-        return _session_cookie(resp, token)
+        resp = JSONResponse(
+            {"ok": True, "required": True, "username": user.username, "setup": False, "role": user.role}
+        )
+        return _session_cookie(resp, token, request=request, remember=False)
 
     @app.post("/auth/login")
-    async def auth_login(body: LoginBody):
+    async def auth_login(body: LoginBody, request: Request):
         if accounts.user_count() == 0:
+            if exposure_for(request, cfg) == "private":
+                return error_body(
+                    "owner account is not ready",
+                    "authentication_error",
+                    "not_ready",
+                    status=503,
+                )
             return {"ok": True, "required": False}
         user = accounts.authenticate(body.username, body.password)
         if user is None:
@@ -316,16 +412,83 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "auth_failed",
                 status=401,
             )
-        token = accounts.create_session(user.id, days=cfg.session_days)
-        resp = JSONResponse({"ok": True, "required": True, "username": user.username})
-        return _session_cookie(resp, token)
+        token = accounts.create_session(
+            user.id,
+            remember=bool(body.remember_me),
+            idle_minutes=cfg.session_idle_minutes,
+            absolute_hours=cfg.session_absolute_hours,
+            remember_days=cfg.session_remember_days,
+        )
+        resp = JSONResponse(
+            {"ok": True, "required": True, "username": user.username, "role": user.role}
+        )
+        return _session_cookie(resp, token, request=request, remember=bool(body.remember_me))
 
     @app.post("/auth/logout")
     async def auth_logout(request: Request):
-        accounts.revoke_session(request.cookies.get(accounts.COOKIE))
+        accounts.revoke_session(_cookie_token(request))
         resp = JSONResponse({"ok": True})
-        resp.delete_cookie(accounts.COOKIE, path="/")
-        return resp
+        return _clear_session_cookie(resp, request)
+
+    @app.post("/auth/lock")
+    async def auth_lock(request: Request):
+        accounts.revoke_session(_cookie_token(request))
+        resp = JSONResponse({"ok": True, "locked": True})
+        return _clear_session_cookie(resp, request)
+
+    @app.get("/auth/sessions")
+    async def auth_sessions(request: Request):
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return error_body(
+                "authentication required",
+                "authentication_error",
+                "auth_required",
+                status=401,
+            )
+        return {"object": "list", "data": accounts.list_sessions(user.id, _cookie_token(request))}
+
+    @app.delete("/auth/sessions/{session_id}")
+    async def auth_revoke_session(session_id: str, request: Request):
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return error_body(
+                "authentication required",
+                "authentication_error",
+                "auth_required",
+                status=401,
+            )
+        ok = accounts.revoke_session_id(user.id, session_id, _cookie_token(request))
+        if not ok:
+            return error_body("session not found", "not_found_error", "session_not_found", status=404)
+        return {"ok": True}
+
+    @app.post("/auth/logout-all")
+    async def auth_logout_all(request: Request):
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return error_body(
+                "authentication required",
+                "authentication_error",
+                "auth_required",
+                status=401,
+            )
+        accounts.revoke_all_sessions(user.id)
+        resp = JSONResponse({"ok": True})
+        return _clear_session_cookie(resp, request)
+
+    @app.post("/auth/logout-others")
+    async def auth_logout_others(request: Request):
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return error_body(
+                "authentication required",
+                "authentication_error",
+                "auth_required",
+                status=401,
+            )
+        n = accounts.revoke_other_sessions(user.id, _cookie_token(request))
+        return {"ok": True, "revoked": n}
 
     @app.get("/context")
     async def global_context(request: Request):
@@ -333,6 +496,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.get("/models/local")
     async def list_local_models(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None and exposure_for(request, cfg) == "private":
+            return denied
         return request.app.state.models.list_local()
 
     @app.get("/models/catalog")
@@ -342,6 +508,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         limit: int = Query(24, ge=1, le=48),
         mlx_only: bool = Query(False),
     ):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
         try:
             return await asyncio.to_thread(
                 request.app.state.models.search_catalog, q.strip(), limit, mlx_only
@@ -356,6 +525,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.post("/models/download", status_code=202)
     async def download_model(body: ModelDownloadBody, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
         try:
             queued = request.app.state.models.queue_download(
                 body.repo_id, body.revision, body.activate
@@ -375,10 +547,16 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.get("/models/download")
     async def list_model_downloads(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
         return request.app.state.models.list_jobs()
 
     @app.post("/models/{model_id}/activate", status_code=202)
     async def activate_model(model_id: str, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
         try:
             result = await asyncio.to_thread(request.app.state.models.activate, model_id)
         except ValueError as exc:
@@ -431,6 +609,40 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             )
         )
         return {"id": rec.id, "content": rec.content}
+
+    @app.get("/memory/{memory_id}")
+    async def get_memory(memory_id: str, request: Request):
+        rec = request.app.state.chat.memory.get(memory_id, _owner(request))
+        if rec is None:
+            return error_body("memory not found", "not_found_error", "memory_not_found", status=404)
+        return {
+            "id": rec.id,
+            "type": rec.memory_type,
+            "key": rec.key,
+            "content": rec.content,
+            "importance": rec.importance,
+        }
+
+    @app.patch("/memory/{memory_id}")
+    async def patch_memory(memory_id: str, body: MemoryPatchBody, request: Request):
+        fields: dict[str, object] = {}
+        if body.content is not None:
+            fields["content"] = body.content
+        if body.key is not None:
+            fields["key"] = body.key
+        if body.importance is not None:
+            fields["importance"] = body.importance
+        rec = request.app.state.chat.memory.update(memory_id, _owner(request), **fields)
+        if rec is None:
+            return error_body("memory not found", "not_found_error", "memory_not_found", status=404)
+        return {"id": rec.id, "content": rec.content}
+
+    @app.delete("/memory/{memory_id}")
+    async def delete_memory(memory_id: str, request: Request):
+        ok = request.app.state.chat.memory.delete(memory_id, _owner(request))
+        if not ok:
+            return error_body("memory not found", "not_found_error", "memory_not_found", status=404)
+        return {"ok": True}
 
     def _chat_parked_response(request: Request):
         life = getattr(request.app.state, "chat_lifecycle", None)

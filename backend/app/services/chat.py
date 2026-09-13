@@ -76,6 +76,10 @@ class ChatService:
         owner_id: str | None = None,
     ) -> dict[str, Any]:
         conn = self._conn()
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return {"object": "list", "total": 0, "limit": limit, "offset": offset, "data": []}
         needle = f"%{(q or '').strip()}%"
         where = "deleted_at IS NULL"
         args: list[Any] = []
@@ -112,7 +116,11 @@ class ChatService:
     def get_conversation(
         self, conversation_id: str, owner_id: str | None = None
     ) -> dict[str, Any] | None:
+        from app.services import accounts
+
         conn = self._conn()
+        if not owner_id and accounts.user_count() > 0:
+            return None
         if owner_id:
             row = conn.execute(
                 "SELECT * FROM conversations WHERE id=? AND deleted_at IS NULL AND user_id=?",
@@ -143,6 +151,10 @@ class ChatService:
     def get_context(
         self, conversation_id: str, owner_id: str | None = None
     ) -> dict[str, Any] | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         if owner_id:
             conv = self._conn().execute(
                 "SELECT id FROM conversations WHERE id=? AND deleted_at IS NULL AND user_id=?",
@@ -181,6 +193,10 @@ class ChatService:
         return row
 
     def delete_conversation(self, conversation_id: str, owner_id: str | None = None) -> bool:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return False
         conn = self._conn()
         if owner_id:
             cur = conn.execute(

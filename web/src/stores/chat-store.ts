@@ -33,10 +33,14 @@ interface ChatState {
   controller: AbortController | null;
   authRequired: boolean;
   authOk: boolean;
+  authChecked: boolean;
   authError: string | null;
   authSetup: boolean;
   authSignup: boolean;
+  authReady: boolean;
   username: string | null;
+  role: string | null;
+  lockedUser: string | null;
   localModels: LocalModel[];
   activeModelId: string | null;
   modelCatalog: HubModel[];
@@ -47,9 +51,11 @@ interface ChatState {
   queueModelDownload: (repoId: string, activate?: boolean) => Promise<boolean>;
   activateModel: (modelId: string) => Promise<boolean>;
   loadModelJobs: () => Promise<void>;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  lock: () => Promise<void>;
+  wipePrivateState: () => void;
   searchQuery: string;
   theme: "light" | "dark" | "system";
   loadConversations: (q?: string) => Promise<void>;
@@ -82,18 +88,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streaming: false,
   error: null,
   controller: null,
-  authRequired: false,
-  authOk: true,
+  authRequired: true,
+  authOk: false,
+  authChecked: false,
   authError: null,
   authSetup: false,
   authSignup: false,
+  authReady: true,
   username: null,
+  role: null,
+  lockedUser: null,
   localModels: [],
   activeModelId: null,
   modelCatalog: [],
   modelJobs: [],
 
   loadModels: async () => {
+    if (get().authRequired && !get().authOk) return;
     const response = await apiFetch("/models/local");
     if (!response.ok) return;
     const body = await response.json();
@@ -146,22 +157,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return true;
   },
 
-  login: async (username: string, password: string) => {
+  wipePrivateState: () => {
+    get().stop();
+    set({
+      conversations: [],
+      activeId: null,
+      messages: [],
+      snapshot: null,
+      draft: "",
+      searchQuery: "",
+      error: null,
+      localModels: [],
+      modelCatalog: [],
+      modelJobs: [],
+    });
+  },
+
+  login: async (username: string, password: string, rememberMe = false) => {
+    get().wipePrivateState();
     const r = await apiFetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, remember_me: rememberMe }),
     });
     if (!r.ok) {
-      set({ authOk: false, authRequired: true, authError: "用户名或密码不对" });
+      set({ authOk: false, authRequired: true, authChecked: true, authError: "用户名或密码不对" });
       return false;
     }
     const body = await r.json();
     set({
       authOk: true,
       authRequired: true,
+      authChecked: true,
       authError: null,
+      lockedUser: null,
       username: body.username || username,
+      role: body.role || "owner",
     });
     await get().loadHealth();
     await get().loadConversations();
@@ -169,6 +200,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   register: async (username: string, password: string) => {
+    get().wipePrivateState();
     const r = await apiFetch("/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -179,6 +211,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({
         authOk: false,
         authRequired: true,
+        authChecked: true,
         authError: err?.error?.message || "注册失败",
       });
       return false;
@@ -187,9 +220,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({
       authOk: true,
       authRequired: true,
+      authChecked: true,
       authError: null,
       authSetup: false,
+      lockedUser: null,
       username: body.username || username,
+      role: body.role || "owner",
     });
     await get().loadHealth();
     await get().loadConversations();
@@ -198,15 +234,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   logout: async () => {
     await apiFetch("/auth/logout", { method: "POST" });
-    get().stop();
+    get().wipePrivateState();
     set({
       authOk: false,
       authRequired: true,
+      authChecked: true,
       username: null,
-      conversations: [],
-      activeId: null,
-      messages: [],
-      snapshot: null,
+      role: null,
+      lockedUser: null,
+    });
+  },
+
+  lock: async () => {
+    const who = get().username;
+    await apiFetch("/auth/lock", { method: "POST" });
+    get().wipePrivateState();
+    set({
+      authOk: false,
+      authRequired: true,
+      authChecked: true,
+      username: null,
+      role: null,
+      lockedUser: who,
     });
   },
 
@@ -218,11 +267,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({
           authRequired: Boolean(s.required),
           authOk: Boolean(s.ok),
+          authChecked: true,
           authSetup: Boolean(s.setup),
           authSignup: Boolean(s.signup),
+          authReady: s.ready !== false,
           username: s.username || null,
+          role: s.role || null,
         });
         if (s.required && !s.ok) return;
+      } else {
+        set({ authChecked: true, authRequired: true, authOk: false });
+        return;
       }
       const r = await apiFetch("/health");
       if (!r.ok) throw new Error("health failed");
@@ -256,6 +311,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadConversations: async (q?: string) => {
+    if (get().authRequired && !get().authOk) return;
     const query = q ?? get().searchQuery;
     const r = await apiFetch("/conversation" + (query ? `?q=${encodeURIComponent(query)}` : ""));
     if (!r.ok) return;
@@ -264,6 +320,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   openConversation: async (id) => {
+    if (get().authRequired && !get().authOk) return;
     get().stop();
     if (!id) {
       set({ activeId: null, messages: [], snapshot: null, error: null });

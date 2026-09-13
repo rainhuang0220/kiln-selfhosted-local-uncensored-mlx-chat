@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Reverse SSH: VPS 127.0.0.1:17777 -> this Mac 127.0.0.1:7777
+# Reverse SSH: VPS 127.0.0.1:17777 -> this Mac 127.0.0.1:8787 (API).
+# Vite on 127.0.0.1:7777 is local development only and must not be the public origin.
 # launchd KeepAlive restarts us. Exit if the VPS port is not actually listening —
 # a local ssh process can stay ESTABLISHED through a TUN proxy after sshd is gone.
 set -euo pipefail
 
 REMOTE="${KILN_TUNNEL_REMOTE:-ubuntu@175.24.134.228}"
 LISTEN="${KILN_TUNNEL_LISTEN:-127.0.0.1:17777}"
-LOCAL="${KILN_TUNNEL_LOCAL:-127.0.0.1:7777}"
+LOCAL="${KILN_TUNNEL_LOCAL:-127.0.0.1:8787}"
 CONTROL="${KILN_TUNNEL_CONTROL:-/tmp/kiln-web-tunnel.sock}"
 LISTEN_PORT="${LISTEN##*:}"
 VPS_IP="${KILN_VPS_IP:-175.24.134.228}"

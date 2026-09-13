@@ -81,11 +81,24 @@ class Settings(BaseSettings):
     auth_signup: bool = False
     cookie_secure: bool = False
     trust_proxy_headers: bool = False
-    session_days: int = 14
+    session_days: int = 7
+    kiln_exposure: str = "local"
+    session_idle_minutes: int = 45
+    session_absolute_hours: int = 12
+    session_remember_days: int = 7
     chat_per_minute: int = 20
     login_per_minute: int = 5
     max_request_bytes: int = 12_582_912
     max_message_chars: int = 8_000_000
+
+    def validate_private_startup(self) -> None:
+        mode = (self.kiln_exposure or "local").strip().lower()
+        if mode not in {"local", "private"}:
+            raise RuntimeError("KILN_EXPOSURE must be local or private")
+        if mode == "private" and not self.cookie_secure:
+            raise RuntimeError("COOKIE_SECURE must be true when KILN_EXPOSURE=private")
+        if mode == "private" and self.app_host not in {"127.0.0.1", "localhost", "::1"}:
+            raise RuntimeError("APP_HOST must be loopback when KILN_EXPOSURE=private")
 
     def cors_origin_list(self) -> list[str]:
         return [x.strip() for x in self.cors_origins.split(",") if x.strip()]

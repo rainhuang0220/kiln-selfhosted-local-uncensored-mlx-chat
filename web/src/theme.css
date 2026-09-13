@@ -283,6 +283,17 @@ a { color: var(--copper-2); }
   background: var(--bg-2);
   border-radius: 8px;
 }
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.auth-remember input {
+  margin: 0;
+}
 .side-foot-right {
   display: flex;
   align-items: center;

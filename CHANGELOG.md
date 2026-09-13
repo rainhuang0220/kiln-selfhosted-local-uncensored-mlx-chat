@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.6.0 — Private mode and conversational reliability
+
+- Private internet mode is fail-closed: auth is required even with zero users, public Host cannot inherit local open mode, and the first owner is created on the Mac CLI.
+- Browser sessions default to a non-persistent cookie with idle and absolute timeouts; “keep me logged in” is an explicit 7-day choice.
+- Cookie-authenticated POST/PATCH/DELETE require an allowlisted Origin. Sibling subdomains are not trusted.
+- Memory/conversation/generation queries fail closed without an owner. Legacy null-owner rows are assigned only at bootstrap.
+- Model download/activate is owner-only. Public deployment serves `web/dist` and an API-only loopback tunnel, not Vite.
 - Prompt-cache attribution for mlx-lm 0.31.3: per-request `chat_template_kwargs` does not bypass the LRU when token IDs match; streaming persists the same cache as non-streaming.
 - Continue sends `/v1/completions` with a tokenizer-native prefix. mlx-lm 0.31.3 dies on an exact prompt-cache hit; Kiln drops the last token and, on retry, further tokens so the same prefix is not resent. Think-cut uses the same shortening. A leftover exact hit can still kill the generate thread; a silent Continue EOF counts as an inference fault.
 - Mid-think Continue uses the official thinking generation prefix plus saved reasoning, not Kiln-built think tags.
@@ -11,9 +18,6 @@
 - `/health` distinguishes MLX HTTP liveness from inference readiness after repeated timeouts.
 - Offline CJK quality metrics and a non-CI long-dialogue evaluation runner.
 - 250-turn Interactive Dialogue eval used `max_tokens=192`: warm TTFT p50 1.37s is a cache-hit floor (~96%), not a miss. Everyday/short-reply semantic repetition remains.
-
-## v0.6.0 — Conversational Reliability Update
-
 - Classify every generation terminal; incomplete upstream streams are no longer stored as a normal stop.
 - Interactive Dialogue is the default profile: thinking off, a single `/v1/chat/completions` pass, max output 1536.
 - Manual think-cut continuation is opt-in only (`thinking_continuation`), not the default chat path.

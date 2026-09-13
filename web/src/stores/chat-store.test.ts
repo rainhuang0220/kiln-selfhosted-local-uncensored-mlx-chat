@@ -31,6 +31,31 @@ function chatThenConversations(chatBody: string) {
   });
 }
 
+describe("auth privacy", () => {
+  beforeEach(() => {
+    mocked.mockReset();
+    useChatStore.setState({
+      authRequired: true,
+      authOk: false,
+      authChecked: true,
+      username: null,
+      conversations: [{ id: "c1" } as never],
+      messages: [{ id: "m1" } as never],
+      draft: "secret",
+    });
+  });
+
+  it("sends remember_me false by default and wipes private state on login failure", async () => {
+    mocked.mockResolvedValue(json({ error: { message: "no" } }, 401));
+    const ok = await useChatStore.getState().login("alpha", "correct-horse");
+    expect(ok).toBe(false);
+    const body = JSON.parse(String(mocked.mock.calls[0][1]?.body));
+    expect(body.remember_me).toBe(false);
+    expect(useChatStore.getState().draft).toBe("");
+    expect(useChatStore.getState().conversations).toEqual([]);
+  });
+});
+
 describe("chat store generation UI", () => {
   beforeEach(() => {
     mocked.mockReset();

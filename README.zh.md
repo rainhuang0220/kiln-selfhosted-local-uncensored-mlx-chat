@@ -50,15 +50,7 @@
 
 一键下载/切换需要按上面的原生 macOS 方式启动，因为它会控制宿主机的 Metal LaunchAgent；Docker 的 Linux 容器不能替宿主机切模型。Docker 仅挂载模型库并连接已运行的推理服务。
 
-公网部署使用独立账号：密码只以 Argon2id 哈希保存，浏览器持有随机 session，数据库中同样只保存其哈希；对话按账号隔离。首次账号由私有 `deploy/.env` 中的 `BOOTSTRAP_USERNAME` 与 `BOOTSTRAP_PASSWORD` 创建，默认禁止开放注册。
-
-公网必须走 HTTPS。将 `deploy/.env.example` 复制为不入库的 `deploy/.env`，填写域名、ACME 邮箱和强密码，确保 80/443 可从公网访问，再执行：
-
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
-```
-
-部署使用 Caddy 自动签发、续期 TLS 证书。不要暴露 API 端口，也不要提交 `.env`、数据库、证书或运行时数据。
+本地开发（`KILN_EXPOSURE=local`）只绑 `127.0.0.1`，可以无账号使用。公网（`KILN_EXPOSURE=private`）永远要求登录，`COOKIE_SECURE` 必须为 true，空用户表不是开放应用。首个所有者在 Mac 上用 `python -m app.cli create-owner` 创建，禁止第一个公网访问者自助注册。Vite 开发服务器不得作为公网入口；公网由 `web/dist` + 回环 SSH 隧道到 `:8787`。对话、记忆、生成按所有者隔离。详见 [SECURITY.md](SECURITY.md)。
 
 ---
 

@@ -50,7 +50,7 @@ npm run start:local
 
 Open http://127.0.0.1:7777
 
-Optional public deployment is a reverse proxy in front of that same local UI (`https://<your-domain>`). The maintainer instance is documented in the v0.5.0 release notes.
+Optional public deployment is HTTPS static files plus an API-only reverse proxy. Do not expose the Vite development server. The maintainer instance is `https://kiln.plainlist.space`.
 
 `npm run start:local` installs `com.kiln.api` and `com.kiln.web` without replacing the chat LaunchAgent `com.kiln.mlx`. For a foreground session instead, `bash scripts/dev.sh` or `npm run dev`.
 
@@ -74,15 +74,26 @@ Then open http://127.0.0.1:7777. Set `MLX_BASE_URL=http://host.docker.internal:8
 
 ## Authentication and public deployment
 
-Kiln's public mode uses individual accounts: passwords are stored only as Argon2id hashes, browser sessions are opaque random tokens stored as hashes in SQLite, and conversations are scoped to their owner. Configure the first account through `BOOTSTRAP_USERNAME` and `BOOTSTRAP_PASSWORD`; do not enable public signup unless you intend to run a self-service service.
+There are two modes.
 
-For an Internet-facing deployment, copy `deploy/.env.example` to a private `deploy/.env`, set a DNS name and unique bootstrap password, then run:
+**Local development (`KILN_EXPOSURE=local`)**  
+Loopback only. Zero accounts may use the app on `127.0.0.1`. Vite on `:7777` is for development.
 
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
+**Private internet (`KILN_EXPOSURE=private`)**  
+Auth is always required. `COOKIE_SECURE` must be true. An empty users table is a maintenance state, not an open app. Create the owner on the Mac with `python -m app.cli create-owner`. Public signup stays off. Conversations, memories, and generations are owner-scoped. Model download/activate is owner-only.
+
+Passwords are Argon2id. Browser sessions are opaque tokens stored as SHA-256 hashes. Default login is a browser session with idle and absolute timeouts. Check “在此设备保持登录” for a bounded persistent cookie.
+
+Internet path:
+
+```
+HTTPS :443 → VPS nginx (web/dist + API routes)
+           → 127.0.0.1:17777 (SSH reverse, loopback only)
+           → Mac 127.0.0.1:8787 FastAPI
+           → Mac 127.0.0.1:8081 MLX
 ```
 
-The Caddy ingress obtains and renews TLS certificates automatically. Public deployment requires `KILN_DOMAIN` to resolve to the host and ports 80/443 to be reachable. Do not expose the API port, copy database files, or commit `.env`, certificates, or runtime data.
+Do not upload `chat.db` to the VPS. Do not publish 7777/8787/8081/17777. See [SECURITY.md](SECURITY.md).
 
 ## API
 

@@ -142,6 +142,38 @@ def migrate(conn: sqlite3.Connection) -> None:
         VALUES (3, '0003_media_jobs', CAST(strftime('%s','now') AS INTEGER) * 1000)
         """
     )
+    if not _has_column(conn, "users", "role"):
+        conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+        conn.execute(
+            """
+            UPDATE users SET role='owner'
+            WHERE id = (SELECT id FROM users ORDER BY created_at ASC LIMIT 1)
+            """
+        )
+    if not _has_column(conn, "sessions", "remember"):
+        conn.execute("ALTER TABLE sessions ADD COLUMN remember INTEGER NOT NULL DEFAULT 0")
+    if not _has_column(conn, "sessions", "idle_ms"):
+        conn.execute("ALTER TABLE sessions ADD COLUMN idle_ms INTEGER NOT NULL DEFAULT 2700000")
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS api_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL DEFAULT 'cli',
+          created_at INTEGER NOT NULL,
+          last_used_at INTEGER NOT NULL,
+          revoked_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id, revoked_at);
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+        VALUES (4, '0004_private_sessions', CAST(strftime('%s','now') AS INTEGER) * 1000)
+        """
+    )
 
 
 def init_db(path: str | None = None) -> sqlite3.Connection:

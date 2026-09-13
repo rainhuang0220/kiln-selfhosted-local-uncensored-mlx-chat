@@ -90,6 +90,10 @@ class MemoryService:
         owner_id: str | None = None,
         conversation_id: str | None = None,
     ) -> list[MemoryRecord]:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return []
         conn = get_conn()
         where = ["status='active'", "deleted_at IS NULL"]
         args: list[object] = []
@@ -172,16 +176,75 @@ class MemoryService:
             clipped.append(rec)
         return clipped
 
-    def delete(self, memory_id: str) -> bool:
+    def get(self, memory_id: str, owner_id: str | None = None) -> MemoryRecord | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
+        conn = get_conn()
+        if owner_id:
+            row = conn.execute(
+                """
+                SELECT id, memory_type, key, content, importance, confidence, status,
+                       user_id, source_conversation_id
+                FROM memories
+                WHERE id=? AND user_id=? AND status='active' AND deleted_at IS NULL
+                """,
+                (memory_id, owner_id),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT id, memory_type, key, content, importance, confidence, status,
+                       user_id, source_conversation_id
+                FROM memories
+                WHERE id=? AND status='active' AND deleted_at IS NULL
+                """,
+                (memory_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return MemoryRecord(
+            id=row["id"],
+            memory_type=row["memory_type"],
+            key=row["key"],
+            content=row["content"],
+            importance=float(row["importance"] or 0.5),
+            confidence=float(row["confidence"] or 0.5),
+            status=row["status"],
+            user_id=row["user_id"],
+            conversation_id=row["source_conversation_id"],
+        )
+
+    def delete(self, memory_id: str, owner_id: str | None = None) -> bool:
+        from app.services import accounts
+
+        if not owner_id:
+            if accounts.user_count() > 0:
+                return False
+            conn = get_conn()
+            cur = conn.execute(
+                "UPDATE memories SET status='deleted', deleted_at=?, updated_at=? WHERE id=?",
+                (_now(), _now(), memory_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
         conn = get_conn()
         cur = conn.execute(
-            "UPDATE memories SET status='deleted', deleted_at=?, updated_at=? WHERE id=?",
-            (_now(), _now(), memory_id),
+            """
+            UPDATE memories SET status='deleted', deleted_at=?, updated_at=?
+            WHERE id=? AND user_id=?
+            """,
+            (_now(), _now(), memory_id, owner_id),
         )
         conn.commit()
         return cur.rowcount > 0
 
-    def update(self, memory_id: str, **fields: object) -> MemoryRecord | None:
+    def update(self, memory_id: str, owner_id: str | None = None, **fields: object) -> MemoryRecord | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         allowed = {"content", "importance", "key", "confidence", "status"}
         sets = []
         args: list[object] = []
@@ -191,28 +254,23 @@ class MemoryService:
                 args.append(v)
         if not sets:
             return None
-        args.extend([_now(), memory_id])
         conn = get_conn()
-        conn.execute(
-            f"UPDATE memories SET {', '.join(sets)}, updated_at=? WHERE id=?",
-            args,
-        )
+        if owner_id:
+            args.extend([_now(), memory_id, owner_id])
+            cur = conn.execute(
+                f"UPDATE memories SET {', '.join(sets)}, updated_at=? WHERE id=? AND user_id=?",
+                args,
+            )
+        else:
+            args.extend([_now(), memory_id])
+            cur = conn.execute(
+                f"UPDATE memories SET {', '.join(sets)}, updated_at=? WHERE id=?",
+                args,
+            )
         conn.commit()
-        row = conn.execute(
-            "SELECT id, memory_type, key, content, importance, confidence, status FROM memories WHERE id=?",
-            (memory_id,),
-        ).fetchone()
-        if row is None:
+        if cur.rowcount <= 0:
             return None
-        return MemoryRecord(
-            id=row["id"],
-            memory_type=row["memory_type"],
-            key=row["key"],
-            content=row["content"],
-            importance=float(row["importance"] or 0),
-            confidence=float(row["confidence"] or 0),
-            status=row["status"],
-        )
+        return self.get(memory_id, owner_id)
 
     def summarize(self, texts: list[str], *, max_chars: int = 800) -> str:
         fake = [{"role": "user", "content": t} for t in texts]
@@ -246,6 +304,8 @@ class MemoryService:
     def retrieve_for_prompt(
         self, query: str, budget_tokens: int, owner_id: str | None = None
     ) -> list[MemoryRecord]:
+        if not owner_id:
+            return []
         return self.search(query, limit=12, budget_tokens=budget_tokens, owner_id=owner_id)
 
     def propose(self, conversation_id: str, turn: dict) -> list[dict]:

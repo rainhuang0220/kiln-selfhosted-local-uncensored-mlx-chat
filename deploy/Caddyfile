@@ -9,15 +9,15 @@
 	}
 	header {
 		-Server
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
 		Permissions-Policy "camera=(), geolocation=(), microphone=()"
-		Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
 	}
 
-	@api path /auth* /chat* /conversation* /context* /memory* /v1/*
+	@api path /auth* /chat* /conversation* /context* /memory* /models* /generate* /v1/*
 	reverse_proxy @api 127.0.0.1:8787 {
 		flush_interval -1
 		header_up X-Real-IP {remote_host}

@@ -28,13 +28,18 @@ export function App() {
   useEffect(() => {
     applyTheme(readThemePref());
     const onUnauth = () => {
-      store.stop();
-      useChatStore.setState({ authRequired: true, authOk: false });
+      store.wipePrivateState();
+      useChatStore.setState({ authRequired: true, authOk: false, authChecked: true });
     };
     window.addEventListener("kiln:unauthorized", onUnauth);
-    void store.loadHealth();
-    void store.loadConversations();
-    void store.loadModels();
+    void (async () => {
+      await store.loadHealth();
+      const s = useChatStore.getState();
+      if (!s.authRequired || s.authOk) {
+        await store.loadConversations();
+        if (s.role === "owner" || !s.authRequired) await store.loadModels();
+      }
+    })();
     const t = window.setInterval(() => void store.loadHealth(), 10000);
     const onVis = () => {
       if (document.visibilityState === "visible") void store.loadHealth();
@@ -89,6 +94,7 @@ export function App() {
 
   const [gateUser, setGateUser] = useState("");
   const [gatePass, setGatePass] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [view, setView] = useState<"chat" | "generate">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -136,35 +142,66 @@ export function App() {
       return next;
     });
   };
+  if (!store.authChecked) {
+    return (
+      <div className="auth-gate">
+        <div className="auth-card">
+          <p className="auth-kicker">Kiln</p>
+          <h1>Private local AI</h1>
+          <p>正在确认登录状态…</p>
+        </div>
+      </div>
+    );
+  }
   if (store.authRequired && !store.authOk) {
+    const locked = Boolean(store.lockedUser);
     return (
       <div className="auth-gate">
         <form
           className="auth-card"
           onSubmit={(e) => {
             e.preventDefault();
+            const user = store.authSetup ? gateUser : gateUser || store.lockedUser || "";
             if (store.authSetup) {
-              void store.register(gateUser, gatePass);
+              void store.register(user, gatePass).then((ok) => {
+                if (ok) {
+                  setGatePass("");
+                  setRememberMe(false);
+                }
+              });
             } else {
-              void store.login(gateUser, gatePass);
+              void store.login(user, gatePass, rememberMe).then((ok) => {
+                if (ok) {
+                  setGatePass("");
+                  setRememberMe(false);
+                }
+              });
             }
           }}
         >
-          <p className="auth-kicker">Kiln · public kiln</p>
-          <h1>{store.authSetup ? "创建账号" : "登录"}</h1>
+          <p className="auth-kicker">Kiln</p>
+          <h1>{store.authSetup ? "创建账号" : locked ? "已锁定" : "Private local AI"}</h1>
           <p>
-            {store.authSetup
-              ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
-              : "用户名和密码登录。会话存在本机 Cookie，密码只存 Argon2 哈希。"}
+            {!store.authReady
+              ? "还没有本机所有者。请在这台 Mac 上运行 create-owner，而不是从公网注册。"
+              : store.authSetup
+                ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
+                : locked
+                  ? `当前账号 ${store.lockedUser} 已锁定。输入密码继续。`
+                  : "用户名和密码进入。默认只在关闭浏览器前保持登录。"}
           </p>
-          <input
-            type="text"
-            autoFocus
-            autoComplete="username"
-            placeholder="用户名"
-            value={gateUser}
-            onChange={(e) => setGateUser(e.target.value)}
-          />
+          {store.authSetup || !locked ? (
+            <input
+              type="text"
+              autoFocus
+              autoComplete="username"
+              placeholder="用户名"
+              value={gateUser}
+              onChange={(e) => setGateUser(e.target.value)}
+            />
+          ) : (
+            <input type="text" readOnly value={store.lockedUser || ""} autoComplete="username" />
+          )}
           <input
             type="password"
             autoComplete={store.authSetup ? "new-password" : "current-password"}
@@ -172,9 +209,23 @@ export function App() {
             value={gatePass}
             onChange={(e) => setGatePass(e.target.value)}
           />
+          {!store.authSetup ? (
+            <label className="auth-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              在此设备保持登录
+            </label>
+          ) : null}
           {store.authError ? <p className="auth-error">{store.authError}</p> : null}
-          <button className="btn primary" type="submit" disabled={!gateUser.trim() || !gatePass}>
-            {store.authSetup ? "创建并进入" : "进入"}
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={!gatePass || (!locked && !gateUser.trim()) || (!store.authReady && !store.authSetup)}
+          >
+            {store.authSetup ? "创建并进入" : locked ? "解锁" : "进入"}
           </button>
         </form>
       </div>
@@ -238,9 +289,11 @@ export function App() {
           >
             <Plus size={15} /> New chat
           </button>
-          <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
-            <LibraryBig size={15} /> Model library
-          </button>
+          {store.role === "owner" || !store.authRequired ? (
+            <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+              <LibraryBig size={15} /> Model library
+            </button>
+          ) : null}
           <input
             className="search"
             placeholder="Search"
@@ -290,9 +343,14 @@ export function App() {
           <div className="side-foot-right">
             {store.username ? <span className="who">{store.username}</span> : null}
             {store.authRequired ? (
-              <button type="button" className="btn ghost" onClick={() => void store.logout()}>
-                退出
-              </button>
+              <>
+                <button type="button" className="btn ghost" onClick={() => void store.lock()}>
+                  锁定
+                </button>
+                <button type="button" className="btn ghost" onClick={() => void store.logout()}>
+                  退出
+                </button>
+              </>
             ) : null}
             <ThemeSwitch />
           </div>
@@ -346,9 +404,16 @@ export function App() {
                 <Trash2 size={15} /> Delete
               </button>
             ) : null}
-            <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
-              Models
-            </button>
+            {store.role === "owner" || !store.authRequired ? (
+              <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
+                Models
+              </button>
+            ) : null}
+            {store.authRequired ? (
+              <button type="button" className="btn ghost" onClick={() => void store.lock()}>
+                锁定
+              </button>
+            ) : null}
             <button
               className="btn ghost desktop-only"
               aria-expanded={store.inspectorOpen}

@@ -169,6 +169,10 @@ class MediaService:
         }
 
     def get(self, job_id: str, owner_id: str | None) -> dict[str, Any] | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         conn = get_conn()
         if owner_id:
             row = conn.execute(
@@ -180,6 +184,10 @@ class MediaService:
         return _row(row) if row else None
 
     def list_jobs(self, owner_id: str | None, limit: int = 20) -> list[dict[str, Any]]:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return []
         conn = get_conn()
         if owner_id:
             rows = conn.execute(
@@ -194,6 +202,10 @@ class MediaService:
         return [_row(r) for r in rows]
 
     def output_path(self, job_id: str, owner_id: str | None) -> Path | None:
+        from app.services import accounts
+
+        if not owner_id and accounts.user_count() > 0:
+            return None
         conn = get_conn()
         if owner_id:
             row = conn.execute(
