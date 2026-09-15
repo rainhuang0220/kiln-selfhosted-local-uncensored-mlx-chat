@@ -4,7 +4,7 @@
 
 Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.6.6**.
+Current release: **v0.6.7**.
 
 ```
 browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model

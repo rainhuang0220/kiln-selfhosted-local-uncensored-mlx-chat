@@ -246,6 +246,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   lock: async () => {
+    // Retained primitive: same session revoke as logout, but keeps username for the lock screen.
+    // Not shown in the default sidebar; the machine lock is the product control.
     const who = get().username;
     await apiFetch("/auth/lock", { method: "POST" });
     get().wipePrivateState();

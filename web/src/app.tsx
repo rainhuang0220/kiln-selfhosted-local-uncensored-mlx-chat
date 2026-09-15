@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
 import { AuthGate } from "./components/AuthGate";
+import { SidebarFooter } from "./components/SidebarFooter";
 import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
@@ -27,7 +28,9 @@ export function App() {
   const wasStreaming = useRef(false);
 
   useEffect(() => {
-    applyTheme(readThemePref());
+    const pref = readThemePref();
+    applyTheme(pref);
+    useChatStore.setState({ theme: pref });
     const onUnauth = () => {
       store.wipePrivateState();
       useChatStore.setState({ authRequired: true, authOk: false, authChecked: true });
@@ -253,30 +256,15 @@ export function App() {
             ))
           )}
         </div>
-        <div className="side-foot">
-          <span className="pill">
-            <span className={store.health?.provider.reachable ? "dot on" : "dot"} />
-            {store.health?.chat?.state && store.health.chat.state !== "running"
-              ? "视频生成中，聊天稍后恢复"
-              : store.health?.provider.reachable
-                ? "模型在线"
-                : "模型离线，正在重连"}
-          </span>
-          <div className="side-foot-right">
-            {store.username ? <span className="who">{store.username}</span> : null}
-            {store.authRequired ? (
-              <>
-                <button type="button" className="btn ghost" onClick={() => void store.lock()}>
-                  锁定
-                </button>
-                <button type="button" className="btn ghost" onClick={() => void store.logout()}>
-                  退出
-                </button>
-              </>
-            ) : null}
-            <ThemeSwitch />
-          </div>
-        </div>
+        <SidebarFooter
+          username={store.username}
+          role={store.role}
+          health={store.health}
+          collapsed={sidebarCollapsed}
+          theme={store.theme}
+          onTheme={(t) => store.setTheme(t)}
+          onLogout={() => void store.logout()}
+        />
       </aside>
 
       <main className="chat">
@@ -329,11 +317,6 @@ export function App() {
             {store.role === "owner" || !store.authRequired ? (
               <button className="btn ghost desktop-only" type="button" onClick={() => setModelWorkbenchOpen(true)}>
                 Models
-              </button>
-            ) : null}
-            {store.authRequired ? (
-              <button type="button" className="btn ghost" onClick={() => void store.lock()}>
-                锁定
               </button>
             ) : null}
             <button
@@ -694,26 +677,6 @@ function ContextChip() {
       <b>
         {formatTokensShort(prompt)}/{formatTokensShort(win)}
       </b>
-    </div>
-  );
-}
-
-function ThemeSwitch() {
-  const [pref, setPref] = useState(readThemePref());
-  return (
-    <div className="theme-switch" role="group" aria-label="Theme">
-      {(["light", "dark", "system"] as const).map((t) => (
-        <button
-          key={t}
-          className={pref === t ? "btn primary" : "btn ghost"}
-          onClick={() => {
-            setPref(t);
-            applyTheme(t);
-          }}
-        >
-          {t === "light" ? "Light" : t === "dark" ? "Dark" : "System"}
-        </button>
-      ))}
     </div>
   );
 }

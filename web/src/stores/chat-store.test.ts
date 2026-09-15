@@ -45,6 +45,17 @@ describe("auth privacy", () => {
     });
   });
 
+  it("keeps lock as a session-revoke primitive", async () => {
+    useChatStore.setState({ username: "rain", authOk: true, draft: "secret" });
+    mocked.mockResolvedValue(json({ ok: true, locked: true }));
+    await useChatStore.getState().lock();
+    expect(mocked.mock.calls[0][0]).toBe("/auth/lock");
+    expect(mocked.mock.calls[0][1]?.method).toBe("POST");
+    expect(useChatStore.getState().lockedUser).toBe("rain");
+    expect(useChatStore.getState().authOk).toBe(false);
+    expect(useChatStore.getState().draft).toBe("");
+  });
+
   it("sends remember_me false by default and wipes private state on login failure", async () => {
     mocked.mockResolvedValue(json({ error: { message: "no" } }, 401));
     const ok = await useChatStore.getState().login("alpha", "correct-horse");
