@@ -316,6 +316,9 @@ a { color: var(--copper-2); }
   position: fixed;
   z-index: 200;
   width: min(220px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   border: 1px solid var(--card-border, var(--line));
   background: var(--raised);
