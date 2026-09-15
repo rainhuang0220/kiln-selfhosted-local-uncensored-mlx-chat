@@ -12,6 +12,7 @@ fi
 if [[ ! -d node_modules ]]; then
   npm install
 fi
+export KILN_EXPOSURE="${KILN_EXPOSURE:-local}"
 echo "Kiln UI  http://127.0.0.1:7777"
 echo "Kiln API http://127.0.0.1:8787"
 echo "mlx      http://127.0.0.1:8081  (npm run start:mlx — selected local MLX model)"

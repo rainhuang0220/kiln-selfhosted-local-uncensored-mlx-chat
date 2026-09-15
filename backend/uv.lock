@@ -359,7 +359,7 @@ wheels = [
 
 [[package]]
 name = "kiln-backend"
-version = "0.6.0"
+version = "0.6.5"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },

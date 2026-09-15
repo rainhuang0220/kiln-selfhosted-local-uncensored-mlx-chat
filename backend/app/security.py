@@ -1,8 +1,4 @@
-"""Exposure mode, CSRF origin checks, and cookie helpers.
-
-Private internet mode is fail-closed: authentication is required even when
-the users table is empty. A public Host header cannot inherit local open mode.
-"""
+"""Explicit exposure mode. Host and user_count never select the mode."""
 
 from __future__ import annotations
 
@@ -14,12 +10,21 @@ from fastapi.responses import Response
 
 from app.config import Settings
 
-# Names that mean loopback. "testserver"/"test" are Starlette TestClient defaults only.
-LOOPBACK_NAMES = {"localhost", "::1", "testserver", "test"}
+LOOPBACK_NAMES = {"localhost", "::1"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 SESSION_COOKIE = "kiln_session"
 HOST_SESSION_COOKIE = "__Host-kiln_session"
 NO_STORE = "no-store, private"
+LOCAL_LOOPBACK_ORIGINS = {
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
+    "http://127.0.0.1:7777",
+    "http://localhost:7777",
+    "http://127.0.0.1:8787",
+    "http://localhost:8787",
+}
 
 
 def parse_hostname(raw: str) -> str:
@@ -38,7 +43,7 @@ def request_hostname(request: Request) -> str:
 
 
 def is_loopback_host(host: str) -> bool:
-    """True only for loopback. RFC1918, link-local, and empty Host are not loopback."""
+    """True only for loopback. RFC1918, link-local, test, and empty Host are not."""
     if not host:
         return False
     if host in LOOPBACK_NAMES:
@@ -49,50 +54,84 @@ def is_loopback_host(host: str) -> bool:
         return False
 
 
-def is_public_hostname(host: str) -> bool:
-    return not is_loopback_host(host)
+def configured_mode(settings: Settings) -> str:
+    raw = settings.kiln_exposure
+    if raw is None or str(raw).strip() == "":
+        raise RuntimeError("KILN_EXPOSURE must be set to local or private")
+    mode = str(raw).strip().lower()
+    if mode not in {"local", "private"}:
+        raise RuntimeError("KILN_EXPOSURE must be local or private")
+    return mode
 
 
-def exposure_for(request: Request, settings: Settings) -> str:
-    mode = (settings.kiln_exposure or "local").strip().lower()
-    if mode == "private":
-        return "private"
+def validate_public_origin(raw: str) -> str:
+    value = (raw or "").strip()
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.path not in {"", "/"}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+    ):
+        raise RuntimeError(
+            "KILN_PUBLIC_ORIGIN must be an https origin with no path, query, or fragment"
+        )
+    if parsed.path == "/":
+        raise RuntimeError(
+            "KILN_PUBLIC_ORIGIN must be an https origin with no path, query, or fragment"
+        )
+    return f"https://{parsed.netloc}"
+
+
+def exposure_for(_request: Request, settings: Settings) -> str:
+    """Configured mode only. Request headers never select the mode."""
+    return configured_mode(settings)
+
+
+def auth_required(settings: Settings) -> bool:
+    return configured_mode(settings) == "private"
+
+
+def tenant_requires_owner(settings: Settings) -> bool:
+    return configured_mode(settings) == "private"
+
+
+def local_deployment_request(request: Request, settings: Settings) -> bool:
+    """True when a local-mode request stays on loopback. Else tripwire."""
+    del settings
     host = request_hostname(request)
     forwarded = parse_hostname(request.headers.get("x-forwarded-host") or "")
     proto = (request.headers.get("x-forwarded-proto") or "").strip().lower()
-    # HTTPS at a trusted proxy is never local-open, even if Host is spoofed to 127.0.0.1.
-    if settings.trust_proxy_headers and proto == "https":
-        return "private"
+    if proto == "https":
+        return False
     if forwarded and not is_loopback_host(forwarded):
-        return "private"
-    if not is_loopback_host(host):
-        return "private"
-    return "local"
-
-
-def auth_required(request: Request, settings: Settings, user_count: int) -> bool:
-    if exposure_for(request, settings) == "private":
-        return True
-    return user_count > 0
+        return False
+    return is_loopback_host(host)
 
 
 def cookie_name(*, secure: bool) -> str:
     return HOST_SESSION_COOKIE if secure else SESSION_COOKIE
 
 
-def cookie_should_be_secure(request: Request, settings: Settings) -> bool:
+def cookie_should_be_secure(_request: Request, settings: Settings) -> bool:
     if settings.cookie_secure:
         return True
-    return exposure_for(request, settings) == "private"
+    return configured_mode(settings) == "private"
 
 
 def allowed_origins(settings: Settings) -> set[str]:
-    origins = {item.rstrip("/") for item in settings.cors_origin_list()}
-    origins.add("https://kiln.plainlist.space")
-    origins.add("http://127.0.0.1:7777")
-    origins.add("http://localhost:7777")
-    origins.add("http://127.0.0.1:8787")
-    origins.add("http://localhost:8787")
+    if configured_mode(settings) == "private":
+        return {validate_public_origin(settings.kiln_public_origin)}
+    origins = set(LOCAL_LOOPBACK_ORIGINS)
+    for item in settings.cors_origin_list():
+        parsed = urlparse(item.rstrip("/"))
+        host = parse_hostname(parsed.netloc)
+        if parsed.scheme == "http" and is_loopback_host(host):
+            origins.add(f"{parsed.scheme}://{parsed.netloc}")
     return origins
 
 
@@ -105,8 +144,6 @@ def origin_allowed(request: Request, settings: Settings) -> bool:
             if parsed.scheme and parsed.netloc:
                 raw = f"{parsed.scheme}://{parsed.netloc}"
     if not raw:
-        if exposure_for(request, settings) == "local" and is_loopback_host(request_hostname(request)):
-            return True
         return False
     parsed = urlparse(raw)
     origin = f"{parsed.scheme}://{parsed.netloc}"

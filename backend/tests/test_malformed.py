@@ -44,7 +44,9 @@ def test_oversized_message_returns_400(tmp_settings, chat_service):
 
     tmp_settings.max_message_chars = 100
     app = create_app(tmp_settings, chat=chat_service)
-    with TestClient(app) as c:
+    from tests.conftest import local_http_client
+
+    with local_http_client(app) as c:
         r = c.post("/chat", json={"message": "x" * 101, "stream": False})
     assert r.status_code == 400
     err = r.json()["error"]

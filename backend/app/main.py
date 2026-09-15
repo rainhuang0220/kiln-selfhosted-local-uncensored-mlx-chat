@@ -21,10 +21,11 @@ from app.db import init_db
 from app.errors import error_body, install_error_handlers
 from app.security import (
     SESSION_COOKIE,
+    allowed_origins,
     apply_private_cache_headers,
+    configured_mode,
     cookie_name,
     cookie_should_be_secure,
-    exposure_for,
 )
 from app.providers.mlx import MlxProvider
 from app.services import accounts
@@ -161,7 +162,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     def _is_owner_role(request: Request) -> bool:
         user = getattr(request.state, "user", None)
         if user is None:
-            return accounts.user_count() == 0 and exposure_for(request, cfg) == "local"
+            return configured_mode(cfg) == "local"
         return getattr(user, "role", "user") == "owner"
 
     def _require_owner_role(request: Request):
@@ -263,12 +264,12 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             if provider is not None and hasattr(provider, "aclose"):
                 await provider.aclose()
 
-    private = (cfg.kiln_exposure or "local").strip().lower() == "private"
+    private = configured_mode(cfg) == "private"
     gated = private or bool(cfg.bootstrap_username or cfg.bootstrap_password)
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.6.0",
+        version="0.6.5",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",
@@ -285,7 +286,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cfg.cors_origin_list(),
+        allow_origins=sorted(allowed_origins(cfg)),
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
@@ -297,9 +298,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         reachable = False
         if provider is not None:
             reachable = await provider.health()
-        hide_internal = (
-            exposure_for(request, cfg) == "private" or accounts.user_count() > 0
-        )
+        hide_internal = configured_mode(cfg) == "private"
         base = "" if hide_internal else cfg.mlx_base_url
         media_svc: MediaService | None = getattr(request.app.state, "media", None)
         chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
@@ -332,8 +331,8 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.get("/auth/status")
     async def auth_status(request: Request):
         n = accounts.user_count()
-        private = exposure_for(request, cfg) == "private"
-        required = private or n > 0
+        private = configured_mode(cfg) == "private"
+        required = private
         user = getattr(request.state, "user", None)
         ready = (not private) or n > 0
         signup = bool(cfg.auth_signup) and not private
@@ -353,7 +352,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.post("/auth/register")
     async def auth_register(body: RegisterBody, request: Request):
         n = accounts.user_count()
-        if exposure_for(request, cfg) == "private" and n == 0:
+        if configured_mode(cfg) == "private" and n == 0:
             return error_body(
                 "owner account is not ready",
                 "authentication_error",
@@ -367,7 +366,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "signup_disabled",
                 status=403,
             )
-        if exposure_for(request, cfg) == "private" and not cfg.auth_signup:
+        if configured_mode(cfg) == "private" and not cfg.auth_signup:
             return error_body(
                 "signup disabled",
                 "authentication_error",
@@ -400,14 +399,19 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.post("/auth/login")
     async def auth_login(body: LoginBody, request: Request):
         if accounts.user_count() == 0:
-            if exposure_for(request, cfg) == "private":
+            if configured_mode(cfg) == "private":
                 return error_body(
                     "owner account is not ready",
                     "authentication_error",
                     "not_ready",
                     status=503,
                 )
-            return {"ok": True, "required": False}
+            return error_body(
+                "invalid username or password",
+                "authentication_error",
+                "auth_failed",
+                status=401,
+            )
         user = accounts.authenticate(body.username, body.password)
         if user is None:
             return error_body(
@@ -501,7 +505,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     @app.get("/models/local")
     async def list_local_models(request: Request):
         denied = _require_owner_role(request)
-        if denied is not None and exposure_for(request, cfg) == "private":
+        if denied is not None and configured_mode(cfg) == "private":
             return denied
         return request.app.state.models.list_local()
 
@@ -1194,4 +1198,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     return app
 
 
-app = create_app()
+def __getattr__(name: str):
+    if name == "app":
+        return create_app()
+    raise AttributeError(name)

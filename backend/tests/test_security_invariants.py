@@ -18,6 +18,7 @@ def _private_settings(tmp_settings):
     tmp_settings.cookie_secure = True
     tmp_settings.trust_proxy_headers = True
     tmp_settings.auth_signup = False
+    tmp_settings.kiln_public_origin = PUBLIC_ORIGIN
     tmp_settings.session_idle_minutes = 45
     tmp_settings.session_absolute_hours = 12
     tmp_settings.session_remember_days = 7
@@ -95,7 +96,7 @@ def test_private_mode_refuses_insecure_cookie_at_startup(tmp_settings, chat_serv
     assert raised
 
 
-def test_public_host_forces_auth_even_in_local_exposure(tmp_settings, chat_service):
+def test_public_host_in_local_mode_is_forbidden_not_private(tmp_settings, chat_service):
     tmp_settings.kiln_exposure = "local"
     tmp_settings.cookie_secure = False
     with _client(
@@ -104,10 +105,9 @@ def test_public_host_forces_auth_even_in_local_exposure(tmp_settings, chat_servi
         headers={"Host": "kiln.plainlist.space"},
     ) as c:
         status = c.get("/auth/status")
-        body = status.json()
-        assert body["required"] is True
-        assert body["ok"] is False
-        assert c.get("/conversation").status_code in {401, 403, 503}
+        assert status.status_code == 403
+        assert status.json()["error"]["code"] == "local_mode_violation"
+        assert c.get("/conversation").status_code == 403
 
 
 def test_anonymous_private_endpoints_401_after_owner_exists(tmp_settings, chat_service):
@@ -373,7 +373,7 @@ def _local_client(tmp_settings, chat_service, host: str) -> TestClient:
 
 
 def test_zero_users_loopback_hosts_may_stay_open(tmp_settings, chat_service):
-    for host in ("127.0.0.1", "localhost", "testserver"):
+    for host in ("127.0.0.1", "localhost"):
         with _local_client(tmp_settings, chat_service, host) as c:
             body = c.get("/auth/status").json()
             assert body["required"] is False, host
@@ -396,10 +396,8 @@ def test_zero_users_rfc1918_and_link_local_hosts_fail_closed(tmp_settings, chat_
     tmp_settings.cookie_secure = False
     for host in ("192.168.1.10", "10.0.0.2", "172.16.0.2", "169.254.1.1"):
         with _local_client(tmp_settings, chat_service, host) as c:
-            body = c.get("/auth/status").json()
-            assert body["required"] is True, host
-            assert body["ok"] is False, host
-            assert c.get("/conversation").status_code in {401, 403, 503}, host
+            assert c.get("/auth/status").status_code == 403, host
+            assert c.get("/conversation").status_code == 403, host
 
 
 def test_zero_users_arbitrary_hostname_fail_closed(tmp_settings, chat_service):
@@ -407,9 +405,8 @@ def test_zero_users_arbitrary_hostname_fail_closed(tmp_settings, chat_service):
     tmp_settings.cookie_secure = False
     for host in ("kiln.internal", "macbook.local", "anything", "127.evil.com"):
         with _local_client(tmp_settings, chat_service, host) as c:
-            body = c.get("/auth/status").json()
-            assert body["required"] is True, host
-            assert c.get("/conversation").status_code in {401, 403, 503}, host
+            assert c.get("/auth/status").status_code == 403, host
+            assert c.get("/conversation").status_code == 403, host
 
 
 def test_trusted_https_proxy_does_not_honor_spoofed_loopback_host(tmp_settings, chat_service):
@@ -422,9 +419,10 @@ def test_trusted_https_proxy_does_not_honor_spoofed_loopback_host(tmp_settings, 
         base_url="http://127.0.0.1",
         headers={"Host": "127.0.0.1", "X-Forwarded-Proto": "https"},
     ) as c:
-        body = c.get("/auth/status").json()
-        assert body["required"] is True
-        assert c.get("/conversation").status_code in {401, 403, 503}
+        r = c.get("/auth/status")
+        assert r.status_code == 403
+        assert r.json()["error"]["code"] == "local_mode_violation"
+        assert c.get("/conversation").status_code == 403
 
 
 def test_private_exposure_ignores_loopback_host(tmp_settings, chat_service):

@@ -14,9 +14,10 @@ from app.errors import error_body
 from app.security import (
     apply_private_cache_headers,
     auth_required,
+    configured_mode,
     cookie_name,
     csrf_protected,
-    exposure_for,
+    local_deployment_request,
     origin_allowed,
 )
 from app.services.accounts import resolve_api_token, resolve_session, user_count
@@ -99,6 +100,12 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
             return direct
 
     async def dispatch(self, request: Request, call_next):
+        def fail(*args, **kwargs):
+            resp = error_body(*args, **kwargs)
+            if isinstance(resp, Response):
+                apply_private_cache_headers(resp)
+            return resp
+
         path = request.url.path
         request.state.user = None
         request.state.user_id = None
@@ -109,16 +116,24 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > self.max_request_bytes:
-            return error_body(
+            return fail(
                 "request too large",
                 "invalid_request_error",
                 "request_too_large",
                 status=413,
             )
+        mode = configured_mode(self.settings)
+        if mode == "local" and not local_deployment_request(request, self.settings):
+            return fail(
+                "local mode does not accept this request",
+                "authentication_error",
+                "local_mode_violation",
+                status=403,
+            )
         n = user_count()
-        needed = auth_required(request, self.settings, n)
-        private = exposure_for(request, self.settings) == "private"
-        request.state.exposure = "private" if private else "local"
+        needed = auth_required(self.settings)
+        private = mode == "private"
+        request.state.exposure = mode
         request.state.auth_needed = needed
         public = path in PUBLIC_EXACT or path == "/health"
         if needed and path.startswith(PUBLIC_PREFIX):
@@ -126,7 +141,7 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
         if private and n == 0:
             if path not in {"/auth/status"}:
                 if path in {"/auth/login", "/auth/register"}:
-                    return error_body(
+                    return fail(
                         "owner account is not ready",
                         "authentication_error",
                         "not_ready",
@@ -135,7 +150,7 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
                 if path == "/health":
                     public = True
                 elif not public:
-                    return error_body(
+                    return fail(
                         "authentication required",
                         "authentication_error",
                         "auth_required",
@@ -145,7 +160,7 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
         request.state.user = user
         request.state.user_id = user.id if user else None
         if needed and not public and user is None:
-            return error_body(
+            return fail(
                 "authentication required",
                 "authentication_error",
                 "auth_required",
@@ -154,15 +169,16 @@ class AuthRateMiddleware(BaseHTTPMiddleware):
         if csrf_protected(request) and request.state.auth_via != "api_token":
             if private or (needed and user is not None) or path.startswith("/auth/"):
                 if not origin_allowed(request, self.settings):
-                    return error_body(
+                    return fail(
                         "origin not allowed",
                         "authentication_error",
                         "csrf_rejected",
                         status=403,
                     )
         client = self._client_ip(request)
-        if needed and not self._rate_ok(client, path):
-            return error_body(
+        limit_this = path in {"/auth/login", "/auth/register"} or needed
+        if limit_this and not self._rate_ok(client, path):
+            return fail(
                 "rate limit exceeded",
                 "rate_limit_error",
                 "too_many_requests",

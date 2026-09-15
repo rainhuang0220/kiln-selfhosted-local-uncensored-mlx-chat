@@ -59,7 +59,9 @@ class ChatService:
         self.settings = settings
         self.provider = provider
         self.tokenizer = tokenizer
-        self.memory = memory or MemoryService()
+        self.memory = memory or MemoryService(settings)
+        if getattr(self.memory, "settings", None) is None:
+            self.memory.settings = settings
         self._lock = asyncio.Lock()
         self._busy: set[str] = set()
         self._timeouts = 0
@@ -76,9 +78,9 @@ class ChatService:
         owner_id: str | None = None,
     ) -> dict[str, Any]:
         conn = self._conn()
-        from app.services import accounts
+        from app.security import tenant_requires_owner
 
-        if not owner_id and accounts.user_count() > 0:
+        if not owner_id and tenant_requires_owner(self.settings):
             return {"object": "list", "total": 0, "limit": limit, "offset": offset, "data": []}
         needle = f"%{(q or '').strip()}%"
         where = "deleted_at IS NULL"
@@ -116,10 +118,10 @@ class ChatService:
     def get_conversation(
         self, conversation_id: str, owner_id: str | None = None
     ) -> dict[str, Any] | None:
-        from app.services import accounts
+        from app.security import tenant_requires_owner
 
         conn = self._conn()
-        if not owner_id and accounts.user_count() > 0:
+        if not owner_id and tenant_requires_owner(self.settings):
             return None
         if owner_id:
             row = conn.execute(
@@ -151,9 +153,9 @@ class ChatService:
     def get_context(
         self, conversation_id: str, owner_id: str | None = None
     ) -> dict[str, Any] | None:
-        from app.services import accounts
+        from app.security import tenant_requires_owner
 
-        if not owner_id and accounts.user_count() > 0:
+        if not owner_id and tenant_requires_owner(self.settings):
             return None
         if owner_id:
             conv = self._conn().execute(
@@ -193,9 +195,9 @@ class ChatService:
         return row
 
     def delete_conversation(self, conversation_id: str, owner_id: str | None = None) -> bool:
-        from app.services import accounts
+        from app.security import tenant_requires_owner
 
-        if not owner_id and accounts.user_count() > 0:
+        if not owner_id and tenant_requires_owner(self.settings):
             return False
         conn = self._conn()
         if owner_id:

@@ -165,6 +165,41 @@ def change_password(username: str, current: str, new: str) -> User:
     return user
 
 
+def reset_password(username: str, new: str) -> User:
+    """Local filesystem recovery. Does not verify the previous web password."""
+    name = normalize_username(username)
+    db = get_conn()
+    row = db.execute(
+        "SELECT id, username, role FROM users WHERE username=?",
+        (name,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("user not found")
+    if (row["role"] or "user") != "owner":
+        raise ValueError("owner role required for local password reset")
+    pw = validate_password(new)
+    ts = _now()
+    db.execute(
+        "UPDATE users SET password_hash=?, failed_logins=0, locked_until=NULL, updated_at=? WHERE id=?",
+        (hash_password(pw), ts, row["id"]),
+    )
+    db.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+    db.commit()
+    return User(id=row["id"], username=row["username"], role=row["role"] or "user")
+
+
+def list_api_token_names(user_id: str) -> list[str]:
+    rows = get_conn().execute(
+        """
+        SELECT name FROM api_tokens
+        WHERE user_id=? AND revoked_at IS NULL
+        ORDER BY created_at ASC
+        """,
+        (user_id,),
+    ).fetchall()
+    return [str(row["name"] or "") for row in rows]
+
+
 def create_session(
     user_id: str,
     days: int = SESSION_DAYS_DEFAULT,
