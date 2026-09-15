@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
+import { AuthGate } from "./components/AuthGate";
 import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
@@ -92,9 +93,6 @@ export function App() {
     return found?.title || "New conversation";
   }, [store.conversations, store.activeId]);
 
-  const [gateUser, setGateUser] = useState("");
-  const [gatePass, setGatePass] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [view, setView] = useState<"chat" | "generate">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -142,93 +140,17 @@ export function App() {
       return next;
     });
   };
-  if (!store.authChecked) {
+  if (!store.authChecked || (store.authRequired && !store.authOk)) {
     return (
-      <div className="auth-gate">
-        <div className="auth-card">
-          <p className="auth-kicker">Kiln</p>
-          <h1>Private local AI</h1>
-          <p>正在确认登录状态…</p>
-        </div>
-      </div>
-    );
-  }
-  if (store.authRequired && !store.authOk) {
-    const locked = Boolean(store.lockedUser);
-    return (
-      <div className="auth-gate">
-        <form
-          className="auth-card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const user = store.authSetup ? gateUser : gateUser || store.lockedUser || "";
-            if (store.authSetup) {
-              void store.register(user, gatePass).then((ok) => {
-                if (ok) {
-                  setGatePass("");
-                  setRememberMe(false);
-                }
-              });
-            } else {
-              void store.login(user, gatePass, rememberMe).then((ok) => {
-                if (ok) {
-                  setGatePass("");
-                  setRememberMe(false);
-                }
-              });
-            }
-          }}
-        >
-          <p className="auth-kicker">Kiln</p>
-          <h1>{store.authSetup ? "创建账号" : locked ? "已锁定" : "Private local AI"}</h1>
-          <p>
-            {!store.authReady
-              ? "还没有本机所有者。请在这台 Mac 上运行 create-owner，而不是从公网注册。"
-              : store.authSetup
-                ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
-                : locked
-                  ? `当前账号 ${store.lockedUser} 已锁定。输入密码继续。`
-                  : "用户名和密码进入。默认只在关闭浏览器前保持登录。"}
-          </p>
-          {store.authSetup || !locked ? (
-            <input
-              type="text"
-              autoFocus
-              autoComplete="username"
-              placeholder="用户名"
-              value={gateUser}
-              onChange={(e) => setGateUser(e.target.value)}
-            />
-          ) : (
-            <input type="text" readOnly value={store.lockedUser || ""} autoComplete="username" />
-          )}
-          <input
-            type="password"
-            autoComplete={store.authSetup ? "new-password" : "current-password"}
-            placeholder="密码"
-            value={gatePass}
-            onChange={(e) => setGatePass(e.target.value)}
-          />
-          {!store.authSetup ? (
-            <label className="auth-remember">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              在此设备保持登录
-            </label>
-          ) : null}
-          {store.authError ? <p className="auth-error">{store.authError}</p> : null}
-          <button
-            className="btn primary"
-            type="submit"
-            disabled={!gatePass || (!locked && !gateUser.trim()) || (!store.authReady && !store.authSetup)}
-          >
-            {store.authSetup ? "创建并进入" : locked ? "解锁" : "进入"}
-          </button>
-        </form>
-      </div>
+      <AuthGate
+        authChecked={store.authChecked}
+        authReady={store.authReady}
+        authSetup={store.authSetup}
+        authError={store.authError}
+        lockedUser={store.lockedUser}
+        login={store.login}
+        register={store.register}
+      />
     );
   }
 
