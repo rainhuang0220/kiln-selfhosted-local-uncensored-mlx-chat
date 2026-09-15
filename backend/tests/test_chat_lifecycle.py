@@ -37,7 +37,7 @@ def test_injected_chat_stays_available_when_mlx_restore_fails(
 
     monkeypatch.setattr("app.services.media_runtime.restore_mlx", boom)
     app = create_app(tmp_settings, chat=chat_service)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.post("/chat", json={"message": "hi", "stream": False})
         assert r.status_code != 503
         assert r.json().get("code") != "CHAT_MODEL_PARKED"

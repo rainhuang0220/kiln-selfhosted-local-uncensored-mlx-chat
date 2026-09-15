@@ -8,7 +8,9 @@ import time
 import uuid
 from dataclasses import dataclass
 
+from app.config import Settings
 from app.db import get_conn
+from app.security import tenant_requires_owner
 from app.services.compress import extractive_summary
 from app.services.memory_provider import MemoryRecord
 
@@ -34,6 +36,16 @@ class MemoryItem:
 
 class MemoryService:
     """SQLite-backed provider. VectorMemory can replace retrieve later."""
+
+    def __init__(self, settings: Settings | None = None):
+        self.settings = settings
+
+    def _closed(self, owner_id: str | None) -> bool:
+        if owner_id:
+            return False
+        if self.settings is None:
+            return False
+        return tenant_requires_owner(self.settings)
 
     def save(self, record: MemoryRecord) -> MemoryRecord:
         rid = record.id or _id()
@@ -90,9 +102,7 @@ class MemoryService:
         owner_id: str | None = None,
         conversation_id: str | None = None,
     ) -> list[MemoryRecord]:
-        from app.services import accounts
-
-        if not owner_id and accounts.user_count() > 0:
+        if self._closed(owner_id):
             return []
         conn = get_conn()
         where = ["status='active'", "deleted_at IS NULL"]
@@ -177,9 +187,7 @@ class MemoryService:
         return clipped
 
     def get(self, memory_id: str, owner_id: str | None = None) -> MemoryRecord | None:
-        from app.services import accounts
-
-        if not owner_id and accounts.user_count() > 0:
+        if self._closed(owner_id):
             return None
         conn = get_conn()
         if owner_id:
@@ -217,11 +225,9 @@ class MemoryService:
         )
 
     def delete(self, memory_id: str, owner_id: str | None = None) -> bool:
-        from app.services import accounts
-
+        if self._closed(owner_id):
+            return False
         if not owner_id:
-            if accounts.user_count() > 0:
-                return False
             conn = get_conn()
             cur = conn.execute(
                 "UPDATE memories SET status='deleted', deleted_at=?, updated_at=? WHERE id=?",
@@ -241,9 +247,7 @@ class MemoryService:
         return cur.rowcount > 0
 
     def update(self, memory_id: str, owner_id: str | None = None, **fields: object) -> MemoryRecord | None:
-        from app.services import accounts
-
-        if not owner_id and accounts.user_count() > 0:
+        if self._closed(owner_id):
             return None
         allowed = {"content", "importance", "key", "confidence", "status"}
         sets = []

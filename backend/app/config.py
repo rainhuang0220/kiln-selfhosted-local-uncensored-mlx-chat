@@ -82,7 +82,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     trust_proxy_headers: bool = False
     session_days: int = 7
-    kiln_exposure: str = "local"
+    kiln_exposure: str | None = None
+    kiln_public_origin: str = ""
     trust_remote_code: bool = False
     session_idle_minutes: int = 45
     session_absolute_hours: int = 12
@@ -92,14 +93,20 @@ class Settings(BaseSettings):
     max_request_bytes: int = 12_582_912
     max_message_chars: int = 8_000_000
 
+    def validate_startup(self) -> None:
+        from app.security import configured_mode, validate_public_origin
+
+        mode = configured_mode(self)
+        host = (self.app_host or "").strip().lower()
+        if host not in {"127.0.0.1", "localhost", "::1"}:
+            raise RuntimeError("APP_HOST must be loopback")
+        if mode == "private":
+            if not self.cookie_secure:
+                raise RuntimeError("COOKIE_SECURE must be true when KILN_EXPOSURE=private")
+            validate_public_origin(self.kiln_public_origin)
+
     def validate_private_startup(self) -> None:
-        mode = (self.kiln_exposure or "local").strip().lower()
-        if mode not in {"local", "private"}:
-            raise RuntimeError("KILN_EXPOSURE must be local or private")
-        if mode == "private" and not self.cookie_secure:
-            raise RuntimeError("COOKIE_SECURE must be true when KILN_EXPOSURE=private")
-        if mode == "private" and self.app_host not in {"127.0.0.1", "localhost", "::1"}:
-            raise RuntimeError("APP_HOST must be loopback when KILN_EXPOSURE=private")
+        self.validate_startup()
 
     def cors_origin_list(self) -> list[str]:
         return [x.strip() for x in self.cors_origins.split(",") if x.strip()]

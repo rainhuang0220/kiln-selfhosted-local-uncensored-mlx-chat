@@ -104,7 +104,9 @@ def test_huge_file_is_packed_into_budget(tmp_settings, chat_service, fake_provid
     tmp_settings.practical_prompt_budget = 800
     app = create_app(tmp_settings, chat=chat_service)
     body = "请摘要。\n# File: big.txt\n" + ("段落内容 unique-needle-xyz " * 4000)
-    with TestClient(app) as c:
+    from tests.conftest import local_http_client
+
+    with local_http_client(app) as c:
         r = c.post(
             "/chat",
             json={"message": body, "stream": False, "enable_thinking": False, "max_tokens": 32},

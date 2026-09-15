@@ -4,7 +4,7 @@
 
 Local-first, self-hosted chat workbench for **MLX models on Apple Silicon**.
 
-Current release: **v0.6.0**.
+Current release: **v0.6.5**.
 
 ```
 browser :7777  →  FastAPI :8787  →  mlx_lm.server :8081  →  selected local model
@@ -77,10 +77,24 @@ Then open http://127.0.0.1:7777. Set `MLX_BASE_URL=http://host.docker.internal:8
 There are two modes.
 
 **Local development (`KILN_EXPOSURE=local`)**  
-Loopback only. Zero accounts may use the app on `127.0.0.1`. Vite on `:7777` is for development.
+Loopback only. The launcher sets this explicitly. Host headers never switch the app into private mode: a public or LAN Host in local mode is rejected. Unset `KILN_EXPOSURE` refuses startup.
 
 **Private internet (`KILN_EXPOSURE=private`)**  
-Auth is always required. `COOKIE_SECURE` must be true. An empty users table is a maintenance state, not an open app. Create the owner on the Mac with `python -m app.cli create-owner`. Public signup stays off. Conversations, memories, and generations are owner-scoped. Model download/activate is owner-only.
+Auth is always required, including on localhost Hosts and with an empty users table. Set `COOKIE_SECURE=true` and `KILN_PUBLIC_ORIGIN=https://your.domain`. An empty users table is maintenance, not an open app. Create the owner on the Mac with `python -m app.cli create-owner`. Public signup stays off. Conversations, memories, and generations are owner-scoped. Model download/activate is owner-only.
+
+Normal password change (knows the current password):
+
+```bash
+cd backend && ../.venv/bin/python -m app.cli change-password --username YOURNAME
+```
+
+Lost the current password but still have this Mac and the SQLite file:
+
+```bash
+cd backend && ../.venv/bin/python -m app.cli reset-password --username YOURNAME
+```
+
+Local recovery is filesystem/database admin access. There is no HTTP, email, or bootstrap-file reset.
 
 Passwords are Argon2id. Browser sessions are opaque tokens stored as SHA-256 hashes. Default login is a browser session with idle and absolute timeouts. Check “在此设备保持登录” for a bounded persistent cookie.
 

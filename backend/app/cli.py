@@ -45,6 +45,11 @@ def main(argv: list[str] | None = None) -> None:
     token.add_argument("--name", default="cli")
     chpw = sub.add_parser("change-password", help="change a local account password and revoke sessions")
     chpw.add_argument("--username", required=True)
+    reset = sub.add_parser(
+        "reset-password",
+        help="local owner recovery; does not require the previous password",
+    )
+    reset.add_argument("--username", required=True)
     args = parser.parse_args(argv)
     if args.cmd == "create-owner":
         password = os.environ.get("KILN_BOOTSTRAP_PASSWORD") or getpass.getpass("owner password: ")
@@ -62,6 +67,22 @@ def main(argv: list[str] | None = None) -> None:
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         print("password updated; all sessions revoked")
+        return
+    if args.cmd == "reset-password":
+        init_db(settings.sqlite_path)
+        first = getpass.getpass("new password: ")
+        second = getpass.getpass("confirm password: ")
+        if first != second:
+            raise SystemExit("passwords do not match")
+        try:
+            user = accounts.reset_password(args.username, first)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        names = accounts.list_api_token_names(user.id)
+        print("password reset; sessions revoked")
+        print(f"api tokens unchanged count={len(names)}")
+        if names:
+            print("api token names=" + ",".join(names))
         return
 
 

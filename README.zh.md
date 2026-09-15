@@ -50,7 +50,7 @@
 
 一键下载/切换需要按上面的原生 macOS 方式启动，因为它会控制宿主机的 Metal LaunchAgent；Docker 的 Linux 容器不能替宿主机切模型。Docker 仅挂载模型库并连接已运行的推理服务。
 
-本地开发（`KILN_EXPOSURE=local`）只绑 `127.0.0.1`，可以无账号使用。公网（`KILN_EXPOSURE=private`）永远要求登录，`COOKIE_SECURE` 必须为 true，空用户表不是开放应用。首个所有者在 Mac 上用 `python -m app.cli create-owner` 创建，禁止第一个公网访问者自助注册。Vite 开发服务器不得作为公网入口；公网由 `web/dist` + 回环 SSH 隧道到 `:8787`。对话、记忆、生成按所有者隔离。详见 [SECURITY.md](SECURITY.md)。
+本地开发必须显式 `KILN_EXPOSURE=local`，只绑 `127.0.0.1`。公网必须显式 `KILN_EXPOSURE=private` 且设置 `KILN_PUBLIC_ORIGIN`。模式不由用户表、Host 或代理头推导；未设置则拒绝启动。公网永远要求登录，空用户表只是维护态。知道旧密码用 `python -m app.cli change-password`；丢了旧密码但仍有本机数据库用 `python -m app.cli reset-password`。没有 HTTP/邮件找回。详见 [SECURITY.md](SECURITY.md)。
 
 ---
 

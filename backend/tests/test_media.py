@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 import pytest
-from starlette.testclient import TestClient
+from tests.conftest import local_http_client
 
 from app.main import create_app
 from app.services.chat_lifecycle import ChatLifecycle, PARKED_MESSAGE
@@ -68,7 +68,7 @@ def _wait_status(c, job_id, terminal=("done", "failed", "cancelled", "interrupte
 
 
 def test_generate_image_job(media_app):
-    with TestClient(media_app) as c:
+    with local_http_client(media_app) as c:
         r = c.post(
             "/generate",
             json={"kind": "image", "prompt": "a red kiln", "width": 512, "height": 512, "seed": 1},
@@ -85,13 +85,13 @@ def test_generate_image_job(media_app):
 
 
 def test_generate_rejects_empty_prompt(media_app):
-    with TestClient(media_app) as c:
+    with local_http_client(media_app) as c:
         r = c.post("/generate", json={"kind": "image", "prompt": "  "})
         assert r.status_code in {400, 422}
 
 
 def test_generate_backends(media_app):
-    with TestClient(media_app) as c:
+    with local_http_client(media_app) as c:
         r = c.get("/generate/backends")
         assert r.status_code == 200
         body = r.json()
@@ -154,7 +154,7 @@ def test_health_and_chat_during_slow_generation(tmp_settings, chat_service, tmp_
         tmp_settings, runner=slow_runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
     )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "frames": 17, "seed": 1})
         assert r.status_code == 200, r.text
         job_id = r.json()["id"]
@@ -188,7 +188,7 @@ def test_chat_parked_returns_503(tmp_settings, chat_service, tmp_path: Path):
     tmp_settings.pause_chat_for_video = True
     svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln", "preset": "standard"})
         assert r.status_code == 200
         assert started.wait(2)
@@ -220,7 +220,7 @@ def test_video_failure_restores_chat(tmp_settings, chat_service, tmp_path: Path)
     tmp_settings.pause_chat_for_video = True
     svc = MediaService(tmp_settings, runner=boom, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post("/generate", json={"kind": "video", "prompt": "a kiln"})
         got = _wait_status(c, r.json()["id"])
         assert got["status"] == "failed"
@@ -257,7 +257,7 @@ def test_cancel_queued_and_running(tmp_settings, chat_service, tmp_path: Path):
     tmp_settings.pause_chat_for_video = True
     svc = MediaService(tmp_settings, runner=slow_runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         a = c.post("/generate", json={"kind": "video", "prompt": "one"}).json()
         b = c.post("/generate", json={"kind": "video", "prompt": "two"}).json()
         assert started.wait(2)
@@ -322,7 +322,7 @@ def test_heavy_generation_is_serial(tmp_settings, chat_service, tmp_path: Path):
         tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
     )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         a = c.post("/generate", json={"kind": "image", "prompt": "one"}).json()
         b = c.post("/generate", json={"kind": "image", "prompt": "two"}).json()
         time.sleep(0.15)
@@ -347,7 +347,7 @@ def test_raw_prompt_reaches_runner_verbatim(tmp_settings, chat_service, tmp_path
         tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler
     )
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post(
             "/generate",
             json={"kind": "image", "prompt": "exactly three red cubes", "prompt_mode": "raw"},
@@ -375,7 +375,7 @@ def test_image_quality_preset_uses_flux1_dev_and_parks_chat(tmp_settings, chat_s
     tmp_settings.pause_chat_for_image = False
     svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post(
             "/generate",
             json={
@@ -407,7 +407,7 @@ def test_image_quality_preset_overrides_conflicting_backend(tmp_settings, chat_s
     tmp_settings.generations_dir = str(tmp_path / "g")
     svc = MediaService(tmp_settings, runner=runner, lifecycle=FakeLifecycle(tmp_settings), compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post(
             "/generate",
             json={
@@ -438,7 +438,7 @@ def test_image_fast_preset_keeps_zimage_and_does_not_park(tmp_settings, chat_ser
     tmp_settings.pause_chat_for_image = False
     svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=_compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post(
             "/generate",
             json={"kind": "image", "prompt": "a copper kiln", "preset": "fast", "prompt_mode": "raw"},
@@ -468,7 +468,7 @@ def test_video_enhances_before_parking_chat(tmp_settings, chat_service, tmp_path
     tmp_settings.pause_chat_for_video = True
     svc = MediaService(tmp_settings, runner=runner, lifecycle=life, compiler=compiler)
     app = create_app(tmp_settings, chat=chat_service, media=svc)
-    with TestClient(app) as c:
+    with local_http_client(app) as c:
         r = c.post(
             "/generate",
             json={"kind": "video", "prompt": "a copper kiln steaming", "prompt_mode": "enhanced"},
@@ -508,7 +508,7 @@ def test_compile_endpoint_does_not_block_health(tmp_settings, chat_service, tmp_
     async def run() -> None:
         async with app.router.lifespan_context(app):
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
                 lags: list[float] = []
 
                 async def monitor() -> None:
@@ -561,7 +561,7 @@ def test_enhanced_job_compile_does_not_block_event_loop(tmp_settings, chat_servi
     async def run() -> None:
         async with app.router.lifespan_context(app):
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
                 lags: list[float] = []
 
                 async def monitor() -> None:
@@ -585,7 +585,7 @@ def test_enhanced_job_compile_does_not_block_event_loop(tmp_settings, chat_servi
 
 
 def test_compile_endpoint_does_not_rewrite_in_raw_mode(media_app):
-    with TestClient(media_app) as c:
+    with local_http_client(media_app) as c:
         r = c.post(
             "/generate/compile",
             json={"kind": "image", "prompt": "red cube left of blue sphere", "prompt_mode": "raw"},

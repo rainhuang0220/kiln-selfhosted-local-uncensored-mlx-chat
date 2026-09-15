@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.6.5 — Explicit exposure mode
+
+- `KILN_EXPOSURE` must be `local` or `private`. Unset refuses startup. Host and `user_count` never select the mode.
+- Local mode rejects public, LAN, and HTTPS-proxy Hosts instead of switching to private.
+- Private mode CSRF allows only `KILN_PUBLIC_ORIGIN`. Loopback origins are not mixed in.
+- `python -m app.cli reset-password` recovers an owner password locally without the previous password. No HTTP reset.
+- GitHub Actions installs backend deps from `uv.lock` (`uv sync --frozen`).
+- Nginx security headers are a shared include so JSON locations keep HSTS/CSP/XFO.
+
 ## v0.6.4 — CI uses repo-root npm test
 
 - GitHub Actions `verify` runs `npm test` from the repository root so pytest uses the root `.venv`.

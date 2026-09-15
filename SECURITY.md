@@ -2,12 +2,40 @@
 
 Kiln is a private local AI. It is not an “absolutely secure” hosted product. The threat model is: keep transcripts, memories, and generated media on the Mac, require explicit login on any internet hostname, and keep the public surface small.
 
+## Security invariants
+
+1. Exposure mode is explicit configuration (`KILN_EXPOSURE=local` or `private`). Unset refuses startup.
+2. Runtime data never selects security mode. The users table, Host, and proxy headers cannot switch local ↔ private.
+3. An empty users table never opens private mode. It is maintenance / not-ready.
+4. Host headers never downgrade auth. In local mode a public, LAN, or proxied Host is rejected, not reinterpreted as private.
+5. Local mode is loopback-only (`127.0.0.0/8`, `::1`, `localhost`).
+6. Private mode always authenticates, including on localhost Hosts.
+7. Public deployment is static `web/dist` plus an API-only loopback tunnel. Vite is not a public server.
+8. Tenant-owned data always requires an owner identity in private mode.
+
+### Passwords
+
+Know the current password:
+
+```bash
+cd backend && ../.venv/bin/python -m app.cli change-password --username YOURNAME
+```
+
+Lost the current password but still have this Mac and `chat.db`:
+
+```bash
+cd backend && ../.venv/bin/python -m app.cli reset-password --username YOURNAME
+```
+
+That local reset is filesystem/database administrative access. There is no HTTP reset, email reset, secret question, or bootstrap password file.
+
 ## Supported configuration
 
 ### Local development
 
 - Bind API, UI, and MLX to `127.0.0.1` only.
-- `KILN_EXPOSURE=local` may allow use with zero accounts on loopback.
+- Set `KILN_EXPOSURE=local` explicitly (`scripts/dev.sh` and the local launcher do this when unset).
+- Loopback clients may use the app without an account. Host/user_count do not turn auth on.
 - Vite is a development server. Do not point a public reverse proxy at it.
 
 ### Private internet deployment
@@ -15,6 +43,7 @@ Kiln is a private local AI. It is not an “absolutely secure” hosted product.
 - HTTPS only. HTTP must redirect to HTTPS.
 - `KILN_EXPOSURE=private`
 - `COOKIE_SECURE=true`
+- `KILN_PUBLIC_ORIGIN=https://your.domain` (https origin, no path/query/fragment). CSRF allows only that origin.
 - `TRUST_PROXY_HEADERS=true` only behind a reverse proxy that **overwrites** `X-Real-IP` / `X-Forwarded-For` with the connecting client (do not append client-supplied values).
 - Auth is always required. An empty users table is **not** an open app. Create the first owner on the Mac:
 

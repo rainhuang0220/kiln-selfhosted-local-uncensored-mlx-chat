@@ -13,5 +13,6 @@ if [[ -f "$ENV_FILE" ]]; then
   source "$ENV_FILE"
   set +a
 fi
+export KILN_EXPOSURE="${KILN_EXPOSURE:-local}"
 cd "$ROOT/backend"
 exec "$PY" -m uvicorn app.main:app --host 127.0.0.1 --port 8787 --proxy-headers --forwarded-allow-ips=127.0.0.1

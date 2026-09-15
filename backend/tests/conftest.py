@@ -101,6 +101,9 @@ def tmp_settings(tmp_path: Path) -> Settings:
         mlx_base_url="http://127.0.0.1:8081",
         model_path=str(Path(__file__).resolve().parents[3] / "qwen3.8-27b"),
         app_password="",
+        kiln_exposure="local",
+        kiln_public_origin="",
+        cookie_secure=False,
     )
 
 
@@ -126,7 +129,16 @@ def chat_service(tmp_settings: Settings, fake_provider: FakeProvider) -> ChatSer
 
     dbmod._local.conn = dbmod._connect(tmp_settings.sqlite_path)
     tok = TokenEstimator(tmp_settings.model_path)
-    return ChatService(tmp_settings, fake_provider, tok, MemoryService())
+    return ChatService(tmp_settings, fake_provider, tok, MemoryService(tmp_settings))
+
+
+def local_http_client(app, **kwargs):
+    from starlette.testclient import TestClient
+
+    headers = {"Origin": "http://127.0.0.1:8787"}
+    extra = kwargs.pop("headers", None) or {}
+    headers.update(extra)
+    return TestClient(app, base_url="http://127.0.0.1", headers=headers, **kwargs)
 
 
 @pytest.fixture
@@ -134,5 +146,9 @@ def client(tmp_settings: Settings, chat_service: ChatService):
     from starlette.testclient import TestClient
 
     app = create_app(tmp_settings, chat=chat_service)
-    with TestClient(app) as c:
+    with TestClient(
+        app,
+        base_url="http://127.0.0.1",
+        headers={"Origin": "http://127.0.0.1:8787"},
+    ) as c:
         yield c

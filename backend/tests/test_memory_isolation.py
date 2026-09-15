@@ -35,12 +35,19 @@ def test_memory_search_does_not_cross_accounts(tmp_settings, chat_service):
 
 
 def test_memory_http_is_owner_scoped(tmp_settings, chat_service):
-    tmp_settings.auth_signup = True
+    from app.services import accounts
+
+    origin = "https://kiln.plainlist.space"
+    tmp_settings.kiln_exposure = "private"
+    tmp_settings.cookie_secure = True
+    tmp_settings.kiln_public_origin = origin
+    accounts.create_user("alpha", "correct-horse")
+    accounts.create_user("beta", "correct-horse")
     app = create_app(tmp_settings, chat=chat_service)
-    with TestClient(app) as a, TestClient(app) as b:
-        assert a.post("/auth/register", json={"username": "alpha", "password": "correct-horse"}).status_code == 200
-        assert b.post("/auth/register", json={"username": "beta", "password": "correct-horse"}).status_code == 200
-        created = a.post("/memory", json={"content": "alpha private fact", "key": "city"})
+    with TestClient(app, base_url=origin) as a, TestClient(app, base_url=origin) as b:
+        assert a.post("/auth/login", json={"username": "alpha", "password": "correct-horse"}, headers={"Origin": origin}).status_code == 200
+        assert b.post("/auth/login", json={"username": "beta", "password": "correct-horse"}, headers={"Origin": origin}).status_code == 200
+        created = a.post("/memory", json={"content": "alpha private fact", "key": "city"}, headers={"Origin": origin})
         assert created.status_code == 200, created.text
         listed_b = b.get("/memory", params={"q": "private"})
         assert listed_b.status_code == 200
