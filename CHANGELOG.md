@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.6.7 — Sidebar footer account menu
+
+- Sidebar footer is two rows: model status, then an account trigger. Theme and logout live in a compact popover.
+- Lock remains a backend primitive (`POST /auth/lock`) and is not a default navigation control.
+
 ## v0.6.6 — Login form visibility
 
 - Login fields have labels, control-border tokens, and a visible focus ring. Light and dark both keep three surface levels: page, card, input.
