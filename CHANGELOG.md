@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.6.8 — Account menu sits above the footer
+
+- The account popover opens above the entire sidebar footer, so runtime status stays visible while the menu is open.
+- Tight viewports shrink the menu with max-height and scroll instead of covering the status row.
+
 ## v0.6.7 — Sidebar footer account menu
 
 - Sidebar footer is two rows: model status, then an account trigger. Theme and logout live in a compact popover.

@@ -1,8 +1,9 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Monitor, Moon, Sun } from "lucide-react";
 import type { Health } from "../types/chat";
 import type { ThemePref } from "../lib/theme";
+import { placeAccountMenu } from "../lib/placeAccountMenu";
 
 export type RuntimeStatus = {
   title: string;
@@ -46,9 +47,10 @@ export function SidebarFooter({
   const [open, setOpen] = useState(Boolean(menuOpen));
   const controlled = menuOpen !== undefined;
   const shown = controlled ? menuOpen : open;
+  const footRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className={collapsed ? "side-foot is-collapsed" : "side-foot"}>
+    <div ref={footRef} className={collapsed ? "side-foot is-collapsed" : "side-foot"}>
       <div className="runtime-status" role="status" title={status.detail ? `${status.title} · ${status.detail}` : status.title}>
         <span className={status.online ? "dot on" : "dot"} />
         <span className="runtime-copy">
@@ -62,6 +64,7 @@ export function SidebarFooter({
           role={role}
           theme={theme}
           open={shown}
+          footRef={footRef}
           onOpenChange={(next) => {
             if (!controlled) setOpen(next);
           }}
@@ -78,6 +81,7 @@ function AccountMenu({
   role,
   theme,
   open,
+  footRef,
   onOpenChange,
   onTheme,
   onLogout,
@@ -86,6 +90,7 @@ function AccountMenu({
   role: string | null;
   theme: ThemePref;
   open: boolean;
+  footRef: RefObject<HTMLDivElement | null>;
   onOpenChange: (open: boolean) => void;
   onTheme: (theme: ThemePref) => void;
   onLogout: () => void;
@@ -99,22 +104,20 @@ function AccountMenu({
   useLayoutEffect(() => {
     if (!open || !menuRef.current || !triggerRef.current) return;
     const menu = menuRef.current;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const pad = 8;
-    const w = Math.min(220, window.innerWidth - pad * 2);
-    menu.style.width = `${w}px`;
-    const h = menu.getBoundingClientRect().height || 240;
-    let left = rect.left;
-    if (left + w > window.innerWidth - pad) left = window.innerWidth - pad - w;
-    if (left < pad) left = pad;
+    const trigger = triggerRef.current.getBoundingClientRect();
+    const footerEl = footRef.current ?? triggerRef.current.closest(".side-foot");
+    const footer = (footerEl ?? triggerRef.current).getBoundingClientRect();
+    const placed = placeAccountMenu({
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      footer,
+      trigger,
+    });
+    menu.style.width = `${placed.width}px`;
+    menu.style.left = `${placed.left}px`;
     menu.style.top = "auto";
-    menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 8)}px`;
-    menu.style.left = `${Math.round(left)}px`;
-    if (h > rect.top - pad) {
-      menu.style.bottom = "auto";
-      menu.style.top = `${Math.round(Math.max(pad, rect.bottom + 8))}px`;
-    }
-  }, [open, username, theme]);
+    menu.style.bottom = `${placed.bottom}px`;
+    menu.style.maxHeight = `${placed.maxHeight}px`;
+  }, [open, username, theme, footRef]);
 
   useEffect(() => {
     if (!open) return;
