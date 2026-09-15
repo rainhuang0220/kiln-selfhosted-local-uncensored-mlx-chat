@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.6.6 — Login form visibility
+
+- Login fields have labels, control-border tokens, and a visible focus ring. Light and dark both keep three surface levels: page, card, input.
+- Remember-me stays unchecked. Opaque auth errors stay opaque. No backend auth change.
+
 ## v0.6.5 — Explicit exposure mode
 
 - `KILN_EXPOSURE` must be `local` or `private`. Unset refuses startup. Host and `user_count` never select the mode.
