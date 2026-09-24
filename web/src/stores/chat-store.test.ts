@@ -99,6 +99,21 @@ describe("chat store generation UI", () => {
     expect(useChatStore.getState().error).toBeNull();
   });
 
+  it("marks a user stop as abort without waiting for a reload", async () => {
+    mocked.mockImplementation(async () => {
+      throw new DOMException("Aborted", "AbortError");
+    });
+    useChatStore.setState({ draft: "停" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.status).toBe("interrupted");
+    expect(asst?.incomplete).toBe(true);
+    expect(asst?.finish_reason).toBe("abort");
+    expect(asst?.terminal_state).toBe("interrupted_user");
+    expect(terminalCopy(asst?.finish_reason, asst?.terminal_state)).toBe("已中断");
+    expect(useChatStore.getState().error).toBeNull();
+  });
+
   it("shows length copy without an error banner and keeps Continue eligible", async () => {
     chatThenConversations(
       'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n' +

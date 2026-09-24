@@ -74,6 +74,7 @@ def strip_regenerated_tail(generated: str, dropped_tail: str) -> str:
 class TailStripper:
     def __init__(self, dropped_tail: str):
         self.pending = dropped_tail or ""
+        self._held = ""
 
     def feed(self, text: str) -> str:
         if not text or not self.pending:
@@ -81,9 +82,13 @@ class TailStripper:
         if text.startswith(self.pending):
             out = text[len(self.pending) :]
             self.pending = ""
+            self._held = ""
             return out
         if self.pending.startswith(text):
+            self._held += text
             self.pending = self.pending[len(text) :]
             return ""
+        out = self._held + text
         self.pending = ""
-        return text
+        self._held = ""
+        return out

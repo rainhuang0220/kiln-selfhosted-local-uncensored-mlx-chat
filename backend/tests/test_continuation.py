@@ -64,3 +64,10 @@ def test_tail_stripper_handles_split_tail():
     stripper = TailStripper("ing")
     assert stripper.feed("i") == ""
     assert stripper.feed("ng more") == " more"
+
+
+def test_tail_stripper_returns_held_prefix_when_the_next_chunk_diverges():
+    stripper = TailStripper("ing")
+    assert stripper.feed("i") == ""
+    assert stripper.feed("dea") == "idea"
+    assert stripper.feed("s") == "s"

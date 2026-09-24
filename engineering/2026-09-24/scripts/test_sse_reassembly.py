@@ -122,11 +122,10 @@ def test_duplicate_and_out_of_order_ids_append_in_arrival_order() -> None:
 
 
 def test_tail_stripper_drops_a_diverging_prefix() -> None:
-    """Defect: a partial tail match is discarded when the next chunk diverges."""
+    """A partial tail match is returned when the next chunk diverges."""
     stripper = continuation.TailStripper("ing")
     assert stripper.feed("i") == ""
-    assert stripper.feed("dea") == "dea"
-    # The leading "i" is gone. Non-stream strip_regenerated_tail keeps "idea".
+    assert stripper.feed("dea") == "idea"
     assert continuation.strip_regenerated_tail("idea", "ing") == "idea"
     aligned = continuation.TailStripper("ing")
     assert aligned.feed("i") == ""

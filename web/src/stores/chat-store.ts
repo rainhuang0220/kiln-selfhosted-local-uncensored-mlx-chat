@@ -725,7 +725,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if ((err as Error).name === "AbortError") {
         set((s) => ({
           messages: s.messages.map((m) =>
-            m.id === asstId ? { ...m, status: "interrupted" } : m,
+            m.id === asstId
+              ? {
+                  ...m,
+                  status: "interrupted",
+                  incomplete: true,
+                  terminal_state: "interrupted_user",
+                  finish_reason: "abort",
+                }
+              : m,
           ),
         }));
       } else {
