@@ -622,7 +622,10 @@ def build_note(mode: str, concurrency: int, sampled: bool) -> str:
     if mode == "cold":
         parts.append("cold 只让 user 前缀唯一。脚本不重启服务，不能证明进程冷启动。")
     if mode == "identical":
-        parts.append("identical 的汇总中位数混合了 run_index 0 与其后的命中。引用热缓存请用 by_run_index。")
+        parts.append(
+            "identical 的汇总中位数混合了 run_index 0 与其后的命中。引用热缓存请用 by_run_index。"
+            "cached_tokens 应小于 prompt_tokens。相等是 0.31.3 exact 命中的形状，可能打死生成线程；看到 exact_cache_hit 或健康检查仍 200 但生成挂死，就停止矩阵，不要重试同一正文，也不要改打 /v1/completions。"
+        )
     if concurrency > 1:
         parts.append("客户端并发不是服务端并行。现场 decode-concurrency 与 prompt-concurrency 都是 1，并发 2 测量排队。")
     if sampled:
@@ -657,6 +660,7 @@ def _empty_record(spec: dict, args: argparse.Namespace, url: str, note: str) -> 
         "completion_tokens_source": None,
         "completion_tokens_approx": None,
         "cached_tokens": None,
+        "exact_cache_hit": False,
         "decode_tok_s": None,
         "usage": None,
         "prefill": prefill_report({}),
@@ -705,6 +709,12 @@ def _finalize_tokens(record: dict, state: StreamState) -> None:
         record["completion_tokens"] = approx
         record["completion_tokens_source"] = "approx_delta_events"
     record["cached_tokens"] = _cached_tokens(usage)
+    record["exact_cache_hit"] = (
+        record["prompt_tokens"] is not None
+        and record["cached_tokens"] is not None
+        and record["prompt_tokens"] > 0
+        and record["cached_tokens"] == record["prompt_tokens"]
+    )
     record["prefill"] = prefill_report(state.prefill_fields)
     decode_s = record.get("decode_s")
     if (
@@ -866,6 +876,7 @@ def summarize(records: list[dict]) -> dict:
         "p95_stable": ttft_stats["p95_stable"],
         "n_runs": len(rows),
         "n_errors": sum(1 for row in rows if row.get("error")),
+        "n_exact_cache_hit": sum(1 for row in rows if row.get("exact_cache_hit")),
         "ttft_s": ttft_stats,
         "prefill": prefill_summary,
         "by_run_index": by_run_index,
@@ -1117,19 +1128,35 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(brief, ensure_ascii=False), file=sys.stderr)
 
     out_path.write_text("", encoding="utf-8")
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(_one, spec) for spec in jobs]
-        for future in futures:
-            future.result()
+    stopped_exact = False
+    if workers <= 1:
+        for spec in jobs:
+            _one(spec)
+            if records and records[-1].get("exact_cache_hit"):
+                stopped_exact = True
+                print(
+                    "停止：exact_cache_hit。0.31.3 的精确命中可能已经打死生成线程。不要重试这条正文。",
+                    file=sys.stderr,
+                )
+                break
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_one, spec) for spec in jobs]
+            for future in futures:
+                future.result()
+        stopped_exact = any(row.get("exact_cache_hit") for row in records)
     memory_after = sample_memory() if args.sample_memory else None
     records.sort(key=lambda row: row["run_index"])
     summary = summarize(records)
+    summary["stopped_exact_cache_hit"] = stopped_exact
     summary["memory_before"] = memory_before
     summary["memory_after"] = memory_after
     summary["url"] = url
     summary["prefix_mode"] = args.prefix_mode
     summary["concurrency"] = args.concurrency
     print(json.dumps(summary, ensure_ascii=False))
+    if stopped_exact:
+        return 3
     return 1 if summary["n_errors"] else 0
 
 

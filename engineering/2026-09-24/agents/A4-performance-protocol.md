@@ -152,7 +152,11 @@ SSE 按事件切，不把相邻 `data:` JSON 拼成一个对象。同一事件�
 
 `completion_tokens`：有 `usage.completion_tokens` 时用它，`completion_tokens_source=usage`。否则用非空 content 与 reasoning delta 的条数，`source=approx_delta_events`。近似值不是 tokenizer 计数，一条事件也不保证等于一个 token。`decode_tok_s` 只在 `source=usage` 且 `decode_s>0` 时有值，等于 `completion_tokens / decode_s`。
 
-`prompt_tokens` 只来自 `usage.prompt_tokens`。没有 usage 就是 null，不估算。`cached_tokens` 来自 `usage.prompt_tokens_details.cached_tokens`。
+`prompt_tokens` 只来自 `usage.prompt_tokens`。没有 usage 就是 null，不估算。`cached_tokens` 来自 `usage.prompt_tokens_details.cached_tokens`。`exact_cache_hit` 表示两者都有值且 `cached_tokens == prompt_tokens`（且 prompt 大于 0）。
+
+mlx-lm 0.31.3 在 exact 命中时会把 segment 弹空，`insert_segments` 对空列表取 `seq[-1]`，生成线程死亡，而且不会自己拉起来。`GET /health` 之后仍可能是 200。本机已经捕获的栈都是 `POST /v1/completions`（见 A3 的笔记），不是普通 chat 重放。同一句 user 再打一遍 `/v1/chat/completions`，通常只是更长缓存上 trim 失败，退回更短的 user 段快照，`cached_tokens` 应小于 `prompt_tokens`。本客户端只打 chat completions，不打 `/v1/completions`。
+
+尽管如此：某一行 `exact_cache_hit` 为真，或者生成挂到超时而 `/health` 仍是 200，立刻停止矩阵。不要重试同一正文，不要改去打 completions。线程死了要由编排者重启服务，不在本脚本里。
 
 `prefill`：只有服务端 payload 出现 `prefill_s`、`prefill_ms`、`prefill_duration_s` 或 prefill tok/s 字段时，该行才是 `status=reported`。mlx-lm 0.31.3 的 usage 只有 `prompt_tokens`、`completion_tokens`、`total_tokens` 和 `cached_tokens`。因此每行都是 `client-unavailable`，汇总里的 `prefill` 就是字符串 `client-unavailable`。
 
@@ -168,7 +172,7 @@ SSE 按事件切，不把相邻 `data:` JSON 拼成一个对象。同一事件�
 
 汇总函数 `summarize`：
 
-- `n`、`median`、`p95` 针对有数值的 `ttft_s`。`n_runs` 才是行数，`n_errors` 是带 `error` 的行。失败行不进入分位。
+- `n`、`median`、`p95` 针对有数值的 `ttft_s`。`n_runs` 才是行数，`n_errors` 是带 `error` 的行，`n_exact_cache_hit` 是 exact 命中行数。失败行不进入分位。`n_exact_cache_hit > 0` 时停止矩阵。
 - 中位数用 `statistics.median`（偶数个取中间两点的平均）。
 - p95 是 nearest-rank：`rank = ceil(0.95 * n)`，1-based，再夹到 `[1, n]`。`p95_method=nearest_rank_ceil`。
 - `n<20` 时 `p95_stable=false`。本矩阵 n 是 1 或 3 或 4，p95 可以落盘，结论写中位数和原始三行，不要把 p95 当稳定分位。
@@ -229,7 +233,7 @@ SSE 按事件切，不把相邻 `data:` JSON 拼成一个对象。同一事件�
 读法：
 
 - `identical` 的 `run_index=0`：这条正文第一次。1000 和 8000 若刚做过进程冷，这一发是进程已热、前缀仍冷。
-- `identical` 的 `run_index>=1`：热前缀。`cached_tokens` 应接近 `prompt_tokens`，允许模板尾差几个 token，不要要求相等。TTFT 应低于同格的 `run_index=0`。用 `by_run_index`，不要用这三行的 pooled median。
+- `identical` 的 `run_index>=1`：热前缀。`cached_tokens` 应明显大于 0，但小于 `prompt_tokens`（模板尾和生成提示不会和上一发的「prompt+生成」形成可 trim 的 exact 命中）。不要为了凑满缓存去重放整段 token。TTFT 应低于同格的 `run_index=0`。用 `by_run_index`，不要用这三行的 pooled median。`exact_cache_hit` 为真就停。
 - `partial`：`cached_tokens` 明显大于 0，且明显小于 `prompt_tokens`。
 - `fresh`：`cached_tokens` 为 0，或只有极短模板命中。大比例命中则作废。
 
