@@ -1,0 +1,238 @@
+{
+  "schema": "kiln-a12-readonly-inventory",
+  "generated_at": "2026-09-25T02:42:33+08:00",
+  "readonly": true,
+  "deletion_performed": false,
+  "cleanup_execution_status": "not_done",
+  "evidence_complete_deletable_count": 0,
+  "not_a_delete_manifest": true,
+  "volume": {
+    "data_device": "/dev/disk3s5",
+    "data_mount": "/System/Volumes/Data",
+    "df_size": "926Gi",
+    "df_used": "474Gi",
+    "df_avail": "406Gi",
+    "df_capacity": "54%",
+    "container_total_bytes": 994662584320,
+    "volume_used_bytes": 508800233472,
+    "container_free_bytes": 436351131648,
+    "root_is_readonly_system_snapshot": true,
+    "note": "406 GiB avail and about 436.4 GB container free are the same free space in different units. Do not add them."
+  },
+  "snapshots": {
+    "tmutil_listlocalsnapshots": "ok",
+    "names": [
+      "com.apple.os.update-4C1D511861152C85E75802B39EE6AD3BC57658C0ABD5A4D8E33139D2C5AC6460AA9658B282180F7D28B367811F4D3C63",
+      "com.apple.os.update-DEDECEC55622993FB7EF1CB6A97E976433E7F84ECCE5514C9C380AF59534732D",
+      "com.apple.os.update-MSUPrepareUpdate"
+    ],
+    "diskutil_apfs_listSnapshots_root": "ok",
+    "root_purgeable": false,
+    "diskutil_apfs_listSnapshots_data": "ok",
+    "data_snapshots": "none"
+  },
+  "du_method": "macOS du rejects -s with -d. Used one du -hx -d 1 and one du -kx -d 1, not parallel. logical_bytes = kib_1024 * 1024.",
+  "models_root": {
+    "path": "/Users/rainhuang/Desktop/models",
+    "device_inode": "16777232:34623912",
+    "du_h": "70G",
+    "logical_bytes": 74953723904
+  },
+  "revision_9b": {
+    "model_type": "qwen3_5",
+    "text_model_type": "qwen3_5_text",
+    "git_dir": false,
+    "config_has_revision_field": false,
+    "pinned_sha": "a9e5f6d9aebfe8bae436bdd51da14dde5b1b30c9",
+    "sha_found_in_files": true,
+    "evidence": [
+      ".cache/huggingface/download/*.metadata first line",
+      ".cache/huggingface/trees/a9e5f6d9aebfe8bae436bdd51da14dde5b1b30c9.json"
+    ],
+    "weight_st_size_matches_tree_lfs_size": true,
+    "weight_sha256_recomputed": false,
+    "chat_template_diverges": {
+      "on_disk_bytes": 9420,
+      "tree_bytes": 7759
+    },
+    "config_sha256": "5a34660c82a3d83f25e53817e55de9de0fbae2928d0d57ac20aa9a8c15e7bcec"
+  },
+  "revision_27b_metadata_commit": "875c8523f13294c90226d0a040f35e04366e83c7",
+  "model_27b_directory": "/Users/rainhuang/Desktop/models/qwen3.8-27b",
+  "pid_1581": {
+    "alive": true,
+    "etime": "13-06:50:01",
+    "model_arg": "/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4",
+    "lsof_exit": 0,
+    "lsof_lines": 76,
+    "model_weight_paths_open": [],
+    "opened_under_models": [
+      "/Users/rainhuang/Desktop/models/kiln",
+      "/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/core.cpython-312-darwin.so",
+      "/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/lib/libmlx.dylib",
+      "/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/lib/libjaccl.dylib",
+      "/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib"
+    ],
+    "note": "Full lsof also holds other kiln/.venv extensions (numpy, tokenizers, sentencepiece, regex, yaml, markupsafe). No safetensors under the 9B directory."
+  },
+  "incomplete_in_image_video_dirs": {
+    "count": 0,
+    "statement": "本次未发现",
+    "prior_deleted_bytes_not_recounted": 2095340084
+  },
+  "hf_cli": {
+    "path": "/opt/homebrew/bin/hf",
+    "version": "1.27.0",
+    "huggingface_cli": "present but deprecated and non-functional per its help",
+    "cache_ls_revisions_exists": true,
+    "dry_run_on_ls": false,
+    "dry_run_on_prune": true,
+    "dry_run_on_rm": true,
+    "prune_or_rm_executed": false,
+    "listed_revisions": [
+      {
+        "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+        "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+        "refs": ["main"],
+        "cli_size": "3.1G",
+        "du_h": "2.9G",
+        "logical_bytes": 3098976256,
+        "model_type": "qwen2",
+        "architectures": ["Qwen2ForCausalLM"]
+      }
+    ],
+    "ignored_missing_snapshots": [
+      "/Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b",
+      "/Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit",
+      "/Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit",
+      "/Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder",
+      "/Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4",
+      "/Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B",
+      "/Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit",
+      "/Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX"
+    ]
+  },
+  "qwen3b_search": {
+    "roots": [
+      "/Users/rainhuang/Desktop/models",
+      "/Users/rainhuang/.cache/huggingface",
+      "/Users/rainhuang/.mtplx"
+    ],
+    "qwen3b_directory_found": false,
+    "documents_not_scanned": true,
+    "whole_home_not_scanned": true
+  },
+  "candidates": [
+    {"path": "/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4", "inode": "16777232:34819531", "logical_size": "5.3G", "logical_bytes": 5690613760, "referenced_by": "PID 1581 --model; kiln/docs/media-manifest.md; kiln/scripts/fetch-model.sh", "owner_evidence": "config model_type qwen3_5; HF download metadata commit a9e5f6d9aebfe8bae436bdd51da14dde5b1b30c9; weight sizes match tree", "protect_or_review": "protect", "reason": "现网 9B。lsof 无权重 fd，进程参数仍指向该目录。正在使用，不可删。"},
+    {"path": "/Users/rainhuang/Desktop/models/qwen3.8-27b", "inode": "16777232:34623913", "logical_size": "14G", "logical_bytes": 15153344512, "referenced_by": "kiln docs architecture.md, inference-mlx.md, BENCHMARK.md, benchmarks/run_inference.py, backend tests; not loaded by PID 1581", "owner_evidence": "directory name; README base_model AEON-7/Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-BF16; metadata commit 875c8523f13294c90226d0a040f35e04366e83c7; model_type qwen3_5", "protect_or_review": "protect", "reason": "确认用途前保留。仓库仍引用。不标废弃。"},
+    {"path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit", "inode": "16777232:39763893", "logical_size": "5.5G", "logical_bytes": 5907574784, "referenced_by": "backend/app/config.py image_zimage_dir; docs/media-manifest.md default image", "owner_evidence": "settings default path matches directory name", "protect_or_review": "protect", "reason": "当前 Z-Image 功能资产。不把已删碎片再计为可释放空间。"},
+    {"path": "/Users/rainhuang/Desktop/models/image-flux2-klein-4b-mflux-4bit", "inode": "16777232:39763891", "logical_size": "4.3G", "logical_bytes": 4619808768, "referenced_by": "backend/app/config.py image_flux_dir; media-manifest optional image", "owner_evidence": "settings default path", "protect_or_review": "protect", "reason": "当前 FLUX.2 功能资产。"},
+    {"path": "/Users/rainhuang/Desktop/models/image-flux1-dev-mflux-4bit", "inode": "16777232:43496342", "logical_size": "9.0G", "logical_bytes": 9618608128, "referenced_by": "web/src/generate.tsx flux1-dev; MODEL.md; backend tests and media.py", "owner_evidence": "quality preset backend name", "protect_or_review": "protect", "reason": "当前 FLUX.1 质量档资产。"},
+    {"path": "/Users/rainhuang/Desktop/models/image-flux2-klein-4b-uncensored-te", "inode": "16777232:39763892", "logical_size": "16K", "logical_bytes": 16384, "referenced_by": "no config.py hit this pass", "owner_evidence": "near-empty directory plus huggingface cache tag; child name flux2-klein-4b-uncensored-text-encoder", "protect_or_review": "protect", "reason": "FLUX 相关但几乎为空。歧义保留。"},
+    {"path": "/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b", "inode": "16777232:39763894", "logical_size": "2.6G", "logical_bytes": 2838130688, "referenced_by": "backend/app/config.py video_wan_dit", "owner_evidence": "DiT filename wan_1.3B_exp_e14.safetensors", "protect_or_review": "protect", "reason": "当前 Wan DiT。1.3B 不是 Qwen3B。"},
+    {"path": "/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx", "inode": "16777232:39893482", "logical_size": "12G", "logical_bytes": 12707131392, "referenced_by": "backend/app/config.py video_wan_mlx_dir", "owner_evidence": "settings default path", "protect_or_review": "protect", "reason": "当前 Wan MLX 权重。"},
+    {"path": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux", "inode": "16777232:39763895", "logical_size": "11G", "logical_bytes": 11891097600, "referenced_by": "backend/app/config.py video_wan_aux_dir; scripts/wan_bench.py", "owner_evidence": "T5/VAE path", "protect_or_review": "protect", "reason": "当前 Wan 辅助权重。"},
+    {"path": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src", "inode": "16777232:39893481", "logical_size": "3.1G", "logical_bytes": 3345694720, "referenced_by": "backend/app/services/media_runtime.py staging path; convert does rmtree then copytree", "owner_evidence": "code treats it as staging; contents not file-compared to aux+DiT", "protect_or_review": "protect", "reason": "转换时会被脚本自己删掉重建，但现内容是否唯一未证实。歧义保留。"},
+    {"path": "/Users/rainhuang/Desktop/models/kiln", "inode": "16777232:34656640", "logical_size": "816M", "logical_bytes": 855552000, "referenced_by": "PID 1581 cwd", "owner_evidence": "Kiln checkout; lsof cwd inode 34656640", "protect_or_review": "protect", "reason": "正在使用，不可删。816M 含源码、.venv 与 node_modules，本次未拆。"},
+    {"path": "/Users/rainhuang/Desktop/models/.media-venv", "inode": "16777232:39763897", "logical_size": "1.7G", "logical_bytes": 1849155584, "referenced_by": "backend/app/config.py media_python; scripts/wan_bench.py", "owner_evidence": "pyvenv.cfg command creates this venv, Python 3.12.12", "protect_or_review": "protect", "reason": "图像/视频运行时。"},
+    {"path": "/Users/rainhuang/Desktop/models/.mtplx-venv", "inode": "16777232:34758269", "logical_size": "455M", "logical_bytes": 476905472, "referenced_by": "kiln/docs/框架对比.md", "owner_evidence": "pyvenv.cfg points at this path", "protect_or_review": "protect", "reason": "MTPLX 虚拟环境。未证明可丢。"},
+    {"path": "/Users/rainhuang/Desktop/models/.pytest_cache", "inode": "16777232:34749962", "logical_size": "16K", "logical_bytes": 16384, "referenced_by": "none observed", "owner_evidence": "directory name is pytest cache", "protect_or_review": "protect", "reason": "歧义保留。不计入证据完整可删。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct", "inode": "16777232:34073461", "logical_size": "2.9G", "logical_bytes": 3098976256, "referenced_by": "hf cache ls --revisions; not referenced by Kiln runtime code", "owner_evidence": "refs/main is 989aa7980e4cf806f80c7fef2b1adb7bc71aa306; config model_type qwen2 causal LM", "protect_or_review": "protect", "reason": "约 2.9G 未知学习模型。标红保留。不是已找到的 Qwen3B。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4", "inode": "16777232:34819726", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache ls --show-warnings ignored, snapshots dir missing", "owner_evidence": "refs directory only; live weights are the local 9B copy", "protect_or_review": "protect", "reason": "所有权未逐文件核对的缓存残迹。标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX", "inode": "16777232:34620061", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches 27B family; body is not in this stub", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit", "inode": "16777232:43496355", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches FLUX.1; local pack is separate", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit", "inode": "16777232:39765110", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches FLUX.2; local pack is separate", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit", "inode": "16777232:39765058", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches Z-Image; local pack is separate", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder", "inode": "16777232:39765034", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches uncensored text encoder; local te dir is 16K", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b", "inode": "16777232:39765093", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches Wan DiT family", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B", "inode": "16777232:39765169", "logical_size": "4.0K", "logical_bytes": 4096, "referenced_by": "hf cache warning, snapshots missing", "owner_evidence": "name matches Wan2.1 aux family", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed", "inode": "16777232:34779249", "logical_size": "2.4G", "logical_bytes": 2567573504, "referenced_by": "kiln/scripts/start-mtplx.sh; not loaded by PID 1581", "owner_evidence": "directory name Qwen3.5-4B", "protect_or_review": "protect", "reason": "MTPLX 4B。不是 Qwen3B。未加载仍保留。"},
+    {"path": "/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed", "inode": "16777232:34773986", "logical_size": "8.1G", "logical_bytes": 8695230464, "referenced_by": "kiln/scripts/start-mtplx.sh; not loaded by PID 1581", "owner_evidence": "directory name Qwen3.5-9B MTPLX; distinct from live mxfp4 9B", "protect_or_review": "protect", "reason": "另一份 9B。不标废弃。"},
+    {"path": "/Users/rainhuang/.mtplx/session-bank", "inode": "16777232:34774525", "logical_size": "548M", "logical_bytes": 574799872, "referenced_by": "sibling of mtplx models", "owner_evidence": "contents not read; blob shard names are two hex characters", "protect_or_review": "protect", "reason": "会话库身份未核对。标红保留。blobs/3b 不是 Qwen3B。"},
+    {"path": "/Users/rainhuang/.mtplx/logs", "inode": "16777232:34774538", "logical_size": "532K", "logical_bytes": 544768, "referenced_by": "mtplx layout", "owner_evidence": "log directory; bodies not read", "protect_or_review": "protect", "reason": "标红保留。"},
+    {"path": "/Users/rainhuang/.mtplx/metrics", "inode": "16777232:34774532", "logical_size": "56K", "logical_bytes": 57344, "referenced_by": "mtplx layout", "owner_evidence": "metrics directory; bodies not read", "protect_or_review": "protect", "reason": "标红保留。"}
+  ],
+  "findings": [
+    {
+      "finding": "Data 卷可用约 406Gi，系统更新快照不可清除，Data 卷没有本地快照。",
+      "evidence": "df -h /System/Volumes/Data Avail 406Gi Used 474Gi。diskutil info Container Free 436351131648。tmutil 与 diskutil apfs listSnapshots 均成功；根快照 Purgeable No；Data 为 No snapshots。",
+      "proposed_change": "不删除快照，不把容器空闲再解释成可删模型。",
+      "risk": "删除 OS 更新快照会动到密封系统卷，且第一条快照限制容器最小尺寸。",
+      "tests": "再跑 df -h /System/Volumes/Data 与 diskutil apfs listSnapshots /System/Volumes/Data。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "现网 9B 在 qwen3.5-9b-hauhau-aggressive-mxfp4，5.3G。HF 下载元数据 commit 为 a9e5f6d9aebfe8bae436bdd51da14dde5b1b30c9。chat_template.jinja 与 tree 尺寸不一致。",
+      "evidence": "config.json model_type qwen3_5。无 .git。metadata 第一行与 trees/<sha>.json 存在。权重 st_size 5130070299 与 540344562 等于 tree lfs_size。chat_template 9420 对 tree 7759。权重 sha256 未重算。",
+      "proposed_change": "不替换、不移动、不重下该目录。",
+      "risk": "把 chat_template 的差异当成整包 revision 失败，或反过来把未哈希的权重说成已校验，都会判错身份。",
+      "tests": "核对 metadata 第一行仍为该 SHA；确认 PID 的 --model 仍指向该路径。不要对 safetensors 做 sha256。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "PID 1581 的 lsof 没有打开任何模型权重路径。cwd 与 .venv 库正在使用。",
+      "evidence": "lsof -p 1581 退出 0，76 行。模型路径匹配数为 0。cwd inode 34656640 = kiln。命令行 --model 仍是 9B 目录。",
+      "proposed_change": "不根据“fd 表里没有 safetensors”删除 9B。已打开的 kiln 与 .venv 文件不可删。",
+      "risk": "权重可能已读入统一内存后关闭 fd。删目录会使下次加载或当前地址空间失效。",
+      "tests": "ps -p 1581 与 lsof -p 1581，确认 --model 与 cwd。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "27B 的实际目录是 qwen3.8-27b，14G。现网不加载，仓库文档和测试仍引用。",
+      "evidence": "du 14798188 KiB。model_type qwen3_5。metadata commit 875c8523f13294c90226d0a040f35e04366e83c7。引用见 architecture.md、BENCHMARK.md、run_inference.py、tests。",
+      "proposed_change": "确认用途前不标废弃、不删除。",
+      "risk": "按“未加载”删除会拆掉测试与文档里的检查点。",
+      "tests": "ls 该目录；确认 PID 命令行不含该路径。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "图像/视频目录里本次没有 .incomplete。已删碎片不再计为可释放空间。",
+      "evidence": "8 个目录 find -name '*.incomplete' 计数 0。2026-09-24 delete-result.json 记录已 unlink 11 个文件、逻辑字节 2095340084。flux2 现为 4619808768，z-image 现为 5907574784，与删后尺寸一致。",
+      "proposed_change": "不重复删除。不把那 2.0GiB 量级再写成今天的可释放空间。",
+      "risk": "重复 unlink 已不存在的路径，或把父目录当成碎片删掉。",
+      "tests": "同一 find 仍为 0。",
+      "rollback": "无变更可回滚。已删碎片不在本阶段恢复范围内。",
+      "status": "not_done"
+    },
+    {
+      "finding": "FLUX、Z-Image、Wan 当前功能目录都在。uncensored-te 与 nsfw-src 身份不够删。",
+      "evidence": "config.py 指向 z-image、flux2、wan dit、wan mlx、wan aux。flux1 被 generate.tsx 与 MODEL.md 使用。uncensored-te 16K。nsfw-src 3.1G，media_runtime.py 只在转换时 rmtree。",
+      "proposed_change": "这些目录都不删。",
+      "risk": "nsfw-src 看起来像临时目录，但未证明里面没有唯一文件。",
+      "tests": "对照 config.py 五个路径仍存在。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "HF 里唯一完整列出的相关 revision 是 Qwen2.5-1.5B-Instruct，2.9G，纯文本。另外 8 个相关 repo 只剩 4K stub。",
+      "evidence": "hf 1.27.0。ls --help 证明有 --revisions，ls 本身无 dry-run。prune/rm help 有 dry-run，但未执行。refs/main 为 989aa7980e4cf806f80c7fef2b1adb7bc71aa306。config model_type qwen2。warnings 列出 8 个缺 snapshots 的路径，du 各 4K。",
+      "proposed_change": "不 prune、不 rm。1.5B 与 stub 都标红保留。",
+      "risk": "stub 很小，但 refs 用途未读完；1.5B 可能是学习模型。",
+      "tests": "hf cache ls --revisions --show-warnings，确认仍不执行 rm/prune。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "限定三处路径没有 Qwen3B 目录。MTPLX 另有未加载的 4B（2.4G）和 9B（8.1G）。session-bank 548M 未核对内容。",
+      "evidence": "目录名搜索只见到 qwen3.5-9b、qwen3.8-27b、Qwen2.5-1.5B、两个 MTPLX Qwen3.5 目录和 HF stub。session-bank/blobs/3b 是十六进制分片。未扫 Documents，未扫整个 home。",
+      "proposed_change": "不把 1.5B 或 Wan 1.3B 或 MTPLX 4B 改名为 Qwen3B，也不删除它们。",
+      "risk": "Qwen3B 或更小学习模型可能在这三处之外。",
+      "tests": "在同样三个根上按目录名再搜一次 qwen，确认没有新增 3B 目录。",
+      "rollback": "无变更可回滚。",
+      "status": "not_done"
+    },
+    {
+      "finding": "证据完整可删的条目为 0。本阶段清理未执行。",
+      "evidence": "候选表每一行都是 protect。歧义、运行中引用、或缓存所有权不清。",
+      "proposed_change": "无删除。若以后要清，需另开阶段，并不得把本 JSON 当删除清单执行。",
+      "risk": "把 protect 行误当成待删清单。",
+      "tests": "清点 candidates 里 protect_or_review 均为 protect，且 evidence_complete_deletable_count 为 0。",
+      "rollback": "只写了本目录下两份报告。删掉这两份文件即可恢复文档树；磁盘权重未动。",
+      "status": "not_done"
+    }
+  ]
+}
