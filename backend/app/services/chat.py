@@ -66,6 +66,7 @@ class ChatService:
         self._busy: set[str] = set()
         self._timeouts = 0
         self._last_inference_error: str | None = None
+        self._last_verified_at: int | None = None
 
     def _conn(self) -> sqlite3.Connection:
         return get_conn()
@@ -314,6 +315,7 @@ class ChatService:
     def note_inference_success(self) -> None:
         self._timeouts = 0
         self._last_inference_error = None
+        self._last_verified_at = now_ms()
 
     def note_inference_timeout(self, message: str | None = None) -> None:
         self._timeouts += 1
@@ -325,6 +327,7 @@ class ChatService:
             "ready": ready,
             "consecutive_timeouts": self._timeouts,
             "last_error": self._last_inference_error,
+            "last_verified_at": self._last_verified_at,
         }
 
     def global_context(self) -> dict[str, Any]:
@@ -1483,6 +1486,8 @@ class ChatService:
             "event": "done",
             "data": {
                 "finish_reason": finish,
+                "model_finish_reason": ledger.model_finish_reason,
+                "transport_integrity": ledger.transport_integrity,
                 "terminal_state": terminal.value,
                 "incomplete": ledger.incomplete(terminal),
                 "metrics": metrics,

@@ -290,6 +290,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         health: {
           status: "down",
           provider: { name: "mlx", reachable: false, base_url: "" },
+          gateway: {
+            state: "API_UNREACHABLE",
+            transport_status: "unreachable",
+            model_status: "unknown",
+            inference_status: "unknown",
+            suspension_reason: null,
+            last_verified_at: null,
+          },
           model: "qwen3.5-9b-hauhau-aggressive-mxfp4",
           context_window: 262144,
           practical_prompt_budget: 32768,

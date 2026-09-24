@@ -10,6 +10,7 @@ import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
 import { PROFILE_LABELS, isIncompleteTerminal, terminalCopy } from "./lib/profiles";
+import { serviceBanner } from "./lib/service-banner";
 import { useChatStore } from "./stores/chat-store";
 import type { GenerationProfile } from "./types/chat";
 
@@ -461,9 +462,9 @@ export function App() {
             ))
           )}
         </div>
-        {!store.health?.provider.reachable ? (
+        {serviceBanner(store.health) ? (
           <div className="banner" role="status">
-            模型暂时离线。Mac 上的 mlx 由 LaunchAgent 常驻，通常会在一两分钟内自动拉起，请稍后再发。
+            {serviceBanner(store.health)}
           </div>
         ) : null}
         {store.error ? (
@@ -490,11 +491,11 @@ export function App() {
             <textarea
               value={store.draft}
               placeholder={
-                store.health?.provider.reachable
-                  ? isMobile
+                serviceBanner(store.health)
+                  ? "模型暂不可用。看上面的状态说明。"
+                  : isMobile
                     ? "写给窑火。点 Send 发送。"
                     : "Write to the kiln. Enter to send, Shift+Enter for a newline. Drop text files here."
-                  : "模型离线，正在自动重连。加载完成后即可发送。"
               }
               rows={3}
               onChange={(e) => store.setDraft(e.target.value)}
@@ -658,7 +659,10 @@ function ContextChip() {
   const pct = win ? Math.min(100, Math.round((prompt / win) * 100)) : 0;
   const packed = Boolean(occ?.document_pack?.applied);
   const truncated = Boolean(snapshot?.truncation.applied);
-  const online = Boolean(health?.provider.reachable);
+  const gatewayState = health?.gateway?.state;
+  const online = gatewayState
+    ? gatewayState === "AVAILABLE" || gatewayState === "BUSY"
+    : Boolean(health?.provider.reachable);
   const warn = pct > 85 || packed || truncated;
   return (
     <div

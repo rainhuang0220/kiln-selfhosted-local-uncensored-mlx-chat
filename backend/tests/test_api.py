@@ -186,6 +186,33 @@ def test_chat_stream_sse(client):
     assert "echo:stream me" in text
 
 
+def test_chat_stream_sse_has_one_request_id_and_monotonic_seq(client):
+    import json
+
+    with client.stream("POST", "/chat", json={"message": "stream me", "stream": True}) as r:
+        assert r.status_code == 200
+        text = "".join(r.iter_text())
+    seqs = []
+    ids = set()
+    for block in text.split("\n\n"):
+        for line in block.split("\n"):
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            raw = line[len("data: ") :]
+            if raw == "[DONE]":
+                continue
+            body = json.loads(raw)
+            if not isinstance(body, dict):
+                continue
+            assert "request_id" in body
+            assert isinstance(body.get("seq"), int)
+            seqs.append(body["seq"])
+            ids.add(body["request_id"])
+    assert seqs
+    assert seqs == list(range(1, len(seqs) + 1))
+    assert len(ids) == 1
+
+
 def test_conversation_search(client):
     client.post("/chat", json={"message": "alpha unique kiln phrase", "stream": False})
     client.post("/chat", json={"message": "beta other topic", "stream": False})

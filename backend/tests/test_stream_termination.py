@@ -65,6 +65,31 @@ def test_finish_length_is_classified(chat_service, fake_provider):
     assert _assistant(chat_service, cid)["status"] == "complete"
 
 
+def test_malformed_then_finish_and_done_is_not_a_clean_stop(chat_service, fake_provider):
+    async def bad(_request: ChatRequest):
+        yield ChatChunk(id="x", model="fake", delta_content="看得见")
+        yield ChatChunk(id="x", model="fake", malformed=True)
+        yield ChatChunk(id="x", model="fake", finish_reason="stop")
+        yield ChatChunk(id="x", model="fake", wire_done=True)
+
+    fake_provider.stream = bad  # type: ignore[method-assign]
+    events = asyncio.run(
+        _collect(chat_service.chat(message="hi", conversation_id=None, stream=True))
+    )
+    done = next(ev for ev in events if ev["event"] == "done")
+    assert done["data"]["terminal_state"] == "completed_with_transport_error"
+    assert done["data"]["incomplete"] is True
+    assert done["data"]["model_finish_reason"] == "stop"
+    assert done["data"]["transport_integrity"] == "damaged"
+    assert done["data"]["message"]["content"] == "看得见"
+    assert done["data"]["message"]["status"] != "complete"
+    cid = next(ev for ev in events if ev["event"] == "meta")["data"]["conversation_id"]
+    asst = _assistant(chat_service, cid)
+    assert asst["content"] == "看得见"
+    assert asst["status"] != "complete"
+    assert asst["finish_reason"] != "stop"
+
+
 def test_malformed_frames_then_eof(chat_service, fake_provider):
     async def bad(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", malformed=True)

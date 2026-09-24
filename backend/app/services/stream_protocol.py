@@ -12,6 +12,7 @@ class TerminalState(str, Enum):
     STREAMING = "streaming"
     COMPLETED_STOP = "completed_stop"
     COMPLETED_LENGTH = "completed_length"
+    COMPLETED_WITH_TRANSPORT_ERROR = "completed_with_transport_error"
     INTERRUPTED_USER = "interrupted_user"
     INTERRUPTED_TRANSPORT = "interrupted_transport"
     UPSTREAM_PROTOCOL_ERROR = "upstream_protocol_error"
@@ -30,6 +31,7 @@ INCOMPLETE_STATES = {
     TerminalState.GENERATION_ERROR,
     TerminalState.REPETITION_GUARD,
     TerminalState.UNKNOWN_TERMINAL,
+    TerminalState.COMPLETED_WITH_TRANSPORT_ERROR,
 }
 
 # mlx-lm 0.31.3 writes a final choice with finish_reason, optional usage, then `data: [DONE]`.
@@ -71,6 +73,14 @@ class StreamLedger:
         self.saw_done_wire = True
         self.provider_protocol_closed = True
 
+    @property
+    def model_finish_reason(self) -> str | None:
+        return self.finish_reason
+
+    @property
+    def transport_integrity(self) -> str:
+        return "damaged" if self.malformed_frames else "ok"
+
     def classify(self) -> TerminalState:
         if self.cancelled:
             return TerminalState.INTERRUPTED_USER
@@ -82,6 +92,13 @@ class StreamLedger:
             return TerminalState.INTERRUPTED_TRANSPORT
         if self.exception is not None:
             return TerminalState.GENERATION_ERROR
+        if (
+            self.malformed_frames
+            and self.saw_finish_reason
+            and self.finish_reason in RELIABLE_UPSTREAM_FINISH
+            and (self.saw_done_wire or self.provider_protocol_closed)
+        ):
+            return TerminalState.COMPLETED_WITH_TRANSPORT_ERROR
         if self.malformed_frames and not self.saw_finish_reason and not self.saw_done_wire:
             return TerminalState.UPSTREAM_PROTOCOL_ERROR
         if self.saw_finish_reason and self.finish_reason == "length":

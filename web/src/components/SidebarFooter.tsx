@@ -12,11 +12,29 @@ export type RuntimeStatus = {
 };
 
 export function runtimeStatus(health: Health | null | undefined): RuntimeStatus {
-  const parked = Boolean(health?.chat?.state && health.chat.state !== "running");
+  const state = health?.gateway?.state;
+  const parked =
+    state === "VIDEO_SUSPENDED" ||
+    (!state && Boolean(health?.chat?.state && health.chat.state !== "running"));
   if (parked) {
     return { title: "视频生成中", detail: "聊天稍后恢复", online: false };
   }
-  if (health?.provider?.reachable) {
+  if (state === "STARTING") {
+    return { title: "模型加载中", detail: "正在恢复文本服务", online: false };
+  }
+  if (state === "DEGRADED") {
+    return { title: "生成异常", detail: "端口还在，最近的生成没有完成", online: false };
+  }
+  if (state === "BUSY") {
+    return { title: "模型忙碌", detail: "上一条还在生成", online: true };
+  }
+  if (state === "API_UNREACHABLE") {
+    return { title: "接口无响应", detail: "不能据此判断模型进程", online: false };
+  }
+  if (state === "OFFLINE") {
+    return { title: "模型离线", detail: "正在重连", online: false };
+  }
+  if (state === "AVAILABLE" || health?.provider?.reachable) {
     return { title: "模型在线", detail: null, online: true };
   }
   return { title: "模型离线", detail: "正在重连", online: false };

@@ -20,5 +20,7 @@ describe("profiles", () => {
     expect(isIncompleteTerminal("repetition_guard")).toBe(true);
     expect(isIncompleteTerminal("stop", "completed_stop")).toBe(false);
     expect(isIncompleteTerminal("length", "completed_length")).toBe(false);
+    expect(terminalCopy("stop", "completed_with_transport_error")).toBe("传输有损坏，这段回复可能缺字");
+    expect(isIncompleteTerminal("stop", "completed_with_transport_error")).toBe(true);
   });
 });

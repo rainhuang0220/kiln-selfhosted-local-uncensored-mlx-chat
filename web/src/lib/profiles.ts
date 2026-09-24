@@ -67,6 +67,7 @@ export function isIncompleteTerminal(finish?: string | null, terminal?: string |
     "generation_error",
     "repetition_guard",
     "unknown_terminal",
+    "completed_with_transport_error",
     "error",
     "abort",
   ].includes(state);
@@ -78,6 +79,7 @@ export function terminalCopy(finish?: string | null, terminal?: string | null): 
   if (state === "repetition_guard") return "检测到明显重复，已停止生成";
   if (state === "timeout") return "生成超时";
   if (state === "interrupted_user" || state === "abort") return "已中断";
+  if (state === "completed_with_transport_error") return "传输有损坏，这段回复可能缺字";
   if (
     state === "interrupted_transport" ||
     state === "upstream_protocol_error" ||

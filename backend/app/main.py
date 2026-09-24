@@ -7,6 +7,7 @@ import logging
 import re
 import sqlite3
 import subprocess
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -31,6 +32,7 @@ from app.providers.mlx import MlxProvider
 from app.services import accounts
 from app.services.chat import ChatService
 from app.services.chat_lifecycle import parked_http_body
+from app.services.gateway import describe_gateway
 from app.services.media import MediaService
 from app.services.memory import MemoryService
 from app.services.heartbeat import iterate_with_heartbeats
@@ -305,6 +307,20 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         chat = getattr(request.app.state, "chat", None)
         inference = chat.inference_status() if chat is not None else {"ready": reachable}
         status = "ok" if reachable and inference.get("ready", True) else "degraded"
+        busy = False
+        if chat is not None:
+            busy = bool(getattr(chat, "_busy", None))
+            lock = getattr(chat, "_lock", None)
+            if lock is not None and lock.locked():
+                busy = True
+        chat_state = chat_life.get("state") if isinstance(chat_life, dict) else None
+        gateway = describe_gateway(
+            http_alive=bool(reachable),
+            chat_state=chat_state,
+            inference_ready=bool(inference.get("ready")),
+            busy=busy,
+            last_verified_at=inference.get("last_verified_at"),
+        )
         return {
             "status": status,
             "provider": {
@@ -313,10 +329,12 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "base_url": base,
                 "http_alive": reachable,
             },
+            "gateway": gateway,
             "inference": {
                 "ready": bool(inference.get("ready")),
                 "consecutive_timeouts": inference.get("consecutive_timeouts", 0),
                 "last_error": inference.get("last_error"),
+                "last_verified_at": inference.get("last_verified_at"),
             },
             "chat": chat_life,
             "model": cfg.model_name,
@@ -692,6 +710,17 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             }
 
         async def event_stream() -> AsyncIterator[bytes]:
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                body = dict(data) if isinstance(data, dict) else {"payload": data}
+                body["request_id"] = request_id
+                body["seq"] = seq
+                return body
+
             agen = svc.chat(**_chat_kwargs(stream=True))
             stream = iterate_with_heartbeats(agen, cfg.heartbeat_s)
             try:
@@ -699,7 +728,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                     if await request.is_disconnected():
                         await stream.aclose()
                         return
-                    yield _sse(event["event"], event["data"])
+                    yield _sse(event["event"], stamped(event.get("data")))
                 yield b"data: [DONE]\n\n"
             except (asyncio.CancelledError, GeneratorExit):
                 await stream.aclose()
@@ -707,13 +736,15 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             except Exception as exc:  # noqa: BLE001
                 yield _sse(
                     "error",
-                    {
-                        "error": {
-                            "message": str(exc),
-                            "type": "api_error",
-                            "code": "upstream_error",
+                    stamped(
+                        {
+                            "error": {
+                                "message": str(exc),
+                                "type": "api_error",
+                                "code": "upstream_error",
+                            }
                         }
-                    },
+                    ),
                 )
                 yield b"data: [DONE]\n\n"
 

@@ -113,9 +113,19 @@ export interface ChatLifecycleInfo {
   message?: string | null;
 }
 
+export interface GatewayStatus {
+  state: string;
+  transport_status?: string;
+  model_status?: string;
+  inference_status?: string;
+  suspension_reason?: string | null;
+  last_verified_at?: number | null;
+}
+
 export interface Health {
   status: string;
   provider: { name: string; reachable: boolean; base_url: string };
+  gateway?: GatewayStatus | null;
   chat?: ChatLifecycleInfo | null;
   model: string;
   context_window: number;

@@ -41,6 +41,33 @@ describe("runtimeStatus", () => {
       online: false,
     });
   });
+
+  it("does not call a live port healthy when inference is degraded", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        chat: { state: "running" },
+        gateway: { state: "DEGRADED" },
+      } as never),
+    ).toEqual({
+      title: "生成异常",
+      detail: "端口还在，最近的生成没有完成",
+      online: false,
+    });
+  });
+
+  it("does not blame the model when the API itself is down", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: false },
+        gateway: { state: "API_UNREACHABLE" },
+      } as never),
+    ).toEqual({
+      title: "接口无响应",
+      detail: "不能据此判断模型进程",
+      online: false,
+    });
+  });
 });
 
 describe("SidebarFooter", () => {
