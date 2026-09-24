@@ -1,0 +1,84 @@
+obs_window=2026-09-24T20:57:00+0800 to 2026-09-24T21:01:17+0800
+did_not_restart=ssh,caddy,clash,launchd
+did_not_run=ensure-vps-direct-route.sh, install scripts, check-public-path.sh
+did_not_read=kiln-tunnel private key
+
+launchctl list (second sample, tab-separated fields):
+pid=29788 last_exit=1 label=com.kiln.web-tunnel
+pid=67675 last_exit=0 label=com.openssh.ssh-agent
+pid=97755 last_exit=143 label=com.kiln.web
+pid=29156 last_exit=255 label=com.kiln.mtplx-tunnel
+pid=15068 last_exit=-15 label=com.kiln.api
+pid=1581 last_exit=-15 label=com.kiln.mlx
+
+Earlier sample in the same window: web-tunnel pid was 99626 (bash etime ~44m). It was replaced by 29788. mtplx-tunnel had no pid (last exit 255) and then became 29156. No autossh.
+
+At 21:01:17+0800 these were still alive:
+1581  etime=13-01:10:44  mlx_lm.server --host 127.0.0.1 --port 8081
+15068 etime=09-07:52:46  uvicorn app.main:app --host 127.0.0.1 --port 8787 --proxy-headers --forwarded-allow-ips=127.0.0.1
+97755 etime=14-01:39:23  npm run dev --host 127.0.0.1 --port 7777 --strictPort
+97771 child vite 127.0.0.1:7777
+29788 etime=03:32  bash .../kiln/run-web-tunnel.sh
+29891 etime=03:31  ssh -R 127.0.0.1:17777:127.0.0.1:8787 kiln-tunnel@175.24.134.228
+29156 etime=03:47  ssh -R 127.0.0.1:8081:127.0.0.1:8081 ubuntu@175.24.134.228
+59877 etime=08-23:38:53  ClashX Pro
+
+ssh 29891 full flags observed:
+ssh -M -S /tmp/kiln-web-tunnel.sock -N -T
+  -i <Application Support/kiln/kiln-tunnel>
+  -o IdentitiesOnly=yes -o ControlMaster=yes -o ControlPersist=no
+  -o ExitOnForwardFailure=yes
+  -o ServerAliveInterval=15 -o ServerAliveCountMax=2
+  -o BatchMode=yes -o ConnectTimeout=15
+  -R 127.0.0.1:17777:127.0.0.1:8787
+  kiln-tunnel@175.24.134.228
+A short-lived sibling also ran the script's remote check:
+ssh -o BatchMode=yes -o ConnectTimeout=8 ubuntu@175.24.134.228
+  python3 socket connect 127.0.0.1:17777 timeout 2s
+Control socket: /tmp/kiln-web-tunnel.sock mode srw------- mtime 2026-09-24 20:57
+Identity file mode 600 size 399. Contents not read.
+
+ESTABLISHED (lsof):
+ssh 29156  192.168.43.78:49498 -> 175.24.134.228:22
+ssh 29891  192.168.43.78:49546 -> 175.24.134.228:22
+
+LISTEN:
+Python 1581  127.0.0.1:8081
+Python 15068 127.0.0.1:8787
+node   97771 127.0.0.1:7777
+ClashX 59877 198.18.0.1:7777
+No local LISTEN on 17777. No ssh LISTEN (reverse binds are remote).
+
+Route (read-only, not modified):
+175.24.134.228 -> gateway 192.168.43.1 interface en0 flags UGHS
+default -> gateway 192.168.43.1 interface en0
+utun4 UP,POINTOPOINT,RUNNING inet 198.18.0.1/16
+ClashX Pro pid 59877; helper com.west2online.ClashXPro.ProxyConfigHelper pid 1461
+
+DNS:
+getaddrinfo(kiln.plainlist.space) = 198.18.13.138
+dig +short A @8.8.8.8 = 175.24.134.228
+dig @223.5.5.5 = connection timed out
+
+Daemon already loaded (not started by this agent):
+/Library/LaunchDaemons/com.kiln.vps-direct-route.plist
+program bash ensure-vps-direct-route.sh --apply
+StartInterval 20s, WatchPaths SystemConfiguration
+launchctl print: runs=21248 last exit code=0 run interval=20s
+service active; in-between process state was "not running"
+log mtime 2026-09-24T20:59:38+0800 still UGHS en0 / 192.168.43.1 tcp22=ok
+Duplicate log lines are tee plus launchd StandardOutPath, not two daemons.
+
+Script diff: Application Support run-web-tunnel.sh == repo scripts/run-web-tunnel.sh
+ensure-vps-direct-route.sh copies match.
+~/.ssh/config has no Host for kiln, plainlist, or 175.24.134.228.
+Host jhx (RemoteForward 7890, ServerAliveInterval 60) is a different host and is not this path.
+
+Log totals (cumulative, undated lines, not a today-only count):
+web-tunnel.log  484 lines, all "forward 127.0.0.1:17777 -> 127.0.0.1:8787 via kiln-tunnel@175.24.134.228"
+web-tunnel.err  5588 lines; remote port forwarding failed 2997; Timeout, server 26; ssh child exited 159; REMOTE_LISTENER_LOST 303
+  mtime 2026-09-24T20:57:45+0800 last line: STATE=REMOTE_LISTENER_LOST remote listen disappeared
+  that line belongs to the instance that died at the restart, not to pid 29788/29891
+mtplx-tunnel.log empty, mtime 2026-09-21
+mtplx-tunnel.err 23309 lines; remote port forwarding failed 17563; Timeout, server 28
+  mtime 2026-09-24T20:57:21+0800 last line: Error: remote port forwarding failed for listen port 8081

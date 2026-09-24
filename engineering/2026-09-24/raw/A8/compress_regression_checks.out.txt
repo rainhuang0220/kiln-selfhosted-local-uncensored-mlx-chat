@@ -1,0 +1,9 @@
+===== python -S script =====
+PASS clean_keeps_constraints
+PASS drops_number_and_date
+PASS drops_negation_and_reorders
+PASS drops_code_identifier
+PASS
+exit=0
+===== sys.modules ml probe =====
+ml_modules NONE

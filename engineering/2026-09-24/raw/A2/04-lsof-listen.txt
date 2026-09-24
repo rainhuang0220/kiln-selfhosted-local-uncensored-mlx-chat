@@ -1,0 +1,19 @@
+===== date =====
+2026年 9月24日 星期四 20时58分20秒 CST
+===== lsof cwd =====
+COMMAND  PID      USER   FD   TYPE DEVICE SIZE/OFF     NODE NAME
+Python  1581 rainhuang  cwd    DIR   1,16      960 34656640 /Users/rainhuang/Desktop/models/kiln
+===== ps rss vsz =====
+pid=1581 ppid=1 etime=13-01:07:47 rss_kb=6752 vsz_kb=440573264 state=S
+===== listeners =====
+-- 8081 --
+COMMAND  PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python  1581 rainhuang    7u  IPv4 0xc78dadaa4d753204      0t0  TCP 127.0.0.1:8081 (LISTEN)
+-- 7777 --
+COMMAND     PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+ClashX    59877 rainhuang   44u  IPv4 0x5f59710aeb5ec52e      0t0  TCP 198.18.0.1:7777 (LISTEN)
+node      97771 rainhuang   13u  IPv4 0x6b9fde12d10de23a      0t0  TCP 127.0.0.1:7777 (LISTEN)
+-- 8787 --
+COMMAND   PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python  15068 rainhuang   13u  IPv4 0x11b941f41523b31a      0t0  TCP 127.0.0.1:8787 (LISTEN)
+-- 17777 (noted only, tunnel listen from plist) --

@@ -1,0 +1,46 @@
+A4 路由核对（2026-09-24，只读源码与 ps/lsof，没有生成请求）
+
+mlx-lm 版本：0.31.3
+- kiln venv：/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm-0.31.3.dist-info
+- Homebrew Python 3.14：/opt/homebrew/lib/python3.14/site-packages/mlx_lm-0.31.3.dist-info
+两份 server.py 的 HTTP 路由相同。现场 PID 1581 映射了 kiln/.venv 里的 mlx core，因此以 venv 这份为准。
+
+venv server.py：
+/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm/server.py
+
+POST（APIHandler.do_POST 的 request_factories）：
+- /v1/completions
+- /v1/chat/completions
+- /chat/completions
+
+GET（APIHandler.do_GET）：
+- /v1/models（前缀匹配）
+- /health
+- 其他 404
+
+没有 /tokenize、/v1/tokenize、/v1/tokens 或其他计数路由。
+ResponseGenerator._tokenize 是进程内方法，不是 HTTP。
+
+Kiln FastAPI（backend/app/main.py）同样没有 tokenize 路由。
+与计数相关、但都不是 tokenizer 端点的只有：
+- POST /v1/chat/completions（BFF，会生成）
+- GET /v1/models
+- GET /health
+产品 /chat 用的是另一套具名 SSE（meta/snapshot/delta/usage/done），不能拿来当这次 mlx 计时。
+
+结论：--count-tokens 不访问网络。TOKENIZE_HTTP_PATHS 为空。
+权重路径确定后，只用该目录里已有的 tokenizer.json 本地计数，不下载。
+
+现场进程（ps -p 1581，只读）：
+Python -m mlx_lm.server
+--model /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+--host 127.0.0.1 --port 8081
+--max-tokens 32768 --temp 1.0 --top-p 0.95 --top-k 20
+--decode-concurrency 1 --prompt-concurrency 1
+--prefill-step-size 1024
+--prompt-cache-size 4 --prompt-cache-bytes 4G
+--chat-template-args {"enable_thinking":false,"reasoning_effort":"medium"}
+监听 127.0.0.1:8081。
+
+仓库 scripts/start-mlx.sh 写的是 --temp 0.6，与现场 argv 的 --temp 1.0 不一致。
+其余列出的 cache / prefill / thinking 开关一致。矩阵以现场 argv 为准，不要为了贴合脚本去改这个进程。

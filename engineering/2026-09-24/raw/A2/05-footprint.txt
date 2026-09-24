@@ -1,0 +1,45 @@
+===== date =====
+2026年 9月24日 星期四 20时58分53秒 CST
+===== ps raw rss vsz =====
+ 1581     1 13-01:08:20   6704 440573264 S   
+===== footprint =====
+======================================================================
+Python [1581]: 64-bit    Footprint: 5086 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+4872 MB        0 B          0 B       1147    IOAccelerator (graphics)
+  81 MB        0 B          0 B         93    untagged (VM_ALLOCATE)
+  78 MB        0 B          0 B         72    MALLOC_SMALL
+  42 MB        0 B          0 B          3    MALLOC_LARGE
+2996 KB        0 B          0 B          1    page table
+2410 KB        0 B          0 B        352    __DATA
+2320 KB        0 B          0 B         49    IOAccelerator
+2048 KB      48 KB          0 B        394    __DATA_CONST
+1824 KB        0 B          0 B         11    MALLOC metadata
+ 505 KB        0 B          0 B        286    __DATA_DIRTY
+ 320 KB        0 B          0 B         26    stack
+ 224 KB        0 B          0 B          1    MALLOC_TINY
+ 224 KB        0 B          0 B          1    tag 22
+ 151 KB        0 B          0 B        858    unused dyld shared cache area
+ 112 KB        0 B          0 B        343    __AUTH_CONST
+ 112 KB        0 B          0 B          2    __TPRO_CONST
+  70 KB        0 B          0 B        150    __AUTH
+  64 KB        0 B          0 B          4    IOKit
+  32 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B    3056 KB          0 B        403    __TEXT
+    0 B      16 KB          0 B          8    mapped file
+    0 B        0 B          0 B          1    __CTF
+    0 B        0 B          0 B          1    __FONT_DATA
+    0 B        0 B          0 B          1    IOSurface
+    0 B        0 B          0 B         56    __LINKEDIT
+    ---        ---          ---        ---    ---
+5086 MB    3120 KB          0 B       4268    TOTAL
+
+Auxiliary data:
+    phys_footprint: 5086 MB
+    phys_footprint_peak: 7944 MB
+

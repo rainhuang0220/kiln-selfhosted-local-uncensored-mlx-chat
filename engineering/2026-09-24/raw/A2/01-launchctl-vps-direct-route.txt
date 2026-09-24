@@ -1,0 +1,83 @@
+===== launchctl print system/com.kiln.vps-direct-route =====
+system/com.kiln.vps-direct-route = {
+	active count = 0
+	path = /Library/LaunchDaemons/com.kiln.vps-direct-route.plist
+	type = LaunchDaemon
+	state = not running
+
+	program = /bin/bash
+	arguments = {
+		/bin/bash
+		/Users/rainhuang/Library/Application Support/kiln/ensure-vps-direct-route.sh
+		--apply
+	}
+
+	stdout path = /tmp/kiln-vps-direct-route.log
+	stderr path = /tmp/kiln-vps-direct-route.err
+	default environment = {
+		PATH => /usr/bin:/bin:/usr/sbin:/sbin
+	}
+
+	environment = {
+		OSLogRateLimit => 64
+		XPC_SERVICE_NAME => com.kiln.vps-direct-route
+	}
+
+	domain = system
+	minimum runtime = 10
+	exit timeout = 5
+	runs = 21240
+	last exit code = 0
+
+	event triggers = {
+		com.apple.launchd.WatchPaths => {
+			keepalive = 0
+			service = com.kiln.vps-direct-route
+			stream = com.apple.fsevents.matching
+			monitor = com.apple.UserEventAgent-System
+			descriptor = {
+				"WatchPaths" => [
+					0 = "/Library/Preferences/SystemConfiguration"
+				]
+			}
+		}
+	}
+
+	event channels = {
+		"com.apple.fsevents.matching" = {
+			port = 0x32e0f
+			active = 0
+			managed = 1
+			reset = 0
+			hide = 0
+			watching = 1
+		}
+	}
+
+	resource coalition = {
+		ID = 375564
+		type = resource
+		state = active
+		active count = 1
+		name = com.kiln.vps-direct-route
+	}
+
+	jetsam coalition = {
+		ID = 375565
+		type = jetsam
+		state = active
+		active count = 1
+		name = com.kiln.vps-direct-route
+	}
+
+	spawn type = daemon (3)
+	jetsam priority = 40
+	jetsam memory limit (active) = (unlimited)
+	jetsam memory limit (inactive) = (unlimited)
+	jetsamproperties category = daemon
+	jetsam thread limit = 32
+	cpumon = default
+	run interval = 20 seconds
+
+	properties = runatload | inferred program
+}

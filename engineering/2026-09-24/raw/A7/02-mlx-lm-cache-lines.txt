@@ -1,0 +1,88 @@
+Installed mlx-lm matching `which mlx_lm` (/opt/homebrew/bin/mlx_lm, shebang python3.14):
+  /opt/homebrew/lib/python3.14/site-packages/mlx_lm
+  version 0.31.3 (mlx 0.32.1)
+
+Kiln server interpreter (not the which mlx_lm binary):
+  /Users/rainhuang/Desktop/models/kiln/.venv/bin/python  (3.12)
+  mlx-lm 0.31.3, mlx 0.32.1
+  diff -q of models/cache.py, models/qwen3_5.py, generate.py against Homebrew: identical
+
+Live launcher (read only):
+  /Users/rainhuang/Library/Application Support/kiln/start-mlx.sh
+  model: /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+  --prompt-cache-size 4 --prompt-cache-bytes 4G
+  no --kv-bits, no --max-kv-size, no draft model
+  repo copy scripts/start-mlx.sh has the same cache flags; default MODEL_PATH is the same 9B
+  no data/active-model.env
+
+Architecture cache
+  models/qwen3_5.py:212  is_linear = (layer_idx + 1) % full_attention_interval != 0
+  models/qwen3_5.py:304-305  TextModel.make_cache → ArraysCache(size=2) if linear else KVCache()
+  models/qwen3_5.py:522-523  Model.make_cache delegates to language_model
+  models/qwen3_5.py:367-381  Model.__call__ is language_model only
+  models/qwen3_5.py:387-388  sanitize drops vision_tower / model.visual
+  models/qwen3_5.py:313      sanitize drops mtp.*
+  utils.py:185-193  model_type qwen3_5 imports mlx_lm.models.qwen3_5.Model
+  models/qwen3_next.py:81-158  Qwen3NextAttention, used as full-attention
+  models/qwen3_next.py:113-118  RoPE dims = int(head_dim * partial_rotary_factor) → 64
+  models/qwen3_next.py:145-148  cache.update_and_fetch(keys, values)
+  models/rope_utils.py:249-251  type default/linear → nn.RoPE(dims, base, scale)
+  models/rope_utils.py:301-306  type mrope still returns nn.RoPE; sections asserted then unused
+  models/qwen3_5.py:68-83  rope_type mapped to type; rope_scaling = rope_parameters
+  models/gated_delta.py:48  state layout [B, Hv, Dv, Dk]
+  models/gated_delta.py:239 and 276-279  state initialized float32
+  models/qwen3_5.py:148-166  conv cache slot 0, keep kernel-1
+  models/qwen3_5.py:178-198  recurrent cache slot 1
+
+Cache classes in models/cache.py
+  15-40   make_prompt_cache: if model.make_cache exists, max_kv_size is ignored
+  43-86   save/load prompt cache safetensors
+  88-111  can_trim / trim: every layer must be trimmable
+  146     _BaseCache.is_trimmable False
+  178     ConcatenateKVCache (not used by qwen3_5)
+  232     QuantizedKVCache(group_size=64, bits=8); step 256
+  247-257 packing uint32 + scales + biases in keys.dtype
+  306     QuantizedKVCache.is_trimmable True
+  325     KVCache step 256
+  375     KVCache.is_trimmable True
+  383-391 KVCache.to_quantized
+  397     KVCache.merge → BatchKVCache.merge
+  410     RotatingKVCache(max_size, keep=0)
+  542-549 trimmable only while offset < max_size
+  551-552 to_quantized raises NotImplementedError
+  594     ArraysCache: no is_trimmable override, no to_quantized
+  731     ChunkedKVCache (not used by qwen3_5)
+  814     CacheList (not used by qwen3_5)
+  912     BatchKVCache
+  1002    BatchKVCache.is_trimmable True
+  1080-1086 extract() returns a KVCache
+  1089    BatchKVCache.merge
+  1133    BatchRotatingKVCache
+  1327-1328 to_quantized raises NotImplementedError
+  1623    LRUPromptCache
+  1659    default max_size 10, max_bytes 1<<63
+  1674-1694 fetch_nearest_cache: longer-prefix trim only if can_trim_prompt_cache
+
+generate.py
+  56      DEFAULT_QUANTIZED_KV_START = 5000
+  174-208 CLI --max-kv-size, --kv-bits (default None), --kv-group-size 64, --quantized-kv-start
+  299-304 maybe_quantize_kv_cache: only objects with to_quantized and offset >= start
+  371-375 generate_step calls make_prompt_cache (so max_kv_size ignored for Qwen3.5)
+  529-533 speculative_generate_step raises if any layer is not trimmable
+  709     stream_generate drops max_kv_size when a draft model is set
+  838-867 _make_cache exists but has no callers in this tree
+  870-878 _merge_caches calls .merge → batch types
+  1657-1668 BatchGenerator._make_new_cache replaces KVCache with RotatingKVCache only if max_kv_size is set; ArraysCache kept
+  1974-1988 load path compares QuantizedKVCache bits only if prompt_cache[0] is QuantizedKVCache
+            Qwen3.5 layer 0 is ArraysCache, so this check does not see FA quant settings
+
+server.py
+  371-374 batchable if no draft and every make_prompt_cache entry has merge
+            KVCache and ArraysCache both have merge
+  821-827 BatchGenerator constructed with no max_kv_size
+  922-988 _serve_single (seed set, or not batchable) calls stream_generate without kv_bits
+  1743    LRUPromptCache(prompt_cache_size)
+  1871-1880 --prompt-cache-size default 10; --prompt-cache-bytes optional
+  no --kv-bits and no --max-kv-size on the server parser
+
+utils.py:60-69  _parse_size: "4G" = 4 * 1e9 = 4000000000, not 4 GiB

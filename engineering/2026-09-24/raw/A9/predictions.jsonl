@@ -1,0 +1,18 @@
+{"id": "lc-en-start-01", "output": "INV-7K2-Q9"}
+{"id": "lc-zh-start-02", "output": "釉-丙午-318"}
+{"id": "lc-en-end-01", "output": "41-08-73"}
+{"id": "lc-zh-end-02", "output": "验-庚-9041"}
+{"id": "lc-en-mid-01", "output": "146.520"}
+{"id": "lc-zh-mid-02", "output": "18.6 米"}
+{"id": "lc-en-distract-01", "output": "Q-71"}
+{"id": "lc-zh-distract-02", "output": "林薇 K-204"}
+{"id": "lc-en-num-01", "output": "2024-11-07 ; 18450"}
+{"id": "lc-zh-num-02", "output": "2023-04-18|2764|36.5"}
+{"id": "lc-en-cross-01", "output": "remains at dock 3 ; HOLD"}
+{"id": "lc-zh-cross-02", "output": "留在维修台 ; 在修"}
+{"id": "lc-en-code-01", "output": "fold_batch_tag"}
+{"id": "lc-zh-code-02", "output": "clamp_soak"}
+{"id": "lc-en-dialog-01", "output": "Moss|7"}
+{"id": "lc-zh-dialog-02", "output": "周晚|3月9日"}
+{"id": "lc-en-order-01", "output": "E1 > E2 > E3 > E4"}
+{"id": "lc-zh-order-02", "output": "记录窑号 > 称釉 > 封窑 > 取样"}

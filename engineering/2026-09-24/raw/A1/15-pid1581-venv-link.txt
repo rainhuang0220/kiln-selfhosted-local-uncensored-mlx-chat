@@ -1,0 +1,27 @@
+=== symlink chain ===
+lrwxr-xr-x  1 rainhuang  admin  59 10月  9  2025 /opt/homebrew/opt/python@3.12/bin/python3.12 -> ../Frameworks/Python.framework/Versions/3.12/bin/python3.12
+venv realpath /opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/bin/python3.12
+opt realpath /opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/bin/python3.12
+=== pid 1581 cwd ===
+COMMAND  PID      USER   FD   TYPE DEVICE SIZE/OFF     NODE NAME
+Python  1581 rainhuang  cwd    DIR   1,16      960 34656640 /Users/rainhuang/Desktop/models/kiln
+=== env KEY NAMES only ===
+count 14
+HOME
+LOGNAME
+OSLogRateLimit
+PATH
+SHELL
+SHLVL
+SSH_AUTH_SOCK
+TMPDIR
+TOKENIZERS_PARALLELISM
+USER
+XPC_FLAGS
+XPC_SERVICE_NAME
+__CF_USER_TEXT_ENCODING
+__PYVENV_LAUNCHER__
+=== selected env values ===
+SHELL=/bin/zsh
+PATH=/opt/homebrew/bin:/usr/bin:/bin
+HOME=/Users/rainhuang

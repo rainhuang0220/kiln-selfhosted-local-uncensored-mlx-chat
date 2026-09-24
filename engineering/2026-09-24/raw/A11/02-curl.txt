@@ -1,0 +1,18 @@
+Single probe. No login, no chat, no second URL.
+Command: curl -sS -m 8 -o /dev/null -D - -w '...' https://kiln.plainlist.space/
+When: between the 20:57 tunnel restart and obs_at=2026-09-24T21:01:17+0800
+
+curl: (35) LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to kiln.plainlist.space:443
+http_code=000
+remote_ip=198.18.13.138
+time_namelookup=0.001574
+time_connect=0.002003
+time_appconnect=0.000000
+time_starttransfer=0.000000
+time_total=0.805348
+size=0
+
+No response headers. No Server header. Status is not 401; there was no HTTP response.
+remote_ip is Clash fake-ip, not 175.24.134.228. time_connect is a local TUN connect.
+This probe did not reach the VPS. It does not time nginx, Caddy, the SSH tunnel, or MLX.
+GET / is static in both repo edge configs, so a successful GET / would also not traverse the tunnel.

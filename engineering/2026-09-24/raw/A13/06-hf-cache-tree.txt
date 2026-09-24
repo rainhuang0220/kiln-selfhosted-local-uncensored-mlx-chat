@@ -1,0 +1,50 @@
+=== huggingface cache top ===
+total 16
+drwxr-xr-x@  7 rainhuang  staff   224  8月 22 18:41 .
+drwxr-xr-x  15 rainhuang  staff   480  9月 15 19:33 ..
+-rw-r--r--@  1 rainhuang  staff  6007  9月 24 20:53 .agent_harnesses.json
+-rw-r--r--@  1 rainhuang  staff     0  9月 24 20:53 .check_for_skill_update_done
+-rw-r--r--@  1 rainhuang  staff     0  9月 24 20:53 .check_for_update_done
+drwxr-xr-x@ 13 rainhuang  staff   416  9月 10 22:59 hub
+drwxr-xr-x@  4 rainhuang  staff   128  8月 20 22:46 xet
+
+=== du huggingface top ===
+2.9G	/Users/rainhuang/.cache/huggingface
+2.9G	/Users/rainhuang/.cache/huggingface/hub
+9.5M	/Users/rainhuang/.cache/huggingface/xet
+8.0K	/Users/rainhuang/.cache/huggingface/.agent_harnesses.json
+  0B	/Users/rainhuang/.cache/huggingface/.check_for_skill_update_done
+  0B	/Users/rainhuang/.cache/huggingface/.check_for_update_done
+
+=== hub entries ===
+total 8
+drwxr-xr-x@ 13 rainhuang  staff  416  9月 10 22:59 .
+drwxr-xr-x@  7 rainhuang  staff  224  8月 22 18:41 ..
+drwxr-xr-x@  3 rainhuang  staff   96  8月 20 22:45 .locks
+-rw-r--r--@  1 rainhuang  staff  191  8月 20 22:45 CACHEDIR.TAG
+drwxr-xr-x@  3 rainhuang  staff   96  9月 10 22:59 models--AITRADER--FLUX1-dev-mlx-4bit
+drwxr-xr-x@  3 rainhuang  staff   96  8月 22 18:45 models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX
+drwxr-xr-x@  3 rainhuang  staff   96  9月  3 18:31 models--filipstrand--Z-Image-Turbo-mflux-4bit
+drwxr-xr-x@  3 rainhuang  staff   96  9月  3 18:31 models--NSFW-API--NSFW_Wan_1.3b
+drwxr-xr-x@  3 rainhuang  staff   96  9月  3 18:31 models--ponpoke--flux2-klein-4b-uncensored-text-encoder
+drwxr-xr-x@  6 rainhuang  staff  192  8月 20 22:46 models--Qwen--Qwen2.5-1.5B-Instruct
+drwxr-xr-x@  3 rainhuang  staff   96  9月  3 18:31 models--RunPod--FLUX.2-klein-4B-mflux-4bit
+drwxr-xr-x   3 rainhuang  staff   96  8月 23 16:51 models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4
+drwxr-xr-x@  3 rainhuang  staff   96  9月  3 18:31 models--Wan-AI--Wan2.1-T2V-1.3B
+
+=== du hub children ===
+4.0K	/Users/rainhuang/.cache/huggingface/hub/CACHEDIR.TAG
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder
+2.9G	/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4
+4.0K	/Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B
+  0B	/Users/rainhuang/.cache/huggingface/hub/.locks
+
+=== incomplete under hub (names only) ===
+=== count incomplete ===
+       0

@@ -1,0 +1,83 @@
+{
+  "before_df": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   926Gi   476Gi   402Gi    55%    5.4M  4.2G    0%   /System/Volumes/Data\n",
+  "before_info": [
+    "Disk Size:                 994.7 GB (994662584320 Bytes) (exactly 1942700360 512-Byte-Units)",
+    "Volume Used Space:         510.8 GB (510792900608 Bytes) (exactly 997642384 512-Byte-Units)",
+    "Container Free Space:      431.1 GB (431137288192 Bytes) (exactly 842065016 512-Byte-Units)"
+  ],
+  "after_df": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   926Gi   474Gi   403Gi    55%    5.4M  4.2G    0%   /System/Volumes/Data\n",
+  "after_info": [
+    "Disk Size:                 994.7 GB (994662584320 Bytes) (exactly 1942700360 512-Byte-Units)",
+    "Volume Used Space:         508.7 GB (508697559040 Bytes) (exactly 993549920 512-Byte-Units)",
+    "Container Free Space:      433.2 GB (433232629760 Bytes) (exactly 846157480 512-Byte-Units)"
+  ],
+  "deleted": [
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-flux2-klein-4b-mflux-4bit/.cache/huggingface/download/vae/EyungE0_iOj0gd7KELZIUY6XP2o=.5053e0f1a87db7b97dc9f43ddba152c0d77858e87ab515fdf2ed9e6ca0374fab.d1fe1a1d.incomplete",
+      "bytes": 67051625,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/T0y2H0dLWewCLrrJRCXpoFtTgjo=.8c281839127e5192430e6e52a5741d72412a63da68cb74ff16c75d734fb7d2e5.2a302c7c.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/VtPm5RnTpztyGz2j8X4QULy4cb4=.1ac203b7646d665cd9596c25860d17b533aab02ed552a48dcc399b2c9b4ae23e.3206a1e0.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/YabK0GxZ1yoAY8q13fERbq0pwkM=.568eef27d98af684b79e263a16f2a2d5c93d03367f229b4a2d8de2ab18b2ab25.add93c12.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/text_encoder/EyungE0_iOj0gd7KELZIUY6XP2o=.5857538440e94dbe89f44ee3bb192aad7fd8d0559fb2f3cbe05807e5dda1ab67.4f336974.incomplete",
+      "bytes": 1880399215,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/transformer/EyungE0_iOj0gd7KELZIUY6XP2o=.49d6d45165cbf65e387f4fdcacf0ae25b84b39ecdd382bba846e86cc3d9d4b65.f64cbbf5.incomplete",
+      "bytes": 67079587,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit/.cache/huggingface/download/vae/EyungE0_iOj0gd7KELZIUY6XP2o=.d4309faa3683186faccb490afe237cae63c599b3e4fbb5ce9ef90393bb775a80.67059808.incomplete",
+      "bytes": 80809657,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b/.cache/huggingface/download/K0O0exN_MI0rxQUa5Gp0oknmFqw=.86daed5f43a68d7be2ca1f0e85d2ac51f3ba7fb735c76fd9574323e18fe40c6c.ca69efec.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux/.cache/huggingface/download/4SfAgk9U607e8pVunEB9nSiU10k=.96b6b242ca1c2f24e9d02cd6596066fab6d310e2d7538f33ae267cb18d957e8f.0e3d6eb6.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux/.cache/huggingface/download/7xjTyx9p9-CteGiI3VEINu_Ohx0=.7cace0da2b446bbbbc57d031ab6cf163a3d59b366da94e5afe36745b746fd81d.c4396872.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    },
+    {
+      "path": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux/.cache/huggingface/download/OZTShqo6Di7rh0SEswnfwSjKa9w=.38071ab59bd94681c686fa51d75a1968f64e470262043be31f7a094e442fd981.03a65339.incomplete",
+      "bytes": 0,
+      "action": "unlinked",
+      "exists_after": false
+    }
+  ],
+  "freed_logical": 2095340084
+}

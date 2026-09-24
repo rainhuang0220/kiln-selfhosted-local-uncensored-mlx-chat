@@ -1,0 +1,16 @@
+=== lsof 1.5B path ===
+
+=== session-bank top ===
+548M	/Users/rainhuang/.mtplx/session-bank
+546M	/Users/rainhuang/.mtplx/session-bank/blobs
+2.1M	/Users/rainhuang/.mtplx/session-bank/entries
+ 44K	/Users/rainhuang/.mtplx/session-bank/manifest.sqlite
+
+=== who references 1.5B outside A13 raw ===
+
+=== A12 present? ===
+total 24
+drwxr-xr-x  3 rainhuang  staff     96  9月 24 21:01 .
+drwxr-xr-x  6 rainhuang  staff    192  9月 24 20:52 ..
+-rw-r--r--  1 rainhuang  staff  11465  9月 24 21:01 A6-engine-comparison.md
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/11-usage-and-a12.txt

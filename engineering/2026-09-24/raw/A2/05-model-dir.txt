@@ -1,0 +1,15 @@
+===== model dir =====
+total 11114352
+-rw-r--r--  1 rainhuang  staff   9.2K  8月 24 02:02 chat_template.jinja
+-rw-r--r--  1 rainhuang  staff   3.3K  8月 23 16:51 config.json
+-rw-r--r--  1 rainhuang  staff   4.8G  8月 23 17:00 model-00001-of-00002.safetensors
+-rw-r--r--  1 rainhuang  staff   515M  8月 23 16:53 model-00002-of-00002.safetensors
+-rw-r--r--  1 rainhuang  staff    96K  8月 23 16:51 model.safetensors.index.json
+-rw-r--r--  1 rainhuang  staff   390B  8月 23 16:51 preprocessor_config.json
+-rw-r--r--  1 rainhuang  staff   1.3K  8月 23 16:51 processor_config.json
+-rw-r--r--  1 rainhuang  staff   2.2K  8月 23 16:51 README.md
+-rw-r--r--  1 rainhuang  staff   1.1K  8月 23 16:51 tokenizer_config.json
+-rw-r--r--  1 rainhuang  staff    19M  8月 23 16:52 tokenizer.json
+-rw-r--r--  1 rainhuang  staff   385B  8月 23 16:51 video_preprocessor_config.json
+===== du =====
+5.3G	/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4

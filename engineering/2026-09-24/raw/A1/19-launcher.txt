@@ -1,0 +1,10 @@
+=== launcher and service name only ===
+PATH=/opt/homebrew/bin:/usr/bin:/bin
+XPC_SERVICE_NAME=com.kiln.mlx
+TOKENIZERS_PARALLELISM=false
+__PYVENV_LAUNCHER__=/Users/rainhuang/Desktop/models/kiln/.venv/bin/python
+=== python3.12 purelib mlx presence ===
+matches 0
+NONE
+=== etime pid 1581 ===
+ 1581 13-01:08:51   6752 440573264

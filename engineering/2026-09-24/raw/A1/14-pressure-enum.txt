@@ -1,0 +1,4 @@
+=== pressure level header if present ===
+=== sysctl pressure again ===
+kern.memorystatus_level: 36
+kern.memorystatus_vm_pressure_level: 2

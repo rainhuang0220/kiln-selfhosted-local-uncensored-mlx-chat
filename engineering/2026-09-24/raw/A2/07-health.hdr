@@ -1,0 +1,8 @@
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.12.12
+Date: Thu, 24 Sep 2026 13:06:26 GMT
+Content-type: application/json
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+Access-Control-Allow-Headers: *
+

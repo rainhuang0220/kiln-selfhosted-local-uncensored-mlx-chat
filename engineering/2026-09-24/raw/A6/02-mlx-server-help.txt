@@ -1,0 +1,56 @@
+# /Users/rainhuang/Desktop/models/kiln/.venv/bin/python -m mlx_lm server --help
+# mlx-lm 0.31.3
+
+usage: __main__.py [-h] [--model MODEL] [--adapter-path ADAPTER_PATH]
+                   [--host HOST] [--port PORT]
+                   [--allowed-origins ALLOWED_ORIGINS]
+                   [--draft-model DRAFT_MODEL]
+                   [--num-draft-tokens NUM_DRAFT_TOKENS] [--trust-remote-code]
+                   [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                   [--chat-template CHAT_TEMPLATE]
+                   [--use-default-chat-template] [--temp TEMP] [--top-p TOP_P]
+                   [--top-k TOP_K] [--min-p MIN_P] [--max-tokens MAX_TOKENS]
+                   [--chat-template-args CHAT_TEMPLATE_ARGS]
+                   [--decode-concurrency DECODE_CONCURRENCY]
+                   [--prompt-concurrency PROMPT_CONCURRENCY]
+                   [--prefill-step-size PREFILL_STEP_SIZE]
+                   [--prompt-cache-size PROMPT_CACHE_SIZE]
+                   [--prompt-cache-bytes PROMPT_CACHE_BYTES] [--pipeline]
+
+--prefill-step-size PREFILL_STEP_SIZE
+    Step size for prefill processing (default: 2048)
+    argparse default=2048 (server.py)
+
+--prompt-cache-size PROMPT_CACHE_SIZE
+    Maximum number of distinct KV caches to hold in the prompt cache
+    argparse default=10
+
+--prompt-cache-bytes PROMPT_CACHE_BYTES
+    Maximum size in bytes of the KV caches
+    argparse default: none (None). Parsed by _parse_size.
+
+NOT on mlx_lm.server:
+    --max-kv-size
+    --kv-bits / --kv-group-size / --quantized-kv-start
+    --quantize-activations
+    -q / --q-bits / --q-group-size / --q-mode
+
+Related concurrency defaults in the same parser:
+    --decode-concurrency default 32
+    --prompt-concurrency default 8
+
+server.py main(), when mx.metal.is_available():
+    wired_limit = mx.device_info()["max_recommended_working_set_size"]
+    mx.set_wired_limit(wired_limit)
+
+Live PID 1581 argv (ps), not the argparse defaults:
+    --model /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+    --host 127.0.0.1 --port 8081
+    --max-tokens 32768 --temp 1.0 --top-p 0.95 --top-k 20
+    --decode-concurrency 1 --prompt-concurrency 1
+    --prefill-step-size 1024
+    --prompt-cache-size 4
+    --prompt-cache-bytes 4G
+    --chat-template-args {"enable_thinking":false,"reasoning_effort":"medium"}
+Listen: 127.0.0.1:8081
+Elapsed at capture: 13-01:02:33. PPID 1. No children.

@@ -1,0 +1,8 @@
+=== venv import sibling packages ===
+OK mlx version=NO___version__ file=None
+OK mlx.core version=0.32.1 file=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/core.cpython-312-darwin.so
+OK mlx_lm version=0.31.3 file=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm/__init__.py
+FAIL mlx_metal ModuleNotFoundError: No module named 'mlx_metal'
+OK transformers version=5.15.1 file=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/transformers/__init__.py
+OK tokenizers version=0.22.2 file=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/tokenizers/__init__.py
+OK huggingface_hub version=1.28.0 file=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/huggingface_hub/__init__.py

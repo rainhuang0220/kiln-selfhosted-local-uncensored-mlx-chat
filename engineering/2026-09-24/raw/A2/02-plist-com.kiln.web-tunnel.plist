@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.kiln.web-tunnel</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
+    <string>/Users/rainhuang/Library/Application Support/kiln/run-web-tunnel.sh</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>HOME</key><string>/Users/rainhuang</string>
+    <key>KILN_TUNNEL_REMOTE</key><string>kiln-tunnel@175.24.134.228</string>
+    <key>KILN_TUNNEL_LISTEN</key><string>127.0.0.1:17777</string>
+    <key>KILN_TUNNEL_LOCAL</key><string>127.0.0.1:8787</string>
+    <key>KILN_TUNNEL_IDENTITY</key><string>/Users/rainhuang/Library/Application Support/kiln/kiln-tunnel</string>
+    <key>KILN_TUNNEL_ADMIN</key><string>ubuntu@175.24.134.228</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>/tmp/kiln-web-tunnel.log</string>
+  <key>StandardErrorPath</key><string>/tmp/kiln-web-tunnel.err</string>
+</dict></plist>

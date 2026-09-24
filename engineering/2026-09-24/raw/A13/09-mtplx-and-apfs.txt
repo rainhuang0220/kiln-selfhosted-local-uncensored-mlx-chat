@@ -1,0 +1,89 @@
+=== mtplx tree du ===
+ 11G	/Users/rainhuang/.mtplx
+532K	/Users/rainhuang/.mtplx/logs
+ 56K	/Users/rainhuang/.mtplx/metrics
+ 10G	/Users/rainhuang/.mtplx/models
+548M	/Users/rainhuang/.mtplx/session-bank
+
+=== mtplx models ===
+2.4G	/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed
+8.1G	/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed
+
+/Users/rainhuang/.mtplx/models
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/mtplx_runtime.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/.mtplx-source.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/tokenizer_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/model-vision.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/model-00001-of-00002.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/tokenizer.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/mtp.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/README.md
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/MTPLX_PUBLISH_MANIFEST.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/chat_template.jinja
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/.gitattributes
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/model-00002-of-00002.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/.cache
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/model.safetensors.index.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/video_preprocessor_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed/preprocessor_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/model.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/mtplx_runtime.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/.mtplx-source.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/tokenizer_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/tokenizer.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/mtp.safetensors
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/processor_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/README.md
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/chat_template.jinja
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/.gitattributes
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/vocab.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/mtp
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/.cache
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/model.safetensors.index.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/video_preprocessor_config.json
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed/preprocessor_config.json
+
+=== name hints under .mtplx and Downloads/Desktop depth 2 ===
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed
+/Users/rainhuang/.mtplx/session-bank/blobs/3b
+/Users/rainhuang/Downloads/zips_aeye-website-template/js/aeye-saas.schunk.1095e6abef78453b.js
+/Users/rainhuang/Downloads/zips_aeye-website-template/js/aeye-saas.ca14ef45.f1de463b54eb59b8.js
+/Users/rainhuang/Downloads/2F8043EDF37F3B9A0BBC3589E6AC6613.jpg
+/Users/rainhuang/Desktop/01565daf3b34e46216f9b4868b7626be.jpg
+/Users/rainhuang/Desktop/codeforces/tools/_fit_sec6_wave23b.py
+/Users/rainhuang/Desktop/models/qwen3.8-27b
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx
+/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b/wan_1.3B_exp_e14.safetensors
+
+=== apfs list purgeable lines ===
++-- Container disk3 6B38D80B-5A90-45E5-9104-9055FB89E1A9
+|   APFS Container Reference:     disk3
+|   Capacity Not Allocated:       432259190784 B (432.3 GB) (43.5% free)
+|   +-> Volume disk3s1 DB22E380-0B0E-4B31-9F1B-54130B141379
+|   |   APFS Volume Disk (Role):   disk3s1 (System)
+|   |   Snapshot Disk:             disk3s1s1
+|   +-> Volume disk3s2 3D6E8163-C48A-4734-ADE8-FB95D891C0CC
+|   |   APFS Volume Disk (Role):   disk3s2 (Preboot)
+|   +-> Volume disk3s3 B36D8FC9-B5AF-4689-8C18-9FA4F86D7D40
+|   |   APFS Volume Disk (Role):   disk3s3 (Recovery)
+|   +-> Volume disk3s5 96406235-5C5C-440F-AE0D-AE07C736539C
+|   |   APFS Volume Disk (Role):   disk3s5 (Data)
+|   +-> Volume disk3s6 11FFBEB7-AA65-403C-8F44-B40EFB87E063
+|       APFS Volume Disk (Role):   disk3s6 (VM)
+|   Capacity Not Allocated:       74051584 B (74.1 MB) (19.5% free)
+|   Capacity Not Allocated:       64933888 B (64.9 MB) (13.6% free)
+|   Capacity Not Allocated:       34775040 B (34.8 MB) (12.2% free)
+|   Capacity Not Allocated:       34779136 B (34.8 MB) (12.2% free)
+|   Capacity Not Allocated:       34775040 B (34.8 MB) (12.2% free)
+|   Capacity Not Allocated:       34783232 B (34.8 MB) (12.2% free)
+|   Capacity Not Allocated:       34783232 B (34.8 MB) (12.2% free)
+    Capacity Not Allocated:       34754560 B (34.8 MB) (12.2% free)

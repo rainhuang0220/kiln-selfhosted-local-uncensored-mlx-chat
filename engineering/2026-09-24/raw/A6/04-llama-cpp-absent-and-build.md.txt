@@ -1,0 +1,73 @@
+# Search only. cmake/git clone/brew install were NOT run.
+
+which llama-cli llama-server llama-bench llama-quantize llama.cpp main
+  -> all "not found"
+
+brew info llama.cpp
+  ==> llama.cpp: stable 0.5.0 (bottled), HEAD
+  https://llama.app
+  Not installed
+  Formula: homebrew-core Formula/l/llama.cpp.rb
+  Depends: ggml, openssl@3
+
+brew list --formula | grep -Ei 'llama|ggml'
+  -> no llama/ggml formula installed
+
+Absent paths:
+  /opt/homebrew/bin/llama*
+  /opt/homebrew/opt/llama.cpp
+  /usr/local/bin/llama*   (ls -d produced no names)
+  ~/src/llama.cpp and ~/src/llama*  (no names)
+  ~/llama.cpp (no name)
+
+mdfind -name llama-cli  -> empty
+mdfind -name llama-server -> empty
+
+find /opt/homebrew /usr/local ~/src ~/bin ~/.local /Users/rainhuang/Desktop/models \
+  \( -name llama-cli -o -name llama-server -o -name llama-bench \)
+  -> no hits
+
+cmake is present (cmake version 4.3.2) but was not invoked.
+
+# Official Metal build, quoted from docs/build.md on ggml-org/llama.cpp master.
+# Fetched via `gh api` on 2026-09-24. Not cloned. Not built.
+# master HEAD at fetch: 6b790a9c291b5d7af3312bbf9f0c558aa023b13e
+#   2026-09-24T12:08:26Z
+#   "vulkan: handle misalignment in conv_2d and conv_3d (#29365)"
+# Homebrew 0.5.0 is a different version line. Do not treat it as this commit.
+
+Get the code:
+
+    git clone https://github.com/ggml-org/llama.cpp
+    cd llama.cpp
+
+CPU/default build (Metal is already on for macOS; see below):
+
+    cmake -B build
+    cmake --build build --config Release
+
+docs/build.md section "Metal Build" (verbatim):
+
+    On MacOS, Metal is enabled by default. Using Metal makes the computation run on the GPU.
+    To disable the Metal build at compile time use the `-DGGML_METAL=OFF` cmake option.
+
+    When built with Metal support, you can explicitly disable GPU inference with the `--n-gpu-layers 0` command-line argument.
+
+README also points at docs/build.md rather than a separate Metal-only cmake line.
+Apple silicon is listed as a first-class backend (ARM NEON, Accelerate, Metal).
+
+# llama-bench syntax source: tools/llama-bench/README.md on that same master.
+# Not installed locally, so this is documentation, not --help from a binary.
+# Relevant defaults:
+#   -r repetitions 5
+#   -p n-prompt 512
+#   -n n-gen 128          # different from mlx benchmark default 1024
+#   -pg pp,tg            # prompt processing followed by generation
+#   -b batch-size 2048
+#   -ub ubatch-size 512
+#   -ctk / -ctv cache type default f16
+#   -ngl n-gpu-layers default -1
+# Tests: pp (prompt processing), tg (token generation), pg (both).
+# Results: average tokens/second and stddev.
+# NOTE in that README: measurements do not include tokenization or sampling.
+# The README tables do not include a peak-memory column. They do include model size.

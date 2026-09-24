@@ -1,0 +1,5 @@
+=== ps env filtered ===
+SHELL=/bin/zsh
+PATH=/opt/homebrew/bin:/usr/bin:/bin
+HOME=/Users/rainhuang
+=== launchctl print user service hint (no secrets) ===

@@ -1,0 +1,28 @@
+===== venv probe 2026-09-24T13:03:32Z =====
+-- /Users/rainhuang/Desktop/models/.media-venv
+executable /Users/rainhuang/Desktop/models/.media-venv/bin/python
+version 3.12.12
+name_filter NONE
+llmlingua_spec False
+dist_count 94
+pip=yes
+-- /Users/rainhuang/Desktop/models/.mtplx-venv
+executable /Users/rainhuang/Desktop/models/.mtplx-venv/bin/python
+version 3.12.12
+name_filter NONE
+llmlingua_spec False
+dist_count 45
+pip=yes
+-- /Users/rainhuang/Desktop/models/kiln/.venv
+executable /Users/rainhuang/Desktop/models/kiln/.venv/bin/python
+version 3.12.12
+name_filter NONE
+llmlingua_spec False
+dist_count 63
+pip=no
+===== pyvenv kiln =====
+home = /opt/homebrew/opt/python@3.12/bin
+implementation = CPython
+uv = 0.10.0
+version_info = 3.12.12
+include-system-site-packages = false

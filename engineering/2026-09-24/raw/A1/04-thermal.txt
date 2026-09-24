@@ -1,0 +1,31 @@
+=== thermal sysctls ===
+machdep.xcpm.cpu_thermal_level=sysctl: unknown oid 'machdep.xcpm.cpu_thermal_level'
+
+machdep.xcpm.gpu_thermal_level=sysctl: unknown oid 'machdep.xcpm.gpu_thermal_level'
+
+machdep.xcpm.io_thermal_level=sysctl: unknown oid 'machdep.xcpm.io_thermal_level'
+
+machdep.xcpm.thermal_level=sysctl: unknown oid 'machdep.xcpm.thermal_level'
+
+machdep.xcpm.cpu_thermal_level_max=sysctl: unknown oid 'machdep.xcpm.cpu_thermal_level_max'
+
+machdep.xcpm.gpu_thermal_level_max=sysctl: unknown oid 'machdep.xcpm.gpu_thermal_level_max'
+
+=== rg thermal ===
+kern.ipc.sothrottlelog: 0
+kern.ipc.throttle_best_effort: 0
+vm.page_throttled_count: 0
+vm.object_upl_throttle_cnt: 0
+vm.compressor_swapper_swapout_fileq_throttled: 0
+net.inet.tcp.recv_throttle_minwin: 16384
+debug.lowpri_throttle_max_iosize: 131072
+debug.lowpri_throttle_tier1_window_msecs: 25
+debug.lowpri_throttle_tier2_window_msecs: 100
+debug.lowpri_throttle_tier3_window_msecs: 500
+debug.lowpri_throttle_tier1_io_period_msecs: 40
+debug.lowpri_throttle_tier2_io_period_msecs: 85
+debug.lowpri_throttle_tier3_io_period_msecs: 200
+debug.lowpri_throttle_tier1_io_period_ssd_msecs: 5
+debug.lowpri_throttle_tier2_io_period_ssd_msecs: 15
+debug.lowpri_throttle_tier3_io_period_ssd_msecs: 25
+debug.lowpri_throttle_enabled: 1
