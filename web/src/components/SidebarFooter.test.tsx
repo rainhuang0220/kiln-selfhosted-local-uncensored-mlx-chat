@@ -56,6 +56,33 @@ describe("runtimeStatus", () => {
     });
   });
 
+  it("does not claim a completed generation before one has succeeded", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        chat: { state: "running" },
+        gateway: { state: "AVAILABLE", last_verified_at: null },
+      } as never),
+    ).toEqual({
+      title: "端口在线",
+      detail: "还没有一次成功生成",
+      online: true,
+    });
+  });
+
+  it("says the model is online after a verified generation", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "AVAILABLE", last_verified_at: 1 },
+      } as never),
+    ).toEqual({
+      title: "模型在线",
+      detail: null,
+      online: true,
+    });
+  });
+
   it("does not blame the model when the API itself is down", () => {
     expect(
       runtimeStatus({
