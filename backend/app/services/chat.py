@@ -39,6 +39,21 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def _public_message(row: sqlite3.Row) -> dict[str, Any]:
+    item = dict(row)
+    raw = item.pop("metadata_json", None)
+    if not raw:
+        return item
+    try:
+        meta = json.loads(raw)
+    except json.JSONDecodeError:
+        return item
+    check = meta.get("answer_check") if isinstance(meta, dict) else None
+    if isinstance(check, dict):
+        item["answer_check"] = check
+    return item
+
+
 def new_id() -> str:
     return str(uuid.uuid4())
 
@@ -139,7 +154,8 @@ class ChatService:
         messages = conn.execute(
             """
             SELECT id, role, content, reasoning, status, prompt_tokens, completion_tokens,
-                   cached_tokens, total_tokens, finish_reason, error, created_at
+                   cached_tokens, total_tokens, finish_reason, error, created_at,
+                   metadata_json
             FROM messages
             WHERE conversation_id=?
             ORDER BY seq ASC
@@ -147,7 +163,7 @@ class ChatService:
             (conversation_id,),
         ).fetchall()
         data = dict(row)
-        data["messages"] = [dict(m) for m in messages]
+        data["messages"] = [_public_message(m) for m in messages]
         data["system"] = data.get("system_prompt")
         return data
 
@@ -712,6 +728,7 @@ class ChatService:
         started_ms: int,
         user_preview: str,
         is_new: bool,
+        answer_check: dict[str, Any] | None = None,
     ) -> None:
         ts = now_ms()
         total = prompt_tokens + completion_tokens
@@ -738,6 +755,28 @@ class ChatService:
                 assistant_id,
             ),
         )
+        if answer_check is not None:
+            existing = conn.execute(
+                "SELECT metadata_json FROM messages WHERE id=?",
+                (assistant_id,),
+            ).fetchone()
+            meta: dict[str, Any] = {}
+            if existing and existing["metadata_json"]:
+                try:
+                    loaded = json.loads(existing["metadata_json"])
+                except json.JSONDecodeError:
+                    loaded = {}
+                if isinstance(loaded, dict):
+                    meta = loaded
+            meta["answer_check"] = {
+                "original": answer_check.get("original", ""),
+                "reason": answer_check.get("reason", ""),
+                "applied": bool(answer_check.get("applied")),
+            }
+            conn.execute(
+                "UPDATE messages SET metadata_json=? WHERE id=?",
+                (json.dumps(meta, ensure_ascii=False), assistant_id),
+            )
         run_id = new_id()
         conn.execute(
             """
@@ -1477,6 +1516,7 @@ class ChatService:
                         started_ms=started,
                         user_preview=text,
                         is_new=created,
+                        answer_check=answer_check,
                     )
             finally:
                 self._busy.discard(cid)

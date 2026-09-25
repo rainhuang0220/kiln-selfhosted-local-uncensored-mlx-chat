@@ -180,6 +180,10 @@ def test_chat_non_stream_roundtrip(client):
 
     detail = client.get(f"/conversation/{cid}")
     assert detail.status_code == 200
+    stored_assistant = next(
+        m for m in detail.json()["messages"] if m["role"] == "assistant"
+    )
+    assert "answer_check" not in stored_assistant
     roles = [m["role"] for m in detail.json()["messages"]]
     assert "system" not in roles
     assert roles[0] == "user"
@@ -235,6 +239,24 @@ def test_evidence_corrects_only_when_the_measurement_is_named(client):
     assert untouched["content"].startswith("echo:")
     assert untouched["answer_check"]["applied"] is False
     assert untouched["answer_check"]["reason"] == "insufficient_evidence"
+
+    stored = client.get(
+        f"/conversation/{checked.json()['conversation_id']}"
+    ).json()["messages"]
+    saved = next(m for m in stored if m["role"] == "assistant")
+    assert saved["content"] == "50吨"
+    assert saved["answer_check"]["original"].startswith("echo:")
+    assert saved["answer_check"]["reason"] == "evidence_difference"
+    assert saved["answer_check"]["applied"] is True
+
+    refused_saved = client.get(
+        f"/conversation/{refused.json()['conversation_id']}"
+    ).json()["messages"]
+    kept = next(m for m in refused_saved if m["role"] == "assistant")
+    assert kept["content"].startswith("echo:")
+    assert kept["answer_check"]["applied"] is False
+    assert kept["answer_check"]["reason"] == "insufficient_evidence"
+    assert kept["answer_check"]["original"] == kept["content"]
 
 
 def test_delete_message_removes_a_complete_turn(client):
