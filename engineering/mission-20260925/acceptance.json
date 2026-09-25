@@ -13,6 +13,7 @@
     "mlx_restarted": false
   },
   "verdict": "IN_PROGRESS",
+  "not_complete": true,
   "gates": {
     "G0": {
       "status": "PASS",
@@ -32,26 +33,26 @@
       "status": "FAIL",
       "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
       "evidence": "",
-      "result": "Not run. The only live sample is the 16-token kiln-ok completion. No moderation middleware was added."
+      "result": "behavior-30.jsonl was run on MLX at temperature 0. All 30 returned non-empty text and none started with the refusal screen. That is not a quality grade and not a Kiln-authenticated session. No moderation middleware was added."
     },
     "G3": {
-      "status": "BLOCKED",
+      "status": "FAIL",
       "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
       "evidence": "engineering/mission-20260925/failure-registry.md",
-      "result": "After the model was resident, two direct MLX prompts of exactly 20000 characters completed with swapout delta 0. Repeated 窑 was 20014 prompt tokens in 96.421s and the reply was MARK8841. Varied sentences were 16169 prompt tokens in 77.644s and the reply was MARK8841. These are not the 13476-token baseline, not 50 scored items, and not Kiln BFF measurements. See prefill-ladder.md."
+      "result": "semantic-20k.txt is 20000 characters. Cold full text was 13240 prompt tokens in 62.754s and the answer was 44091. A separate 50-item set of 900-character documents scored 49/50 after space normalization, with verbatim sent in full and retrieval marked as a subset. This is not yet a pass: the 50 items are not 20000 characters each, and the runs did not go through Kiln auth."
     },
     "G4": {
       "status": "FAIL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
       "evidence": "backend/tests/test_dialogue_context.py",
-      "result": "backend/app/services/context_route.py keeps an immutable archive, refuses verbatim overflow instead of clipping, and labels retrieval as a subset. tests/test_context_route.py passed. No end-to-end 40 percent token cut or 2 percentage point quality comparison was measured, so G4 is not passed."
+      "result": "context_route.py now has verbatim, retrieval, compression, and compression fallback. tests/test_context_route.py: 13 passed. On semantic-20k.txt, extractive compression kept 44091 and cut the model prompt from 13240 tokens to 1890, answer still 44091, CPU overhead under 0.001s. One item is not the 50-item quality bar, and LLMLingua was not loaded beside the resident 9B."
     },
     "G5": {
       "status": "FAIL",
       "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
       "evidence": "web/src/api/sse-fuzz.test.ts",
       "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
-      "result": "2000 seeded mock cases passed in 93 ms on 2026-09-25 12:46 CST. No 20k timing. No browser click. No public login. /chat is 401 without a session, and api.env has no bootstrap password."
+      "result": "Cold full text 62.754s, cache reuse 0.588s with 13236 cached tokens, retrieval 2.477s, extractive compression 8.856s. Same answer 44091. Full-text prefill is not 2x faster than the 65.1s baseline. Retrieval and compression are separate paths. Decode stayed near 21.4 tok/s. Browser Stop/Continue and public SSE were not run: /chat is 401 and api.env has no bootstrap password. Auth was not bypassed."
     },
     "G6": {
       "status": "PASS",
@@ -63,7 +64,7 @@
       "status": "FAIL",
       "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
       "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
-      "result": "8787 is on 486d774. 7777 is still PID 97771. Public login, video bootout, browser Stop/Continue, and 20k were not run."
+      "result": "API PID 97690 is still the 7eed604 process. The new route code is on disk and not loaded. Public login and browser Stop/Continue were not run because there is no session and auth was not bypassed. Video bootout was not run."
     },
     "G8": {
       "status": "FAIL",
