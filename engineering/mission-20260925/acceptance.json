@@ -1,0 +1,74 @@
+{
+  "mission": "Kiln Ultimate Mission v3.0",
+  "recorded_at": "2026-09-25T12:47:55+08:00",
+  "git_head": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
+  "branch": "eng/inference-baseline-20260924",
+  "pushed": false,
+  "running": {
+    "mlx_pid": 1581,
+    "api_pid": 82691,
+    "web_pid": 97771,
+    "api_loaded_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
+    "mlx_restarted": false
+  },
+  "verdict": "MISSION BLOCKED",
+  "gates": {
+    "G0": {
+      "status": "PASS",
+      "rule": "Record live state, keep a database backup, and actually roll the API back and forward without touching MLX.",
+      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
+      "command": "launchctl kickstart -k gui/501/com.kiln.api",
+      "result": "c22d1c3 health had no inference_capability and ready=true. 486d774 health has inference_capability=UNVERIFIED and ready=false. MLX stayed PID 1581. chat.db integrity_check=ok."
+    },
+    "G1": {
+      "status": "FAIL",
+      "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
+      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
+      "command": "GET http://127.0.0.1:8787/health",
+      "result": "Live API PID 82691 returns UNVERIFIED, ready=false, reachable=true, gateway.state=AVAILABLE. Direct MLX 16-token generation finished stop with content kiln-ok in 15.843s. Kiln /chat without a session returned 401, so the live watch was not marked READY. Production has no low-frequency probe. Isolated HTTP 200 plus generate 500 recovery remains a unit test, not a production SLA."
+    },
+    "G2": {
+      "status": "FAIL",
+      "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
+      "evidence": "",
+      "result": "Not run. The only live sample is the 16-token kiln-ok completion. No moderation middleware was added."
+    },
+    "G3": {
+      "status": "BLOCKED",
+      "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
+      "evidence": "engineering/mission-20260925/failure-registry.md",
+      "result": "Not run. A 16-token generation wrote 388652 swapout pages, about 5.93 GiB, and the swap file grew from 14336 MiB to 16384 MiB. Section 7 says stop when an experiment produces continuous swapouts."
+    },
+    "G4": {
+      "status": "FAIL",
+      "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
+      "evidence": "backend/tests/test_dialogue_context.py",
+      "result": "Existing tests still show under-budget history is not rewritten. No new compression or retrieval path was measured, so the 40 percent and 2 percentage point bars have no new numbers."
+    },
+    "G5": {
+      "status": "FAIL",
+      "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
+      "evidence": "web/src/api/sse-fuzz.test.ts",
+      "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
+      "result": "2000 seeded mock cases passed in 93 ms on 2026-09-25 12:46 CST. No 20k timing. No browser click. No public login. /chat is 401 without a session, and api.env has no bootstrap password."
+    },
+    "G6": {
+      "status": "FAIL",
+      "rule": "A reviewable dependency inventory and either exact deletions or a proof that zero files qualify.",
+      "evidence": "engineering/2026-09-25/A12-disk-inventory.md",
+      "result": "This session deleted nothing. Protected directories for 9B, 27B, Z-Image, FLUX.1, FLUX.2, Wan MLX, and Qwen2.5-1.5B-Instruct still exist at 12:47 CST. A fresh inode and clone graph was not rebuilt, so the zero-deletion proof is not closed."
+    },
+    "G7": {
+      "status": "FAIL",
+      "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
+      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
+      "result": "8787 is on 486d774. 7777 is still PID 97771. Public login, video bootout, browser Stop/Continue, and 20k were not run."
+    },
+    "G8": {
+      "status": "FAIL",
+      "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
+      "evidence": "engineering/mission-20260925/acceptance.json",
+      "result": "Ledger written from this session's commands. No independent reviewer re-executed the gates."
+    }
+  }
+}

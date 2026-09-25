@@ -1,0 +1,9 @@
+item,before,after,condition,threshold,met
+20k_zh_cold_ttft_s,65.1,,not measured this session,30,no
+20k_token_cold_ttft_s,100.8,,not measured this session,45,no
+20k_fast_path_ttft_s,,,not measured,,no
+decode_tok_s,21.4,,n=3 baseline only,no significant regression,unknown
+short_mlx_16tok_s,,15.843,direct 8081 temperature 0 max_tokens 16 finish stop content kiln-ok,not a 20k bar,no
+sse_fuzz_cases,,2000,vitest src/api/sse-fuzz.test.ts seed 20260925 and seed 7,1000 malformed or reordered cases flagged,partial
+inference_capability_live,absent,UNVERIFIED,API pid 82691 commit 486d774 ready false reachable true,READY only after a real success,partial
+swapout_pages_during_16tok,,388652,about 5.93 GiB at 16 KiB pages,stop further long runs,blocked
