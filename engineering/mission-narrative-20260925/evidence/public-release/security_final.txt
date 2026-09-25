@@ -1,0 +1,6 @@
+mlx_pid=1581
+mlx_listen=127.0.0.1:8081
+migrations=1:0001_init,2:0002_users_sessions,3:0003_media_jobs,4:0004_private_sessions,5:0005_narrative_engine,6:0006_narrative_continue
+backup_exists=yes
+public_url=https://kiln.plainlist.space
+release=https://github.com/rainhuang0220/kiln-selfhosted-local-uncensored-mlx-chat/releases/tag/v0.1.0-beta
