@@ -2,7 +2,7 @@
 
 Verdict: IN PROGRESS. This is not COMPLETE.
 
-HEAD `7a710f2` on `eng/inference-baseline-20260924`, unpushed. MLX stayed PID 1581. API was restarted alone to PID 64536 and is `UNVERIFIED` / `AVAILABLE` / provider reachable. Web was not rebuilt. No model files were downloaded or deleted. MLX flags and the frozen question sets were not changed.
+Running API code is `7a710f2` on `eng/inference-baseline-20260924`, unpushed. The ledger commit that records this note does not change that code. MLX stayed PID 1581. API was restarted alone to PID 64536 and is `UNVERIFIED` / `AVAILABLE` / provider reachable. Web was not rebuilt. No model files were downloaded or deleted. MLX flags and the frozen question sets were not changed.
 
 An 8-second idle sample while MLX had no client connection showed Swapouts 76,059,679 → 76,067,959 (+8,280 pages), Pageouts +133, Swapins +414. Swap then stood at 19,456 MiB total, about 18,541 MiB used, about 915 MiB free, and later about 1,127 MiB free. No further generation was sent.
 
