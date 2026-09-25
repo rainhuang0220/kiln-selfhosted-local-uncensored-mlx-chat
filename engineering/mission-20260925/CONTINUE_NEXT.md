@@ -27,7 +27,7 @@ failed on substantive quality despite no refusal opener.
 
 Immediate next work:
 
-1. Check current memory and swapouts before further GPU work. The most recent sample after L01 reported 15,507 MiB used and 877 MiB free. Avoid simultaneous long GPU jobs. The earlier synthetic browser request added about 1.89 GiB of swapouts.
+1. Check current memory and swapouts before further GPU work. The latest sample after the packed pilot reported 16,462 MiB used and 946 MiB free; Swapouts had risen by another 146,632 pages after the immediately sampled packed call, without clear attribution. Avoid simultaneous long GPU jobs. The earlier synthetic browser request added about 1.89 GiB of swapouts.
 2. Score the fixed 50 semantic questions through the deployed model, comparing full and packed routes on the same item only when memory pressure permits. Record strict answer, numeric value, unit, quote completeness, prompt tokens, TTFT, decode, and swapping. Do not label CPU evidence retention as answer quality.
 3. Run controlled video pause and timed generator recovery; independently test 20,000 Chinese characters and 20,000 tokenizer tokens for semantic understanding, not only transport. Revisit the failed G1–G5, G7–G8 entries after measurement.
 
