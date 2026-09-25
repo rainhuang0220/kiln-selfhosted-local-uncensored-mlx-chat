@@ -91,11 +91,16 @@ def _label_pair(question: str) -> tuple[str, str] | None:
 
 
 def _find_labeled(text: str, label: str, unit: str) -> float | None:
+    pieces: list[str] = []
+    if len(label) <= 3:
+        pieces.append(label)
     for size in range(len(label), 3, -1):
         for start in range(0, len(label) - size + 1):
-            found = _labeled_number(text, label[start : start + size], unit)
-            if found is not None:
-                return found
+            pieces.append(label[start : start + size])
+    for piece in pieces:
+        found = _labeled_number(text, piece, unit)
+        if found is not None:
+            return found
     return None
 
 
@@ -151,6 +156,36 @@ def verify_answer(*, question: str, evidence: str, model_output: str) -> Verifie
             )
         value = abs(labeled[0] - labeled[1])
         source = "evidence_difference"
+    elif unit and any(mark in question for mark in ("还剩", "减去", "去掉", "实际用了", "超时", "完整卷")):
+        # Structured subtraction from labeled evidence only. Never invent operands.
+        left = None
+        right = None
+        for label in ("共有", "总数", "合计", "计划", "待修"):
+            left = _find_labeled(flat, label, unit)
+            if left is not None:
+                break
+        for label in ("缺页", "缺少", "已用", "完成", "实际"):
+            right = _find_labeled(flat, label, unit)
+            if right is None:
+                # Common Chinese order: 187卷缺页 (number+unit before label)
+                match = re.search(
+                    r"(\d+(?:\.\d+)?)" + re.escape(unit) + re.escape(label),
+                    flat,
+                )
+                if match is not None:
+                    right = float(match.group(1))
+            if right is not None:
+                break
+        if left is None or right is None:
+            return VerifiedAnswer(
+                answer="",
+                source="insufficient_evidence",
+                model_number_ok=None,
+                unit_restored=False,
+                extra_context=False,
+            )
+        value = abs(left - right)
+        source = "evidence_difference"
     elif any(mark in question for mark in ("还剩", "减去", "去掉", "实际用了", "超时")):
         return VerifiedAnswer(
             answer="",
@@ -159,7 +194,9 @@ def verify_answer(*, question: str, evidence: str, model_output: str) -> Verifie
             unit_restored=False,
             extra_context=False,
         )
-    elif (values := _numbers(flat, unit)):
+    elif unit and (values := _numbers(flat, unit)):
+        # Only correct when the question names a unit. A unit-less question must
+        # not grab an incidental trailing digit from the evidence blob.
         value = values[-1]
         source = "evidence"
     else:

@@ -115,7 +115,17 @@ def pack_document(
 
     chunks = split_chunks(text)
     if not chunks:
-        return PackedDocument(text[: max(1, budget * 2)], True, orig, budget, 1, 1)
+        # Never claim an unmarked raw prefix is the full document.
+        prefix = text[: max(1, budget * 2)]
+        kept_est = estimate(prefix) if len(prefix) < 200_000 else fast_token_guess(prefix)
+        marked = (
+            f"<document packed=\"true\" original_tokens=\"{orig}\" "
+            f"chunks_kept=\"1\" chunks_total=\"1\">\n"
+            f"{prefix}\n"
+            f"[... omitted ...]\n"
+            f"</document>"
+        )
+        return PackedDocument(marked, True, orig, min(budget, kept_est), 1, 1)
 
     query_terms = _terms(query or text[:800])
     head, tail = chunks[0], chunks[-1]

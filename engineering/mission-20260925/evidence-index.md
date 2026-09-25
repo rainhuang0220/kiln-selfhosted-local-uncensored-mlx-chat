@@ -1,15 +1,15 @@
-# Evidence index, 2026-09-25 19:42 CST
+# Evidence index, 2026-09-25T20:25:06+08:00
 
-Authoritative labels are in `acceptance.json`. Narrative: `convergence-20260925.md`.
+See `release_report.md` and `acceptance.json`.
 
 | Gate | Status | Where |
 | --- | --- | --- |
-| G0 | PASS | `live-deploy-20260925.md`; API-only restart to PID 64536 |
-| G1 | PARTIAL | READY was observed earlier; current health is UNVERIFIED; video recovery not run |
-| G2 | FAIL | `eval/behavior-audit.md`; B08 and B24 |
-| G3 | FAIL | `convergence-20260925.md`; three semantic checks have no saved model answer |
-| G4 | PARTIAL | `speed-paths.md`; one frozen three-path lookup |
-| G5 | PARTIAL | browser Stop/Continue in `live-deploy-20260925.md`; full-text prefill is not 2× |
-| G6 | PASS | `disk-dependency.md`, 30 protected, 0 deletions |
-| G7 | PARTIAL | API is `7a710f2`; browser proof stops at `53e6eac` |
-| G8 | FAIL | no independent recheck of `7a710f2` |
+| G0 | PASS | release_report.md |
+| G1 | PARTIAL | READY PASS; video KNOWN LIMIT |
+| G2 | PARTIAL | behavior-v2; V17/V18 KNOWN LIMIT |
+| G3 | PARTIAL | g3-missing + rc-live-verify evidence |
+| G4 | PARTIAL | speed-paths + live route |
+| G5 | PASS | rc-live-verify Stop/Continue |
+| G6 | PASS | disk-dependency |
+| G7 | PARTIAL | API ok; browser login blocked |
+| G8 | PARTIAL | g8 reviews + tunnel disabled |

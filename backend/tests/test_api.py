@@ -117,10 +117,31 @@ def test_huge_file_is_packed_into_budget(tmp_settings, chat_service, fake_provid
         assert r.status_code == 200, r.text
     user = fake_provider.calls[-1].messages[-1]["content"]
     assert user.startswith("请摘要。")
-    assert "<document packed=\"true\"" in user
+    assert '<document routed="true"' in user or '<document packed="true"' in user
+    assert "unique-needle-xyz" in user
     pack = r.json()["context"]["occupancy"]["document_pack"]
     assert pack["applied"] is True
     assert pack["original_tokens"] > pack["kept_tokens"]
+    route = pack.get("context_route") or {}
+    assert route.get("silent_truncation") is False
+    assert route.get("archive_sha256")
+    assert route.get("original_chars", 0) > route.get("served_chars", 0)
+    assert route.get("mode") in {"retrieval", "compression"}
+
+
+def test_short_chat_keeps_verbatim_route_metadata(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "只回复 ping", "stream": False, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    assert fake_provider.calls[-1].messages[-1]["content"] == "只回复 ping"
+    pack = r.json()["context"]["occupancy"].get("document_pack") or {}
+    assert pack.get("applied") is False
+    route = pack.get("context_route") or {}
+    assert route.get("mode") == "verbatim"
+    assert route.get("silent_truncation") is False
+    assert len(route.get("archive_sha256") or "") == 64
 
 
 def test_full_document_request_uses_practical_budget_without_packing(client, fake_provider):

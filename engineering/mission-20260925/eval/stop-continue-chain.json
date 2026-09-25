@@ -1,0 +1,10 @@
+{
+  "conversation_id": "1a2c07ff-dcf2-4f8a-b665-46416976475a",
+  "abort_partial_chars": 44,
+  "abort_seq_ok": true,
+  "continue_seq_ok": true,
+  "single_assistant_after": true,
+  "final_chars": 476,
+  "final_status": "complete",
+  "ttft_continue_s": 14.198941833339632
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import sqlite3
 import time
@@ -19,7 +20,8 @@ from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
 from app.services.inference_watch import InferenceWatch
 from app.services.answer_verify import verify_answer
-from app.services.ingest import pack_user_message, requests_full_document
+from app.services.context_route import extractive_compress, route_document
+from app.services.ingest import pack_user_message, requests_full_document, split_query_and_body
 from app.services.memory import MemoryService
 from app.services.profiles import resolve_profile
 from app.services.repetition import hard_self_loop
@@ -618,18 +620,141 @@ class ChatService:
             others = [m for i, m in enumerate(sent) if i != last_user_idx]
             used = self.tokenizer.count_messages(others) if others else 0
             room = max(256, budget - used)
-            packed = pack_user_message(sent[last_user_idx]["content"] or "", room, estimate)
-            if full_document and packed.applied:
-                raise ValueError("full document exceeds practical context budget")
-            if packed.applied:
-                sent[last_user_idx]["content"] = packed.text
+            original = sent[last_user_idx]["content"] or ""
+            query, body = split_query_and_body(original)
+            target = body if query else original
+            question = query or (original.split("\n", 1)[0][:200] if original else "")
+            query_cost = (estimate(query) + 8) if query else 0
+            room_for_body = max(64, room - query_cost)
+
+            if full_document:
+                packed = pack_user_message(original, room, estimate)
+                if packed.applied:
+                    raise ValueError("full document exceeds practical context budget")
                 document_pack = {
-                    "applied": True,
+                    "applied": False,
                     "original_tokens": packed.original_tokens,
                     "kept_tokens": packed.kept_tokens,
                     "chunks_total": packed.chunks_total,
                     "chunks_kept": packed.chunks_kept,
+                    "context_route": {
+                        "mode": "verbatim",
+                        "archive_sha256": hashlib.sha256(target.encode("utf-8")).hexdigest(),
+                        "original_chars": len(target),
+                        "served_chars": len(target),
+                        "silent_truncation": False,
+                        "fallback_reason": None,
+                        "citations": [],
+                    },
                 }
+            else:
+                target_tokens = estimate(target) if target else 0
+                if target_tokens <= room_for_body:
+                    document_pack = {
+                        "applied": False,
+                        "original_tokens": target_tokens,
+                        "kept_tokens": target_tokens,
+                        "chunks_total": 1,
+                        "chunks_kept": 1,
+                        "context_route": {
+                            "mode": "verbatim",
+                            "archive_sha256": hashlib.sha256(target.encode("utf-8")).hexdigest(),
+                            "original_chars": len(target),
+                            "served_chars": len(target),
+                            "silent_truncation": False,
+                            "fallback_reason": None,
+                            "citations": [],
+                        },
+                    }
+                else:
+                    max_chars = max(400, min(len(target), room_for_body * 3))
+
+                    def _compress(src: str) -> str:
+                        return extractive_compress(
+                            src, question=question, max_chars=max_chars
+                        )
+
+                    routed = route_document(
+                        text=target,
+                        question=question,
+                        token_budget=room_for_body,
+                        count_tokens=estimate,
+                        reserved_output=0,
+                        compressor=_compress,
+                    )
+                    if routed.mode == "verbatim_exceeds_budget" or not routed.model_text:
+                        # Verbatim asked but over budget, or empty route: fall back to marked pack.
+                        packed = pack_user_message(original, room, estimate)
+                        if packed.applied:
+                            sent[last_user_idx]["content"] = packed.text
+                        document_pack = {
+                            "applied": packed.applied,
+                            "original_tokens": packed.original_tokens,
+                            "kept_tokens": packed.kept_tokens,
+                            "chunks_total": packed.chunks_total,
+                            "chunks_kept": packed.chunks_kept,
+                            "context_route": {
+                                "mode": routed.mode,
+                                "archive_sha256": routed.archive.sha256,
+                                "original_chars": routed.original_chars,
+                                "served_chars": packed.kept_tokens if packed.applied else routed.served_chars,
+                                "silent_truncation": False,
+                                "fallback_reason": routed.fallback_reason
+                                or (
+                                    "verbatim_exceeds_budget"
+                                    if routed.mode == "verbatim_exceeds_budget"
+                                    else "empty_route"
+                                ),
+                                "citations": [
+                                    {
+                                        "start": c.start,
+                                        "end": c.end,
+                                        "chunk_id": c.chunk_id,
+                                    }
+                                    for c in routed.citations
+                                ],
+                            },
+                        }
+                    else:
+                        wrapper = (
+                            f'<document routed="true" mode="{routed.mode}" '
+                            f'original_sha256="{routed.archive.sha256}" '
+                            f'original_chars="{routed.original_chars}" '
+                            f'served_chars="{routed.served_chars}" '
+                            f'silent_truncation="false"'
+                            + (
+                                f' fallback="{routed.fallback_reason}"'
+                                if routed.fallback_reason
+                                else ""
+                            )
+                            + f">\n{routed.model_text}\n</document>"
+                        )
+                        sent[last_user_idx]["content"] = (
+                            f"{query}\n\n{wrapper}".strip() if query else wrapper
+                        )
+                        document_pack = {
+                            "applied": True,
+                            "original_tokens": routed.original_tokens,
+                            "kept_tokens": routed.served_tokens,
+                            "chunks_total": max(1, len(routed.citations)),
+                            "chunks_kept": max(1, len(routed.citations)),
+                            "context_route": {
+                                "mode": routed.mode,
+                                "archive_sha256": routed.archive.sha256,
+                                "original_chars": routed.original_chars,
+                                "served_chars": routed.served_chars,
+                                "silent_truncation": routed.silent_truncation,
+                                "fallback_reason": routed.fallback_reason,
+                                "citations": [
+                                    {
+                                        "start": c.start,
+                                        "end": c.end,
+                                        "chunk_id": c.chunk_id,
+                                    }
+                                    for c in routed.citations
+                                ],
+                            },
+                        }
 
         if fence and last_user_idx is not None:
             sent[last_user_idx]["content"] = (

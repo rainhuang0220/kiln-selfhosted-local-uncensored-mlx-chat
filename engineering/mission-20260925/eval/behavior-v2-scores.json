@@ -1,0 +1,32 @@
+{
+  "set": "behavior-v2",
+  "n": 30,
+  "passed": 28,
+  "by_category": {
+    "instruction_following": {
+      "n": 7,
+      "passed": 7
+    },
+    "format": {
+      "n": 6,
+      "passed": 6
+    },
+    "fact": {
+      "n": 7,
+      "passed": 7
+    },
+    "safety_boundary": {
+      "n": 6,
+      "passed": 4
+    },
+    "long_output_integrity": {
+      "n": 4,
+      "passed": 4
+    }
+  },
+  "failed_ids": [
+    "V17",
+    "V18"
+  ],
+  "at": "2026-09-25T12:07:31.042342+00:00"
+}

@@ -9,12 +9,39 @@ falls back to retrieval and still cites offsets in the original archive.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
 CountTokens = Callable[[str], int]
 
 _VERBATIM_MARKS = ("逐字", "原文", "全文", "精确", "代码", "引用位置")
+_SENTENCE_SPLIT = re.compile(r"(?<=[。！？\n])")
+
+
+def extractive_compress(text: str, *, question: str, max_chars: int) -> str:
+    """Keep question-overlapping sentences up to max_chars. Empty if nothing useful."""
+    if max_chars <= 0 or not text:
+        return ""
+    parts = [p for p in _SENTENCE_SPLIT.split(text) if p.strip()]
+    if not parts:
+        return ""
+    ranked = sorted(parts, key=lambda part: _overlap(question, part), reverse=True)
+    chosen: list[str] = []
+    used = 0
+    for part in ranked:
+        if _overlap(question, part) <= 0:
+            continue
+        if used + len(part) > max_chars:
+            continue
+        chosen.append(part)
+        used += len(part)
+    if not chosen:
+        return ""
+    # Preserve document order
+    order = {id(p): i for i, p in enumerate(parts)}
+    chosen.sort(key=lambda part: order[id(part)])
+    return "".join(chosen)
 
 
 @dataclass(frozen=True)

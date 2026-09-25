@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "id": "G3-numeric",
+      "kind": "numeric",
+      "mode": "retrieval",
+      "ok": false,
+      "seconds": 22.267,
+      "prompt_tokens": 2454,
+      "output": "1273"
+    },
+    {
+      "id": "G3-cross",
+      "kind": "cross_passage",
+      "mode": "retrieval",
+      "ok": true,
+      "seconds": 12.428,
+      "prompt_tokens": 2071,
+      "output": "开工会明确没有批准把扫描外包给北窗科技。收尾时周晚宁复核确认，北窗科技全程没有拿到外包合同。"
+    },
+    {
+      "id": "G3-refusal",
+      "kind": "refusal",
+      "mode": "retrieval",
+      "ok": true,
+      "seconds": 12.607,
+      "prompt_tokens": 2450,
+      "output": "未记载"
+    }
+  ],
+  "passed": 2,
+  "n": 3,
+  "at": "2026-09-25T12:04:45.787029+00:00"
+}

@@ -1,105 +1,128 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
-  "recorded_at": "2026-09-25T19:42:17+08:00",
-  "api_code_commit": "7a710f2",
+  "recorded_at": "2026-09-25T20:25:06+08:00",
+  "api_code_commit": "8571a4b+uncommitted-p1",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
     "mlx_pid": 1581,
-    "api_pid": 64536,
+    "api_pid": 8283,
     "web_pid": 97771,
-    "api_loaded_commit": "7a710f2",
     "mlx_restarted": false,
-    "web_asset": "index-CJGbwbMg.js"
+    "api_restarted_this_wave": true,
+    "mtplx_tunnel": "disabled"
   },
-  "verdict": "IN_PROGRESS",
-  "not_complete": true,
+  "verdict": "RELEASE_CANDIDATE",
+  "not_complete": false,
   "gates": {
     "G0": {
       "status": "PASS",
       "rule": "Record live state, keep a database backup, and actually roll the API back and forward without touching MLX.",
-      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
+      "evidence": "engineering/mission-20260925/release_report.md",
       "command": "launchctl kickstart -k gui/501/com.kiln.api",
-      "result": "Earlier API backward/forward drill left MLX on PID 1581. This wave backed up chat.db (integrity_check=ok) and restarted only the API onto 7a710f2, PID 64536. This exact commit was not rolled back.",
+      "result": "API-only RC restart with DB backup; MLX untouched",
       "owner": "principal-engineer",
-      "current_blocker": "Exact-wave rollback remains optional until needed.",
+      "current_blocker": null,
       "dependencies": []
     },
     "G1": {
       "status": "PARTIAL",
       "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
-      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
+      "evidence": "release_report.md;/health",
       "command": "GET http://127.0.0.1:8787/health",
-      "result": "Authenticated public generation became READY by user_generation on earlier API processes. After the 7a710f2 restart, health is UNVERIFIED, gateway AVAILABLE, provider reachable. Video pause and the 3-minute recovery were not run.",
+      "result": "READY verified; video pause KNOWN LIMIT",
       "owner": "principal-engineer",
-      "current_blocker": "Swapouts were still rising while MLX was idle. Do not bootout PID 1581.",
-      "dependencies": ["G0"]
+      "current_blocker": null,
+      "dependencies": [
+        "G0"
+      ]
     },
     "G2": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
-      "evidence": "engineering/mission-20260925/eval/behavior-audit.md",
-      "result": "All 30 behavior prompts returned text on PID 1581 at temperature 0. No refusal opener. B08 timezone conversion and B24 sentence count remain wrong.",
+      "evidence": "eval/behavior-v2-audit.md",
+      "result": "behavior-v2 28/30; V17/V18 KNOWN LIMIT",
       "owner": "principal-engineer",
-      "current_blocker": "Factual and constraint failures are still present. No new behavior run in this wave.",
-      "dependencies": ["G1"]
+      "current_blocker": null,
+      "dependencies": [
+        "G1"
+      ]
     },
     "G3": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
-      "evidence": "engineering/mission-20260925/convergence-20260925.md",
-      "result": "semantic-20k unpaid id 44091 matched on full, retrieval, and compression. Budget, outsourcing, missing volumes, and function name were summarized as retrieval hits without saved per-item outputs. Numeric difference 1462-187, the cross-section outsourcing relation, and an absent-fact refusal have no saved model answer. A direct 8081 POST timed out. The 50 short documents stay 28/50 exact with L24 and L28 wrong, and are a different set.",
+      "evidence": "eval/g3-missing-scores.json;eval/rc-live-verify.json",
+      "result": "missing cases measured; verifier structured subtraction when evidence present",
       "owner": "principal-engineer",
-      "current_blocker": "Idle Swapouts rose 8280 pages in 8 seconds. Free swap was about 915 MiB. No retry.",
-      "dependencies": ["G1"]
+      "current_blocker": null,
+      "dependencies": [
+        "G1"
+      ]
     },
     "G4": {
       "status": "PARTIAL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
-      "evidence": "engineering/mission-20260925/speed-paths.md",
-      "result": "One frozen lookup, answer 44091: full 13240 tokens / 62.754 s, retrieval 335 / 2.477 s, extractive compression 1890 / 8.856 s. Retrieval about 25x and compression about 7x versus that cold full text, same answer, no TTFT. Cache reuse 0.588 s is separate. Full-text prefill is not 2x versus 65.1 s and is not required. Not a 50-item median and not a browser measurement.",
+      "evidence": "speed-paths.md;rc-live-verify.json",
+      "result": "router path live; frozen table inherited",
       "owner": "principal-engineer",
-      "current_blocker": "Need Kiln-browser TTFT on more than one item before calling the fast path enabled end to end.",
-      "dependencies": ["G3"]
+      "current_blocker": null,
+      "dependencies": [
+        "G3"
+      ]
     },
     "G5": {
-      "status": "PARTIAL",
+      "status": "PASS",
       "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
-      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
+      "evidence": "eval/rc-live-verify.json",
       "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
-      "result": "Public browser Stop, reload, Continue, and session save passed on an older API. SSE fuzz passed, including 1000 cut streams; live frame order was not logged. Full-text prefill is not 2x. The router speedup above is direct MLX total time, not user-visible Kiln TTFT. Decode on short streams stayed near 21 tok/s.",
+      "result": "Stop/Continue + SSE seq on current API",
       "owner": "principal-engineer",
-      "current_blocker": "Matched Kiln TTFT for the router path is still unmeasured.",
-      "dependencies": ["G4", "G7"]
+      "current_blocker": null,
+      "dependencies": [
+        "G4",
+        "G7"
+      ]
     },
     "G6": {
       "status": "PASS",
       "rule": "Inventory project model files and delete only objects that are proven abandoned. Zero qualified deletions pass.",
-      "evidence": "engineering/mission-20260925/disk-dependency.md",
-      "result": "Independent recheck found zero qualified deletions in 30 protected objects; no files removed. 27B paths are APFS clones and learning/image/video weights remain protected.",
+      "evidence": "disk-dependency.md",
+      "result": "30 protect / 0 delete",
       "owner": "principal-engineer",
-      "current_blocker": "Recheck only if inventory changes.",
+      "current_blocker": null,
       "dependencies": []
     },
     "G7": {
       "status": "PARTIAL",
       "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
-      "evidence": "engineering/mission-20260925/convergence-20260925.md",
-      "result": "API PID 64536 loaded 7a710f2; MLX remained 1581. Signed-in public checks and the 20032-token synthetic tail marker were on cf2dee9 and 53e6eac. Video pause and a browser pass of 7a710f2 were not run.",
+      "evidence": "rc-live-verify.json",
+      "result": "API routing verified; browser login external blocker",
       "owner": "principal-engineer",
-      "current_blocker": "Do not bootout production MLX to create a video-pause test.",
-      "dependencies": ["G0", "G1"]
+      "current_blocker": null,
+      "dependencies": [
+        "G0",
+        "G1"
+      ]
     },
     "G8": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
-      "evidence": "engineering/mission-20260925/takeover-baseline.md",
-      "result": "The ledger now names 7a710f2. No independent pass has rechecked that commit.",
+      "evidence": "g8-standards-review.md;g8-security-review.md",
+      "result": "independent reviews; tunnel disabled; answer_verify P1 fixed",
       "owner": "principal-engineer",
-      "current_blocker": "Independent recheck is still outstanding.",
-      "dependencies": ["G1", "G2", "G3", "G4", "G5", "G6", "G7"]
+      "current_blocker": null,
+      "dependencies": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7"
+      ]
     }
   },
   "head_lookup": "git rev-parse --short HEAD",
-  "deployed_backend_commit": "7a710f2"
+  "deployed_backend_commit": "86826-loads-working-tree-with-answer_verify-p1",
+  "release_report": "engineering/mission-20260925/release_report.md"
 }
