@@ -1,6 +1,6 @@
 item,before,after,condition,threshold,met
-20k_zh_cold_ttft_s,65.1,,not measured this session,30,no
-20k_token_cold_ttft_s,100.8,,not measured this session,45,no
+20k_zh_cold_ttft_s,65.1,77.644,direct MLX varied 20000 chars = 16169 prompt tokens cached 0 max_tokens 16 swapouts 0,30,no
+20k_token_cold_ttft_s,100.8,96.421,direct MLX 20000 char repeated 窑 = 20014 prompt tokens cached 0 not the old 13476-token text,45,no
 20k_fast_path_ttft_s,,,not measured,,no
 decode_tok_s,21.4,,n=3 baseline only,no significant regression,unknown
 short_mlx_16tok_s,,15.843,direct 8081 temperature 0 max_tokens 16 finish stop content kiln-ok,not a 20k bar,no

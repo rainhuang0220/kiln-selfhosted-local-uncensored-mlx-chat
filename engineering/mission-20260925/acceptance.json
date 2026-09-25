@@ -1,13 +1,13 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
-  "recorded_at": "2026-09-25T12:47:55+08:00",
-  "git_head": "95e86a4",
-  "api_code_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
+  "recorded_at": "2026-09-25T13:20:00+08:00",
+  "git_head": "7eed604",
+  "api_code_commit": "7eed604",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
     "mlx_pid": 1581,
-    "api_pid": 82691,
+    "api_pid": 97690,
     "web_pid": 97771,
     "api_loaded_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
     "mlx_restarted": false
@@ -26,7 +26,7 @@
       "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
       "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
       "command": "GET http://127.0.0.1:8787/health",
-      "result": "Live API PID 82691 returns UNVERIFIED, ready=false, reachable=true, gateway.state=AVAILABLE. Direct MLX 16-token generation finished stop with content kiln-ok in 15.843s. Kiln /chat without a session returned 401, so the live watch was not marked READY. Production has no low-frequency probe. Isolated HTTP 200 plus generate 500 recovery remains a unit test, not a production SLA."
+      "result": "API PID 97690 on 7eed604. A one-shot Kiln probe, armed by /tmp/kiln-readiness-probe-once and not by /health, set inference_capability=READY, verification_method=probe, ready=true, reachable=true. Swapouts did not increase during that probe. /chat without a session is still 401. Video pause, the 15 minute expiry, and the 3 minute recovery SLA were not exercised on the live process."
     },
     "G2": {
       "status": "FAIL",
@@ -38,13 +38,13 @@
       "status": "BLOCKED",
       "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
       "evidence": "engineering/mission-20260925/failure-registry.md",
-      "result": "Not run. A 16-token generation wrote 388652 swapout pages, about 5.93 GiB, and the swap file grew from 14336 MiB to 16384 MiB. Section 7 says stop when an experiment produces continuous swapouts."
+      "result": "After the model was resident, two direct MLX prompts of exactly 20000 characters completed with swapout delta 0. Repeated 窑 was 20014 prompt tokens in 96.421s and the reply was MARK8841. Varied sentences were 16169 prompt tokens in 77.644s and the reply was MARK8841. These are not the 13476-token baseline, not 50 scored items, and not Kiln BFF measurements. See prefill-ladder.md."
     },
     "G4": {
       "status": "FAIL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
       "evidence": "backend/tests/test_dialogue_context.py",
-      "result": "Existing tests still show under-budget history is not rewritten. No new compression or retrieval path was measured, so the 40 percent and 2 percentage point bars have no new numbers."
+      "result": "backend/app/services/context_route.py keeps an immutable archive, refuses verbatim overflow instead of clipping, and labels retrieval as a subset. tests/test_context_route.py passed. No end-to-end 40 percent token cut or 2 percentage point quality comparison was measured, so G4 is not passed."
     },
     "G5": {
       "status": "FAIL",
@@ -69,7 +69,7 @@
       "status": "FAIL",
       "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
       "evidence": "engineering/mission-20260925/acceptance.json",
-      "result": "Ledger written from this session's commands. No independent reviewer re-executed the gates."
+      "result": "An independent subagent reran unit tests and wrote independent-test-rerun.md: backend 278 passed, 1 deselected; five frontend files 35 passed. That is not a human review and does not recheck every live gate."
     }
   }
 }
