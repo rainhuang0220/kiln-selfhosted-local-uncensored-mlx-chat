@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { apiFetch } from "../api/http";
+import { createAssembly, observeFrame } from "../api/sse-assembly";
 import { readSse } from "../api/stream";
 import { heuristicTitle } from "../lib/markdown";
 import { applyTheme } from "../lib/theme";
@@ -565,7 +566,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let content = assistantMsg.content || "";
       let reasoning = assistantMsg.reasoning || "";
       let usage: TokenUsage | undefined;
+      const assembly = createAssembly(content);
       for await (const ev of readSse(res, controller.signal)) {
+        const decision = observeFrame(assembly, ev.data, ev.event === "delta");
+        if (ev.event === "delta" && decision !== "accept") continue;
         if (ev.event === "meta") {
           const data = ev.data as {
             conversation_id: string;
@@ -605,7 +609,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         } else if (ev.event === "delta") {
           const data = ev.data as { content?: string; reasoning?: string };
           if (data.reasoning) reasoning += data.reasoning;
-          if (data.content) content += data.content;
+          content = assembly.text;
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
@@ -701,18 +705,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
             u.effectiveOutputTokensPerSec = data.metrics.effective_output_tokens_per_sec;
             u.decodeTokensPerSec = data.metrics.decode_tokens_per_sec;
           }
-          const incomplete = Boolean(data.incomplete);
+          const damaged = assembly.defects.length > 0;
+          const incomplete = damaged || Boolean(data.incomplete);
+          const terminalState = damaged ? "completed_with_transport_error" : data.terminal_state;
+          const finishReason = damaged ? "completed_with_transport_error" : data.finish_reason;
           const status: Message["status"] = incomplete
-            ? data.terminal_state === "interrupted_user"
+            ? terminalState === "interrupted_user"
               ? "interrupted"
               : "error"
             : "complete";
+          const shown = damaged ? assembly.text : (data.message?.content ?? content);
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
                 ? {
                     ...m,
-                    content: data.message?.content ?? content,
+                    content: shown,
                     reasoning: data.message?.reasoning_content ?? reasoning,
                     status,
                     incomplete,
@@ -720,8 +728,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     prompt_tokens: u.input,
                     completion_tokens: u.output,
                     total_tokens: u.total,
-                    finish_reason: data.finish_reason,
-                    terminal_state: data.terminal_state,
+                    finish_reason: finishReason,
+                    terminal_state: terminalState,
                   }
                 : m,
             ),

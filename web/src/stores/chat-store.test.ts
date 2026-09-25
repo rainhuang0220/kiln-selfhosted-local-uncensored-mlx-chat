@@ -130,6 +130,36 @@ describe("chat store generation UI", () => {
     expect(asst?.finish_reason === "length").toBe(true);
   });
 
+  it("does not append a duplicate sequence or a frame from another request", async () => {
+    chatThenConversations(
+      'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true,"request_id":"r1","seq":1}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r2","seq":3,"content":"乙"}\n\n' +
+        'event: done\ndata: {"request_id":"r1","seq":3,"finish_reason":"stop","terminal_state":"completed_stop","incomplete":false}\n\n',
+    );
+    useChatStore.setState({ draft: "测序" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.content).toBe("甲");
+    expect(asst?.status).not.toBe("complete");
+  });
+
+  it("keeps a sequence gap from looking like a clean stop", async () => {
+    chatThenConversations(
+      'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true,"request_id":"r1","seq":1}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":4,"content":"丙"}\n\n' +
+        'event: done\ndata: {"request_id":"r1","seq":5,"finish_reason":"stop","terminal_state":"completed_stop","incomplete":false}\n\n',
+    );
+    useChatStore.setState({ draft: "缺口" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.content).toBe("甲");
+    expect(asst?.status).not.toBe("complete");
+    expect(asst?.terminal_state).toBe("completed_with_transport_error");
+  });
+
   it("does not show error copy after a normal stop", async () => {
     chatThenConversations(
       'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n' +
