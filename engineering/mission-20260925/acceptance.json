@@ -1,16 +1,17 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
-  "recorded_at": "2026-09-25T13:20:00+08:00",
-  "git_head": "7eed604",
-  "api_code_commit": "7eed604",
+  "recorded_at": "2026-09-25T17:14:20+08:00",
+  "git_head": "53e6eac",
+  "api_code_commit": "53e6eac",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
     "mlx_pid": 1581,
-    "api_pid": 97690,
+    "api_pid": 70476,
     "web_pid": 97771,
-    "api_loaded_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
-    "mlx_restarted": false
+    "api_loaded_commit": "53e6eac",
+    "mlx_restarted": false,
+    "web_asset": "index-CJGbwbMg.js"
   },
   "verdict": "IN_PROGRESS",
   "not_complete": true,
@@ -18,59 +19,108 @@
     "G0": {
       "status": "PASS",
       "rule": "Record live state, keep a database backup, and actually roll the API back and forward without touching MLX.",
-      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
+      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "launchctl kickstart -k gui/501/com.kiln.api",
-      "result": "c22d1c3 health had no inference_capability and ready=true. 486d774 health has inference_capability=UNVERIFIED and ready=false. MLX stayed PID 1581. chat.db integrity_check=ok."
+      "result": "Fresh SQLite online backup and integrity_check=ok before both API-only restarts; earlier API backward/forward drill exists. Current API PID 70476; MLX PID unchanged 1581. This exact deployment wave has not been rolled back.",
+      "owner": "principal-engineer",
+      "current_blocker": "Exact-wave rollback drill remains optional until needed.",
+      "dependencies": []
     },
     "G1": {
       "status": "FAIL",
       "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
-      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
+      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "GET http://127.0.0.1:8787/health",
-      "result": "API PID 97690 on 7eed604. A one-shot Kiln probe, armed by /tmp/kiln-readiness-probe-once and not by /health, set inference_capability=READY, verification_method=probe, ready=true, reachable=true. Swapouts did not increase during that probe. /chat without a session is still 401. Video pause, the 15 minute expiry, and the 3 minute recovery SLA were not exercised on the live process."
+      "result": "Authenticated public generation returned KILN-OK on cf2dee9 and POST-DEPLOY-OK on API 53e6eac; live health became READY by user_generation. Video pause and under-three-minute restoration have not been exercised.",
+      "owner": "principal-engineer",
+      "current_blocker": "Controlled video pause/recovery test is outstanding.",
+      "dependencies": [
+        "G0"
+      ]
     },
     "G2": {
       "status": "FAIL",
       "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
-      "evidence": "",
-      "result": "behavior-30.jsonl was run on MLX at temperature 0. All 30 returned non-empty text and none started with the refusal screen. That is not a quality grade and not a Kiln-authenticated session. No moderation middleware was added."
+      "evidence": "engineering/mission-20260925/eval/behavior-scores.json",
+      "result": "Thirty direct-MLX behavior samples returned text without a refusal opener; no full answer-quality grade or authenticated multi-category behavior run.",
+      "owner": "principal-engineer",
+      "current_blocker": "Grade substantive content and refusal behavior on a fixed set.",
+      "dependencies": [
+        "G1"
+      ]
     },
     "G3": {
       "status": "FAIL",
       "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
-      "evidence": "engineering/mission-20260925/failure-registry.md",
-      "result": "semantic-20k.txt is 20000 characters. Cold full text was 13240 prompt tokens in 62.754s and the answer was 44091. A separate 50-item set of 900-character documents scored 49/50 after space normalization, with verbatim sent in full and retrieval marked as a subset. This is not yet a pass: the 50 items are not 20000 characters each, and the runs did not go through Kiln auth."
+      "evidence": "engineering/mission-20260925/live-deploy-20260925.md; engineering/mission-20260925/eval/compendium-route-coverage.json",
+      "result": "Authenticated public browser delivered a 20,032-token synthetic prompt intact, preserved its tail marker, and returned MARK8841 (TTFT 99.28 s); swapouts rose about 1.89 GiB. A fixed 50-item semantic compendium has two >20K-token corpora and 50/50 offline evidence retention, but no model answer scores yet. Independent 20K Chinese-character semantic and 20K-token semantic quality remain unverified.",
+      "owner": "principal-engineer",
+      "current_blocker": "Run semantic model scoring on fixed corpora when live memory pressure permits; complete independent character and token cases without conflating transport with understanding.",
+      "dependencies": [
+        "G1"
+      ]
     },
     "G4": {
       "status": "FAIL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
-      "evidence": "backend/tests/test_dialogue_context.py",
-      "result": "context_route.py now has verbatim, retrieval, compression, and compression fallback. tests/test_context_route.py: 13 passed. On semantic-20k.txt, extractive compression kept 44091 and cut the model prompt from 13240 tokens to 1890, answer still 44091, CPU overhead under 0.001s. One item is not the 50-item quality bar, and LLMLingua was not loaded beside the resident 9B."
+      "evidence": "engineering/mission-20260925/eval/README.md",
+      "result": "Current packer is not the experimental context_route module. On the fixed 50-item compendium, offline source coverage is 50/50, with 27 packed and 23 full; this does not measure answer quality or end-to-end latency. Earlier short-item answers were 28 exact, 18 missing units, 2 partial quotes, and 2 arithmetic errors.",
+      "owner": "principal-engineer",
+      "current_blocker": "Paired generated-answer quality and time measurements on the same semantic compendium are outstanding.",
+      "dependencies": [
+        "G3"
+      ]
     },
     "G5": {
       "status": "FAIL",
       "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
-      "evidence": "web/src/api/sse-fuzz.test.ts",
+      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
-      "result": "Cold full text 62.754s, cache reuse 0.588s with 13236 cached tokens, retrieval 2.477s, extractive compression 8.856s. Same answer 44091. Full-text prefill is not 2x faster than the 65.1s baseline. Retrieval and compression are separate paths. Decode stayed near 21.4 tok/s. Browser Stop/Continue and public SSE were not run: /chat is 401 and api.env has no bootstrap password. Auth was not bypassed."
+      "result": "Public browser short TTFT 2835 ms, Stop/reload/Continue persisted and completed; synthetic 20,032-token browser TTFT 99,280 ms. No matched cold full-versus-retrieval 2x browser result.",
+      "owner": "principal-engineer",
+      "current_blocker": "Run same-task cold full/retrieval comparisons through authenticated Kiln with quality grading.",
+      "dependencies": [
+        "G4",
+        "G7"
+      ]
     },
     "G6": {
       "status": "PASS",
       "rule": "Inventory project model files and delete only objects that are proven abandoned. Zero qualified deletions pass.",
       "evidence": "engineering/mission-20260925/disk-dependency.md",
-      "result": "30 paths, all protect, zero delete. 9B, both 27B clones, Z-Image, FLUX, Wan, Qwen2.5-1.5B, and MTPLX weights are protected. The two 27B trees share APFS clones and private size 0, so they are not two reclaimable 14G copies. No file was removed."
+      "result": "Independent recheck found zero qualified deletions in 30 protected objects; no files removed. 27B paths are APFS clones and learning/image/video weights remain protected.",
+      "owner": "principal-engineer",
+      "current_blocker": "Recheck only if inventory changes.",
+      "dependencies": []
     },
     "G7": {
       "status": "FAIL",
       "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
-      "evidence": "engineering/mission-20260925/deploy-and-rollback.md",
-      "result": "API PID 97690 is still the 7eed604 process. The new route code is on disk and not loaded. Public login and browser Stop/Continue were not run because there is no session and auth was not bypassed. Video bootout was not run."
+      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
+      "result": "API PID 70476 was restarted after 53e6eac; MLX remained PID 1581. Public HTML serves a672a2f asset. Signed-in public POST-DEPLOY-OK returned exactly (TTFT 2840 ms), with browser health model online. Earlier short chat, Stop/reload/Continue, and 20,032-token synthetic tail-marker case passed on cf2dee9. The new evidence-routing code passed 294 backend tests and 50/50 offline source coverage. Production video pause/restore and semantic long-document scoring are outstanding.",
+      "owner": "principal-engineer",
+      "current_blocker": "Test timed video restore and semantic long-document quality on the deployed API.",
+      "dependencies": [
+        "G0",
+        "G1"
+      ]
     },
     "G8": {
       "status": "FAIL",
       "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
-      "evidence": "engineering/mission-20260925/acceptance.json",
-      "result": "An independent subagent reran unit tests and wrote independent-test-rerun.md: backend 278 passed, 1 deselected; five frontend files 35 passed. That is not a human review and does not recheck every live gate."
+      "evidence": "engineering/mission-20260925/takeover-baseline.md",
+      "result": "Three independent read-only agents reviewed deployment, quality, and disk claims. Full independent live source, performance, browser, and deployment recheck remains outstanding.",
+      "owner": "principal-engineer",
+      "current_blocker": "Request independent rerun after remaining live gates are measured.",
+      "dependencies": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7"
+      ]
     }
   }
 }

@@ -62,6 +62,21 @@ long-document understanding. Swapouts rose from 74,479,900 to 74,603,688
 five-second preflight window had zero swapouts. Video pause and timed recovery
 were not exercised on the production MLX.
 
+## Evidence-routing API update
+
+After the browser checks above, commit `53e6eac` added named-section evidence
+ranking and routed explicit comparison requests to the full-document path.
+The backend test suite passed 294 tests and the fixed compendium's offline
+source audit retained 50/50 quotes. A fresh SQLite online backup was written
+to `../kiln-backups/2026-09-25/chat-before-evidence-routing.db` (2,203,648
+bytes; `integrity_check=ok`). Only `com.kiln.api` was restarted. API PID became
+70476; MLX remained PID 1581. Local `/health` then reported reachable MLX HTTP
+and `UNVERIFIED` inference, as expected after process restart. Anonymous local
+and public `/auth/runtime` both returned 401; the public site returned 200.
+A signed-in public browser then asked for exactly `POST-DEPLOY-OK`. The reply
+was exact, with 26 input tokens, 7 output tokens, TTFT 2,840 ms, and decode
+23.9 tokens/s. The browser showed “模型在线” after the completed request.
+
 ## Rollback
 
 The prior API commit is `2bfe465`. With a clean checkout, switching to that

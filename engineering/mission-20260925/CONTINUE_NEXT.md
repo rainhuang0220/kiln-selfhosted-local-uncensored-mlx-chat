@@ -1,25 +1,15 @@
 # CONTINUE_NEXT
 
-Status: MISSION BLOCKED. Not COMPLETE.
+Status: IN PROGRESS. Do not mark Kiln COMPLETE. The acceptance ledger is `acceptance.json`.
 
-Git: `eng/inference-baseline-20260924` at `486d774` until the ledger commit that follows this file. Not pushed.
+Production baseline: MLX PID 1581 on 8081, API PID 70476 on 8787, public web asset `index-CJGbwbMg.js` from `a672a2f`. MLX has not been restarted. The branch is `eng/inference-baseline-20260924`, unpushed.
 
-Running: MLX PID 1581, API PID 82691 on `486d774`, web PID 97771.
+Completed in this wave: signed-in public KILN-OK generation and health READY; public Stop, reload, Continue; a synthetic 20,032-token browser request delivered intact and answered its tail marker. This last result took 99.28 seconds to first token and added roughly 1.89 GiB of swapouts. The fixed two-corpus, 50-item semantic set has 50/50 offline evidence retention under the current packer, with 27 packed routes. It has no generated-answer score. The full backend test suite passed 294 tests. API code commit `53e6eac` was deployed after a fresh SQLite backup; a signed-in public POST-DEPLOY-OK reply was exact with TTFT 2,840 ms.
 
-Passed: G0 API rollback. Live health returns `inference_capability=UNVERIFIED` and `ready=false` while `reachable=true`.
+Immediate next work:
 
-Blocked:
+1. Check current memory and swapouts before further GPU work. At the most recent sample `vm.swapusage` reported 16,002 MiB used of 17,408 MiB, about 1,406 MiB free. Avoid simultaneous long GPU jobs. The earlier synthetic request itself added about 1.89 GiB of swapouts.
+2. Score the fixed 50 semantic questions through the deployed model, comparing full and packed routes on the same item only when memory pressure permits. Record strict answer, numeric value, unit, quote completeness, prompt tokens, TTFT, decode, and swapping. Do not label CPU evidence retention as answer quality.
+3. Run controlled video pause and timed generator recovery; independently test 20,000 Chinese characters and 20,000 tokenizer tokens for semantic understanding, not only transport. Revisit the failed G1–G5, G7–G8 entries after measurement.
 
-1. Further GPU work. The 16-token MLX call wrote about 5.93 GiB of swap pages and grew the swap file by 2 GiB. Do not start a 20k prefill until a 60 second sample shows swapouts flat and a second 16-token call adds near-zero swapouts.
-2. Kiln-mediated READY, browser Stop/Continue, and public SSE. `POST /chat` is 401. `api.env` has no bootstrap password. Do not search the disk for a password. The next human step is to log in once in the browser at `http://127.0.0.1:7777` or provide a session.
-
-Next command after a human session exists, and only if swapouts stay flat:
-
-```bash
-# one authenticated max_tokens=16 chat, then GET /health
-# expect inference_capability READY and verification_method user_generation
-```
-
-Do not run `launchctl kickstart` on `com.kiln.mlx`.
-
-Rollback of the API remains `c22d1c3`, documented in `deploy-and-rollback.md`.
+No disk deletion is qualified. Do not restart `com.kiln.mlx` for routine API deployment. Do not push without user request.
