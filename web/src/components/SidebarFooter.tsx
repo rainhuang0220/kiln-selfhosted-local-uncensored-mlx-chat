@@ -41,7 +41,7 @@ export function runtimeStatus(health: Health | null | undefined): RuntimeStatus 
     health?.gateway?.inference_capability === "UNVERIFIED" ||
     (state === "AVAILABLE" && health?.gateway?.last_verified_at == null)
   ) {
-    return { title: "端口在线", detail: "还没有一次成功生成", online: true };
+    return { title: "端口在线", detail: "近期生成尚未验证", online: true };
   }
   if (state === "AVAILABLE" || health?.provider?.reachable) {
     return { title: "模型在线", detail: null, online: true };

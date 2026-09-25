@@ -64,7 +64,7 @@ describe("runtimeStatus", () => {
       } as never),
     ).toEqual({
       title: "端口在线",
-      detail: "还没有一次成功生成",
+      detail: "近期生成尚未验证",
       online: true,
     });
   });
@@ -91,7 +91,7 @@ describe("runtimeStatus", () => {
       } as never),
     ).toEqual({
       title: "端口在线",
-      detail: "还没有一次成功生成",
+      detail: "近期生成尚未验证",
       online: true,
     });
   });
