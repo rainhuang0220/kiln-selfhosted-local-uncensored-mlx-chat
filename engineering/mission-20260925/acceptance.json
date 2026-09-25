@@ -1,7 +1,8 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
   "recorded_at": "2026-09-25T12:47:55+08:00",
-  "git_head": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
+  "git_head": "95e86a4",
+  "api_code_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
