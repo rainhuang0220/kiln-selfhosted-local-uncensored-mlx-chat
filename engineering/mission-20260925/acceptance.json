@@ -1,14 +1,14 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
-  "recorded_at": "2026-09-25T17:31:53+08:00",
-  "api_code_commit": "53e6eac",
+  "recorded_at": "2026-09-25T19:42:17+08:00",
+  "api_code_commit": "7a710f2",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
     "mlx_pid": 1581,
-    "api_pid": 70476,
+    "api_pid": 64536,
     "web_pid": 97771,
-    "api_loaded_commit": "53e6eac",
+    "api_loaded_commit": "7a710f2",
     "mlx_restarted": false,
     "web_asset": "index-CJGbwbMg.js"
   },
@@ -20,68 +20,57 @@
       "rule": "Record live state, keep a database backup, and actually roll the API back and forward without touching MLX.",
       "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "launchctl kickstart -k gui/501/com.kiln.api",
-      "result": "Fresh SQLite online backup and integrity_check=ok before both API-only restarts; earlier API backward/forward drill exists. Current API PID 70476; MLX PID unchanged 1581. This exact deployment wave has not been rolled back.",
+      "result": "Earlier API backward/forward drill left MLX on PID 1581. This wave backed up chat.db (integrity_check=ok) and restarted only the API onto 7a710f2, PID 64536. This exact commit was not rolled back.",
       "owner": "principal-engineer",
-      "current_blocker": "Exact-wave rollback drill remains optional until needed.",
+      "current_blocker": "Exact-wave rollback remains optional until needed.",
       "dependencies": []
     },
     "G1": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
       "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "GET http://127.0.0.1:8787/health",
-      "result": "Authenticated public generation returned KILN-OK on cf2dee9 and POST-DEPLOY-OK on API 53e6eac; live health became READY by user_generation. Video pause and under-three-minute restoration have not been exercised.",
+      "result": "Authenticated public generation became READY by user_generation on earlier API processes. After the 7a710f2 restart, health is UNVERIFIED, gateway AVAILABLE, provider reachable. Video pause and the 3-minute recovery were not run.",
       "owner": "principal-engineer",
-      "current_blocker": "Controlled video pause/recovery test is outstanding.",
-      "dependencies": [
-        "G0"
-      ]
+      "current_blocker": "Swapouts were still rising while MLX was idle. Do not bootout PID 1581.",
+      "dependencies": ["G0"]
     },
     "G2": {
       "status": "FAIL",
       "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
       "evidence": "engineering/mission-20260925/eval/behavior-audit.md",
-      "result": "All 30 behavior prompts were rerun sequentially on production MLX PID 1581 at temperature 0 and max_tokens 512, with per-call completion and swap evidence. All returned text; 27 finish_reason=stop, three length (B25/B26/B30). B08 factually wrong timezone conversion and B24 only two of requested three sentences reproduced despite normal stop. G2 content quality fails.",
+      "result": "All 30 behavior prompts returned text on PID 1581 at temperature 0. No refusal opener. B08 timezone conversion and B24 sentence count remain wrong.",
       "owner": "principal-engineer",
-      "current_blocker": "Investigate and fix factual/constraint failures, then grade a fixed full 30-item rubric; the three length-limited cases need adequate complete responses.",
-      "dependencies": [
-        "G1"
-      ]
+      "current_blocker": "Factual and constraint failures are still present. No new behavior run in this wave.",
+      "dependencies": ["G1"]
     },
     "G3": {
       "status": "FAIL",
       "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
-      "evidence": "engineering/mission-20260925/live-deploy-20260925.md; engineering/mission-20260925/eval/compendium-route-coverage.json",
-      "result": "Authenticated public browser delivered a 20,032-token synthetic prompt intact and answered its tail marker (TTFT 99.28 s). Direct MLX semantic pilot L01 used 21,088 prompt tokens, stopped normally after 107.473 s, and included the gold sentence plus an unwanted preceding sentence; 3,936 swapout pages. One 9,286-token packed pilot L43 identified the correct 8 人 but hit the 96-token output cap. The 50-item fixed compendium has 50/50 offline evidence retention; full generated-answer scoring and independent 20K-character semantic test remain outstanding. Answer verification now rejects a model number that disagrees with the two named measurements in the evidence (L24 50吨, L28 15摄氏度) and restores a missing unit from the evidence. It refuses to guess when the two named figures cannot be lined up. No new long GPU run: swap free was 1347 MiB.",
+      "evidence": "engineering/mission-20260925/convergence-20260925.md",
+      "result": "semantic-20k unpaid id 44091 matched on full, retrieval, and compression. Budget, outsourcing, missing volumes, and function name were summarized as retrieval hits without saved per-item outputs. Numeric difference 1462-187, the cross-section outsourcing relation, and an absent-fact refusal have no saved model answer. A direct 8081 POST timed out. The 50 short documents stay 28/50 exact with L24 and L28 wrong, and are a different set.",
       "owner": "principal-engineer",
-      "current_blocker": "Latest swap availability about 946 MiB after experimental packed L01; post-call Swapouts rose another 146,632 pages without clear attribution. Defer further long GPU cases until memory pressure improves; then run fixed 50-item semantic scoring and a separate 20K-character semantic case.",
-      "dependencies": [
-        "G1"
-      ]
+      "current_blocker": "Idle Swapouts rose 8280 pages in 8 seconds. Free swap was about 915 MiB. No retry.",
+      "dependencies": ["G1"]
     },
     "G4": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
-      "evidence": "engineering/mission-20260925/eval/README.md; backend/app/services/answer_verify.py",
-      "result": "Fixed compendium production packer retained 50/50 frozen evidence quotes (27 packed, 23 full). An offline experimental forced-pack audit also retained 50/50. On one same-question L01 direct-MLX pair, experimental packed used 9,450 versus 21,088 model prompt tokens (55.2% less), 45.106 versus 107.473 s total (2.38x); packed cached_tokens=0, full cache data unrecorded. Both answers included an unwanted preceding sentence, so strict quote quality failed in both. Not 50-item generated quality or browser TTFT evidence. Answer verification now rejects a model number that disagrees with the two named measurements in the evidence (L24 50吨, L28 15摄氏度) and restores a missing unit from the evidence. It refuses to guess when the two named figures cannot be lined up. No new long GPU run: swap free was 1347 MiB.",
+      "evidence": "engineering/mission-20260925/speed-paths.md",
+      "result": "One frozen lookup, answer 44091: full 13240 tokens / 62.754 s, retrieval 335 / 2.477 s, extractive compression 1890 / 8.856 s. Retrieval about 25x and compression about 7x versus that cold full text, same answer, no TTFT. Cache reuse 0.588 s is separate. Full-text prefill is not 2x versus 65.1 s and is not required. Not a 50-item median and not a browser measurement.",
       "owner": "principal-engineer",
-      "current_blocker": "Run fixed 50-item paired generated-answer scoring and browser TTFT with cache accounting before enabling a faster route for full-read requests.",
-      "dependencies": [
-        "G3"
-      ]
+      "current_blocker": "Need Kiln-browser TTFT on more than one item before calling the fast path enabled end to end.",
+      "dependencies": ["G3"]
     },
     "G5": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
       "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
-      "result": "Public browser short TTFT 2835 ms, Stop/reload/Continue persisted and completed; synthetic 20,032-token browser TTFT 99,280 ms. One direct-MLX same-item L01 pair shows 2.38x total-time speed for experimental packing, with no TTFT measurement. No matched end-to-end browser TTFT and quality result. SSE fuzz test rechecked: 2 tests passed, including 1000 randomly cut streams, on this worktree.",
+      "result": "Public browser Stop, reload, Continue, and session save passed on an older API. SSE fuzz passed, including 1000 cut streams; live frame order was not logged. Full-text prefill is not 2x. The router speedup above is direct MLX total time, not user-visible Kiln TTFT. Decode on short streams stayed near 21 tok/s.",
       "owner": "principal-engineer",
-      "current_blocker": "Run same-task cold full/retrieval comparisons through authenticated Kiln with quality grading.",
-      "dependencies": [
-        "G4",
-        "G7"
-      ]
+      "current_blocker": "Matched Kiln TTFT for the router path is still unmeasured.",
+      "dependencies": ["G4", "G7"]
     },
     "G6": {
       "status": "PASS",
@@ -93,35 +82,24 @@
       "dependencies": []
     },
     "G7": {
-      "status": "FAIL",
+      "status": "PARTIAL",
       "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
-      "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
-      "result": "API PID 70476 was restarted after 53e6eac; MLX remained PID 1581. Public HTML serves a672a2f asset. Signed-in public POST-DEPLOY-OK returned exactly (TTFT 2840 ms), with browser health model online. Earlier short chat, Stop/reload/Continue, and 20,032-token synthetic tail-marker case passed on cf2dee9. The new evidence-routing code passed 294 backend tests and 50/50 offline source coverage. Production video pause/restore and semantic long-document scoring are outstanding.",
+      "evidence": "engineering/mission-20260925/convergence-20260925.md",
+      "result": "API PID 64536 loaded 7a710f2; MLX remained 1581. Signed-in public checks and the 20032-token synthetic tail marker were on cf2dee9 and 53e6eac. Video pause and a browser pass of 7a710f2 were not run.",
       "owner": "principal-engineer",
-      "current_blocker": "Test timed video restore and semantic long-document quality on the deployed API.",
-      "dependencies": [
-        "G0",
-        "G1"
-      ]
+      "current_blocker": "Do not bootout production MLX to create a video-pause test.",
+      "dependencies": ["G0", "G1"]
     },
     "G8": {
       "status": "FAIL",
       "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
       "evidence": "engineering/mission-20260925/takeover-baseline.md",
-      "result": "Three independent read-only agents reviewed deployment, quality, and disk claims. Full independent live source, performance, browser, and deployment recheck remains outstanding.",
+      "result": "The ledger now names 7a710f2. No independent pass has rechecked that commit.",
       "owner": "principal-engineer",
-      "current_blocker": "Request independent rerun after remaining live gates are measured.",
-      "dependencies": [
-        "G1",
-        "G2",
-        "G3",
-        "G4",
-        "G5",
-        "G6",
-        "G7"
-      ]
+      "current_blocker": "Independent recheck is still outstanding.",
+      "dependencies": ["G1", "G2", "G3", "G4", "G5", "G6", "G7"]
     }
   },
   "head_lookup": "git rev-parse --short HEAD",
-  "deployed_backend_commit": "53e6eac"
+  "deployed_backend_commit": "7a710f2"
 }

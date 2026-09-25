@@ -1,15 +1,15 @@
-# Evidence index, 2026-09-25
+# Evidence index, 2026-09-25 19:42 CST
+
+Authoritative labels are in `acceptance.json`. Narrative: `convergence-20260925.md`.
 
 | Gate | Status | Where |
 | --- | --- | --- |
-| G0 | PASS | `deploy-and-rollback.md` |
-| G1 | FAIL | live health is UNVERIFIED; MLX 16-token sample is in `failure-registry.md`; Kiln chat is 401 |
-| G2 | FAIL | no 30-sample set |
-| G3 | BLOCKED | swapout burst in `failure-registry.md` |
-| G4 | FAIL | old under-budget tests only |
-| G5 | FAIL | `web/src/api/sse-fuzz.test.ts` passed; browser and public path did not |
-| G6 | PASS | `disk-dependency.md`，30 条全部保护，删除 0 |
-| G7 | FAIL | API is on 486d774; the rest of the smoke list is not |
-| G8 | FAIL | this ledger has not been independently re-run |
-
-Machine-readable copy: `acceptance.json`.
+| G0 | PASS | `live-deploy-20260925.md`; API-only restart to PID 64536 |
+| G1 | PARTIAL | READY was observed earlier; current health is UNVERIFIED; video recovery not run |
+| G2 | FAIL | `eval/behavior-audit.md`; B08 and B24 |
+| G3 | FAIL | `convergence-20260925.md`; three semantic checks have no saved model answer |
+| G4 | PARTIAL | `speed-paths.md`; one frozen three-path lookup |
+| G5 | PARTIAL | browser Stop/Continue in `live-deploy-20260925.md`; full-text prefill is not 2× |
+| G6 | PASS | `disk-dependency.md`, 30 protected, 0 deletions |
+| G7 | PARTIAL | API is `7a710f2`; browser proof stops at `53e6eac` |
+| G8 | FAIL | no independent recheck of `7a710f2` |
