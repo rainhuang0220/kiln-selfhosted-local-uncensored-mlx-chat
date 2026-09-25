@@ -38,6 +38,23 @@ questions and corpora, and neither records TTFT, so their times are not a
 paired route speed result. After L01, `vm.swapusage` showed 15,507 MiB used
 and 877 MiB free; long GPU tests were paused.
 
+`compendium-pilot-L01-packed.json` adds an experimental packed run for the
+*same* L01 question and corpus. It used 9,450 model prompt tokens, reported
+zero cached tokens, finished normally in 45.106 seconds, and the immediate
+before/after request sample showed no new swapout pages. A later system sample
+showed Swapouts had climbed by another 146,632 pages since the prior audit;
+the intervening activity was not attributed to this call. The full L01 run
+used 21,088 tokens and 107.473 seconds, so
+this one direct-MLX total-time pair has 55.2% fewer input tokens and a 2.38x
+speed ratio. The full run did not record cache usage, and neither run recorded
+TTFT. Both answers included an unwanted preceding sentence, so both fail a
+strict one-sentence quote. This is not an end-to-end browser benchmark or a
+50-item quality finding. The production router correctly uses full input
+for L01's “逐字” request; the packed run was an experiment only. An offline
+forced-pack audit retained the frozen evidence quote in all 50 items under
+the 10,240-token budget, but generated answer quality is still unmeasured for
+49 items.
+
 `longdoc-50.jsonl` 有 50 行。`behavior-30.jsonl` 有 30 行。校验在仓库根目录执行。
 
 ```bash

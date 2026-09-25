@@ -13,6 +13,11 @@ sentence but included an unwanted preceding sentence. The pilot total times
 are 46.799 and 107.473 seconds on different questions, so they are not a
 paired speed comparison. The L01 call added 3,936 swapout pages; afterward
 Swap free was about 877 MiB.
+An experimental forced-packed run on the same L01 question used 9,450 tokens
+and 45.106 seconds versus the full route's 21,088 tokens and 107.473 seconds.
+The ratio is 2.38x for direct MLX *total* time on one item, with no TTFT
+measurement; both outputs still fail strict one-sentence quoting. Production
+continues to serve L01 in full because it asks for a verbatim sentence.
 
 All 30 behavior prompts were rerun at temperature 0 with 512 output tokens
 and recorded `finish_reason` in `eval/behavior-30-rerun.jsonl`. Twenty-seven

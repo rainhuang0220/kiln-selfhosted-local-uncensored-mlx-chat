@@ -1,6 +1,6 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
-  "recorded_at": "2026-09-25T17:28:46+08:00",
+  "recorded_at": "2026-09-25T17:30:37+08:00",
   "api_code_commit": "53e6eac",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
@@ -63,9 +63,9 @@
       "status": "FAIL",
       "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
       "evidence": "engineering/mission-20260925/eval/README.md",
-      "result": "Current packer is not the experimental context_route module. On fixed compendium, offline source coverage is 50/50 (27 packed, 23 full). Separate MLX pilots L43 packed and L01 full used different questions, so their 46.799 and 107.473 s totals are not a paired speed or quality result.",
+      "result": "Fixed compendium production packer retained 50/50 frozen evidence quotes (27 packed, 23 full). An offline experimental forced-pack audit also retained 50/50. On one same-question L01 direct-MLX pair, experimental packed used 9,450 versus 21,088 model prompt tokens (55.2% less), 45.106 versus 107.473 s total (2.38x); packed cached_tokens=0, full cache data unrecorded. Both answers included an unwanted preceding sentence, so strict quote quality failed in both. Not 50-item generated quality or browser TTFT evidence.",
       "owner": "principal-engineer",
-      "current_blocker": "Paired generated-answer quality and time measurements on the same semantic compendium are outstanding.",
+      "current_blocker": "Run fixed 50-item paired generated-answer scoring and browser TTFT with cache accounting before enabling a faster route for full-read requests.",
       "dependencies": [
         "G3"
       ]
@@ -75,7 +75,7 @@
       "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
       "evidence": "engineering/mission-20260925/live-deploy-20260925.md",
       "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
-      "result": "Public browser short TTFT 2835 ms, Stop/reload/Continue persisted and completed; synthetic 20,032-token browser TTFT 99,280 ms. No matched cold full-versus-retrieval 2x browser result.",
+      "result": "Public browser short TTFT 2835 ms, Stop/reload/Continue persisted and completed; synthetic 20,032-token browser TTFT 99,280 ms. One direct-MLX same-item L01 pair shows 2.38x total-time speed for experimental packing, with no TTFT measurement. No matched end-to-end browser TTFT and quality result.",
       "owner": "principal-engineer",
       "current_blocker": "Run same-task cold full/retrieval comparisons through authenticated Kiln with quality grading.",
       "dependencies": [

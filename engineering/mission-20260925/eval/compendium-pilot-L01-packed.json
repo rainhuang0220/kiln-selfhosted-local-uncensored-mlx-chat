@@ -1,0 +1,16 @@
+{
+  "id": "L01",
+  "route": "experimental_packed_for_full_request",
+  "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+  "prompt_tokens_est": 9438,
+  "prompt_tokens_model": 9450,
+  "cached_tokens": 0,
+  "answer": "夜场只允许 ExhibitLight.dim 把东库三号柜降到40勒克斯。",
+  "output": "脚本里有一句不许改写。夜场只允许 ExhibitLight.dim 把东库三号柜降到 40 勒克斯。",
+  "finish_reason": "stop",
+  "seconds": 45.106,
+  "swapout_pages": 0,
+  "mlx_pid": 1581,
+  "model": "qwen3.5-9b-hauhau-aggressive-mxfp4",
+  "temperature": 0
+}
