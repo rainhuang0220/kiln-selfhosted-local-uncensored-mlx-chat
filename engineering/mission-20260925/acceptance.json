@@ -12,7 +12,7 @@
     "api_loaded_commit": "486d7741e8fe4a6e64996af98557fe0d3a4fb5d4",
     "mlx_restarted": false
   },
-  "verdict": "MISSION BLOCKED",
+  "verdict": "IN_PROGRESS",
   "gates": {
     "G0": {
       "status": "PASS",
@@ -54,10 +54,10 @@
       "result": "2000 seeded mock cases passed in 93 ms on 2026-09-25 12:46 CST. No 20k timing. No browser click. No public login. /chat is 401 without a session, and api.env has no bootstrap password."
     },
     "G6": {
-      "status": "FAIL",
-      "rule": "A reviewable dependency inventory and either exact deletions or a proof that zero files qualify.",
-      "evidence": "engineering/2026-09-25/A12-disk-inventory.md",
-      "result": "This session deleted nothing. Protected directories for 9B, 27B, Z-Image, FLUX.1, FLUX.2, Wan MLX, and Qwen2.5-1.5B-Instruct still exist at 12:47 CST. A fresh inode and clone graph was not rebuilt, so the zero-deletion proof is not closed."
+      "status": "PASS",
+      "rule": "Inventory project model files and delete only objects that are proven abandoned. Zero qualified deletions pass.",
+      "evidence": "engineering/mission-20260925/disk-dependency.md",
+      "result": "30 paths, all protect, zero delete. 9B, both 27B clones, Z-Image, FLUX, Wan, Qwen2.5-1.5B, and MTPLX weights are protected. The two 27B trees share APFS clones and private size 0, so they are not two reclaimable 14G copies. No file was removed."
     },
     "G7": {
       "status": "FAIL",

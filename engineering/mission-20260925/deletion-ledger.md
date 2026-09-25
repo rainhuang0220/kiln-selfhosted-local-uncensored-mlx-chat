@@ -16,4 +16,4 @@ These directories were still present:
 - `/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx`
 - `~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct`
 
-The earlier inventory at `engineering/2026-09-25/A12-disk-inventory.md` found zero files with enough evidence to delete. That scan was not repeated as a new inode and clone graph in this session, so G6 is not closed.
+The later graph in `disk-dependency.md` has 30 protected rows and zero delete rows. Nothing was removed after that graph either.

@@ -8,7 +8,7 @@
 | G3 | BLOCKED | swapout burst in `failure-registry.md` |
 | G4 | FAIL | old under-budget tests only |
 | G5 | FAIL | `web/src/api/sse-fuzz.test.ts` passed; browser and public path did not |
-| G6 | FAIL | `deletion-ledger.md` records zero deletes and an incomplete new graph |
+| G6 | PASS | `disk-dependency.md`，30 条全部保护，删除 0 |
 | G7 | FAIL | API is on 486d774; the rest of the smoke list is not |
 | G8 | FAIL | this ledger has not been independently re-run |
 
