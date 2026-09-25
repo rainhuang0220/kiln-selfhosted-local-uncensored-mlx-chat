@@ -40,6 +40,10 @@ from app.services.sampling import resolve_sampling
 from app.services.stream_protocol import StreamLedger
 from app.services.models import ModelManager
 from app.services.tokens import TokenEstimator
+from app.services.narrative import NarrativeOrchestrator, resume_events
+from app.services.narrative_prompt import export_config, import_config
+from app.services.narrative_schema import StoryBible, SceneState
+from app.services.profiles import normalize_profile
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,30 @@ class ChatBody(BaseModel):
     reasoning_effort: str | None = None
     thinking_continuation: bool | None = None
     evidence: str | None = Field(default=None, max_length=20000)
+    mode: str | None = None
+    target_visible_chars: int | None = Field(default=None, ge=1000, le=100000)
+    segment_chars: int | None = Field(default=None, ge=500, le=8000)
+
+
+class NarrativeResumeBody(BaseModel):
+    job_id: str = Field(min_length=8, max_length=64)
+    last_seq: int = Field(default=0, ge=0)
+
+
+class NarrativeContinueBody(BaseModel):
+    job_id: str = Field(min_length=8, max_length=64)
+    assistant_message_id: str | None = Field(default=None, min_length=8, max_length=64)
+    idempotency_key: str = Field(min_length=4, max_length=128)
+    stream: bool = True
+    max_new_segments: int = Field(default=8, ge=1, le=64)
+    segment_max_tokens: int | None = Field(default=None, ge=256, le=8192)
+    interrupt_kind: str = Field(default="network_disconnect", max_length=64)
+
+
+class NarrativeConfigBody(BaseModel):
+    story_bible: dict[str, Any] | None = None
+    scene_state: dict[str, Any] | None = None
+    format: str | None = None
 
 
 class RenameBody(BaseModel):
@@ -713,6 +741,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if parked is not None:
             return parked
         svc: ChatService = request.app.state.chat
+        profile_key = normalize_profile(body.profile)
+        mode = (body.mode or "").strip().lower()
+        use_narrative = mode in {"narrative", "long_form", "longform"} or profile_key == "long_form"
 
         def _chat_kwargs(**extra: Any) -> dict[str, Any]:
             return {
@@ -741,6 +772,38 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 **extra,
             }
 
+        async def _iter_chat() -> AsyncIterator[dict[str, Any]]:
+            if use_narrative and not body.continue_generation and not body.regenerate:
+                cancelled = {"v": False}
+
+                def cancel_check() -> bool:
+                    return cancelled["v"]
+
+                orch = NarrativeOrchestrator(svc)
+                agen = orch.run(
+                    message=body.message,
+                    conversation_id=body.conversation_id,
+                    owner_id=_owner(request),
+                    target_visible_chars=body.target_visible_chars or 20000,
+                    segment_chars=body.segment_chars or 2500,
+                    segment_max_tokens=body.max_tokens or 2048,
+                    temperature=body.temperature,
+                    top_p=body.top_p,
+                    top_k=body.top_k,
+                    system=body.system,
+                    cancel_check=cancel_check,
+                )
+                try:
+                    async for event in agen:
+                        if await request.is_disconnected():
+                            cancelled["v"] = True
+                        yield event
+                finally:
+                    cancelled["v"] = True
+                return
+            async for event in svc.chat(**_chat_kwargs(stream=True)):
+                yield event
+
         async def event_stream() -> AsyncIterator[bytes]:
             request_id = uuid.uuid4().hex
             seq = 0
@@ -753,7 +816,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 body["seq"] = seq
                 return body
 
-            agen = svc.chat(**_chat_kwargs(stream=True))
+            agen = _iter_chat()
             stream = iterate_with_heartbeats(agen, cfg.heartbeat_s)
             try:
                 async for event in stream:
@@ -795,7 +858,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         snapshot = None
         done = None
         err = None
-        async for event in svc.chat(**_chat_kwargs(stream=False)):
+        async for event in _iter_chat():
             name = event["event"]
             if name == "meta":
                 meta = event["data"]
@@ -811,13 +874,212 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if not meta or not done:
             return error_body("empty generation", "api_error", "upstream_error", status=502)
         return {
-            "conversation_id": meta["conversation_id"],
-            "created": meta["created"],
+            "conversation_id": meta.get("conversation_id") or done.get("conversation_id"),
+            "created": meta.get("created", False),
             "message": done["message"],
             "finish_reason": done["finish_reason"],
-            "model": meta["model"],
+            "model": meta.get("model") or cfg.model_name,
             "usage": done["usage"],
+            "job_id": done.get("job_id") or meta.get("job_id"),
+            "length_trace": done.get("length_trace"),
+            "terminal_state": done.get("terminal_state"),
+            "metrics": done.get("metrics"),
+            "snapshot": snapshot,
             "context": snapshot,
+        }
+
+    @app.get("/narrative/jobs/{job_id}")
+    async def narrative_job(job_id: str, request: Request):
+        from app.services import narrative_store as nstore
+
+        job = nstore.get_job(job_id, owner_id=_owner(request))
+        if job is None:
+            return error_body("job not found", "not_found_error", "job_not_found", status=404)
+        segments = nstore.list_segments(job_id)
+        body = nstore.reassemble_body(job_id)
+        return {
+            "job": {k: job[k] for k in job.keys() if k not in {"bible_json", "plan_json", "scene_json"}},
+            "bible": json.loads(job["bible_json"] or "{}"),
+            "plan": json.loads(job["plan_json"] or "{}"),
+            "scene": json.loads(job["scene_json"] or "{}"),
+            "segments": [
+                {
+                    "segment_id": s["segment_id"],
+                    "ordinal": s["ordinal"],
+                    "beat_id": s["beat_id"],
+                    "visible_chars": s["visible_chars"],
+                    "han_chars": s["han_chars"],
+                    "finish_reason": s["finish_reason"],
+                    "output_sha256": s["output_sha256"],
+                    "start_offset": s["start_offset"],
+                    "end_offset": s["end_offset"],
+                }
+                for s in segments
+            ],
+            "body_visible_chars": len("".join(body.split())),
+            "body_sha256": __import__("hashlib").sha256(body.encode()).hexdigest(),
+        }
+
+    @app.post("/narrative/resume")
+    async def narrative_resume(body: NarrativeResumeBody, request: Request):
+        async def event_stream() -> AsyncIterator[bytes]:
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                out = dict(data) if isinstance(data, dict) else {"payload": data}
+                out["request_id"] = request_id
+                out["seq"] = seq
+                return out
+
+            async for event in resume_events(
+                body.job_id, owner_id=_owner(request), last_seq=body.last_seq
+            ):
+                if await request.is_disconnected():
+                    return
+                yield _sse(event["event"], stamped(event.get("data")))
+            yield b"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @app.post("/narrative/continue")
+    async def narrative_continue(body: NarrativeContinueBody, request: Request):
+        parked = _chat_parked_response(request)
+        if parked is not None:
+            return parked
+        svc: ChatService = request.app.state.chat
+        orch = NarrativeOrchestrator(svc)
+        cancelled = {"v": False}
+        interrupt_box = {"kind": body.interrupt_kind or "network_disconnect"}
+
+        def cancel_check() -> bool:
+            return cancelled["v"]
+
+        async def _iter():
+            agen = orch.continue_job(
+                job_id=body.job_id,
+                owner_id=_owner(request),
+                assistant_message_id=body.assistant_message_id,
+                idempotency_key=body.idempotency_key,
+                segment_max_tokens=body.segment_max_tokens,
+                max_new_segments=body.max_new_segments,
+                cancel_check=cancel_check,
+                interrupt_kind=lambda: interrupt_box["kind"],
+            )
+            try:
+                async for event in agen:
+                    if await request.is_disconnected():
+                        cancelled["v"] = True
+                        interrupt_box["kind"] = "network_disconnect"
+                    yield event
+            finally:
+                cancelled["v"] = True
+
+        async def event_stream() -> AsyncIterator[bytes]:
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                out = dict(data) if isinstance(data, dict) else {"payload": data}
+                out["request_id"] = request_id
+                out["seq"] = seq
+                return out
+
+            stream = iterate_with_heartbeats(_iter(), cfg.heartbeat_s)
+            try:
+                async for event in stream:
+                    if await request.is_disconnected():
+                        cancelled["v"] = True
+                        interrupt_box["kind"] = "network_disconnect"
+                        await stream.aclose()
+                        return
+                    yield _sse(event["event"], stamped(event.get("data")))
+                yield b"data: [DONE]\n\n"
+            except (asyncio.CancelledError, GeneratorExit):
+                cancelled["v"] = True
+                await stream.aclose()
+                raise
+            except Exception as exc:  # noqa: BLE001
+                yield _sse(
+                    "error",
+                    stamped(
+                        {
+                            "error": {
+                                "message": str(exc),
+                                "type": "api_error",
+                                "code": "upstream_error",
+                            }
+                        }
+                    ),
+                )
+                yield b"data: [DONE]\n\n"
+
+        if body.stream:
+            return StreamingResponse(
+                event_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        done = None
+        err = None
+        meta = None
+        async for event in _iter():
+            if event["event"] == "done":
+                done = event["data"]
+            elif event["event"] == "error":
+                err = event
+            elif event["event"] == "meta":
+                meta = event["data"]
+        if err:
+            return JSONResponse(err["data"], status_code=err.get("status") or 502)
+        if not done:
+            return error_body("empty continue", "api_error", "upstream_error", status=502)
+        return {
+            "job_id": done.get("job_id"),
+            "conversation_id": done.get("conversation_id") or (meta or {}).get("conversation_id"),
+            "message": done["message"],
+            "finish_reason": done.get("finish_reason"),
+            "terminal_state": done.get("terminal_state"),
+            "length_trace": done.get("length_trace"),
+            "idempotent_replay": done.get("idempotent_replay", False),
+            "metrics": done.get("metrics"),
+            "pause_reason": done.get("pause_reason"),
+        }
+
+    @app.post("/narrative/config/export")
+    async def narrative_config_export(body: NarrativeConfigBody, request: Request):
+        _ = request
+        bible = StoryBible.from_dict(body.story_bible or {})
+        scene = SceneState.from_dict(body.scene_state or {})
+        return export_config(bible, scene)
+
+    @app.post("/narrative/config/import")
+    async def narrative_config_import(body: NarrativeConfigBody, request: Request):
+        _ = request
+        bible, scene = import_config(body.model_dump())
+        # creator_notes never auto-promoted into stable contract
+        return {
+            "ok": True,
+            "story_bible": bible.to_dict(),
+            "scene_state": scene.to_dict(),
+            "config_hash": bible.config_hash(),
         }
 
     @app.get("/conversation")

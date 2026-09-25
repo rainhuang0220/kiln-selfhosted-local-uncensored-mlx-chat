@@ -1699,6 +1699,15 @@ class ChatService:
                 "terminal_state": terminal.value,
                 "incomplete": ledger.incomplete(terminal),
                 "metrics": metrics,
+                "length_trace": {
+                    "requested_max_tokens": max_tokens,
+                    "effective_max_tokens": max_tokens,
+                    "generated_tokens": completion_tokens,
+                    "visible_char_count": len("".join((content_buf or "").split())),
+                    "finish_reason": finish,
+                    "terminal_state": terminal.value,
+                    "model_finish_reason": ledger.model_finish_reason,
+                },
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,

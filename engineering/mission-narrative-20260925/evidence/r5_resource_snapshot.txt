@@ -1,0 +1,5 @@
+vm.swapusage: total = 18432.00M  used = 17565.88M  free = 866.12M  (encrypted)
+Pages free:                                     5434.
+Pages active:                                 347228.
+Pages occupied by compressor:                 582138.
+Swapouts:                                   78954137.

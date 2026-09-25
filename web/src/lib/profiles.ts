@@ -49,12 +49,29 @@ export const PROFILE_PRESETS: Record<GenerationProfile, GenerationParams> = {
     enableThinking: true,
     reasoningEffort: "medium",
   },
+  long_form: {
+    profile: "long_form",
+    temperature: 0.7,
+    topP: 0.9,
+    topK: 20,
+    minP: 0,
+    presencePenalty: 0.3,
+    presenceContextSize: 256,
+    frequencyPenalty: 0,
+    frequencyContextSize: 256,
+    repetitionPenalty: 1.0,
+    repetitionContextSize: 128,
+    maxTokens: 2048,
+    enableThinking: false,
+    reasoningEffort: "medium",
+  },
 };
 
 export const PROFILE_LABELS: Record<GenerationProfile, string> = {
   interactive_dialogue: "Interactive Dialogue",
   balanced: "Balanced",
   reasoning: "Reasoning",
+  long_form: "Long Form (20K+)",
 };
 
 export function isIncompleteTerminal(finish?: string | null, terminal?: string | null): boolean {

@@ -58,11 +58,29 @@ REASONING = {
     "prompt_budget": 32768,
 }
 
+# Long-form narrative: ordinary chat stays on interactive_dialogue.
+# Per-segment max_tokens is a budget, not the whole-work limit.
+LONG_FORM = {
+    **BALANCED,
+    "profile": "long_form",
+    "max_tokens": 2048,
+    "segment_max_tokens": 2048,
+    "target_visible_chars": 20000,
+    "segment_chars": 2500,
+    "mode": "narrative",
+    "enable_thinking": False,
+    "presence_penalty": 0.3,
+    "prompt_soft_target": 12288,
+    "prompt_budget": 16384,
+}
+
 PROFILES: dict[str, dict[str, Any]] = {
     "interactive_dialogue": INTERACTIVE_DIALOGUE,
     "conversational": INTERACTIVE_DIALOGUE,
     "balanced": BALANCED,
     "reasoning": REASONING,
+    "long_form": LONG_FORM,
+    "narrative": LONG_FORM,
 }
 
 DEFAULT_PROFILE = "interactive_dialogue"
@@ -77,11 +95,18 @@ def normalize_profile(name: str | None) -> str:
         "chat": "interactive_dialogue",
         "think": "reasoning",
         "thinking": "reasoning",
+        "longform": "long_form",
+        "long_output": "long_form",
+        "story": "long_form",
     }
     key = aliases.get(key, key)
     if key not in PROFILES:
         return DEFAULT_PROFILE
-    return "interactive_dialogue" if key == "conversational" else key
+    if key == "conversational":
+        return "interactive_dialogue"
+    if key == "narrative":
+        return "long_form"
+    return key
 
 
 def resolve_profile(name: str | None) -> dict[str, Any]:

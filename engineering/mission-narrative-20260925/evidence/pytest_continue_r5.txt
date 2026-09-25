@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.12, pytest-9.1.1, pluggy-1.6.0 -- /Users/rainhuang/Desktop/models/kiln/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/rainhuang/Desktop/models/kiln/backend
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.14.2, respx-0.23.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 12 items
+
+tests/test_narrative_continue.py::test_continue_resumes_same_job_without_duplicating_body PASSED [  8%]
+tests/test_narrative_continue.py::test_repeat_continue_same_idempotency_key_is_noop PASSED [ 16%]
+tests/test_narrative_continue.py::test_http_continue_endpoint_and_dual_client_lock PASSED [ 25%]
+tests/test_narrative_continue.py::test_resource_pause_when_swap_free_low PASSED [ 33%]
+tests/test_narrative_continue.py::test_resource_allows_continue_when_free_ok PASSED [ 41%]
+tests/test_narrative_continue.py::test_continue_pauses_before_segment_when_resources_low PASSED [ 50%]
+tests/test_narrative_continue.py::test_save_failure_does_not_count_unsaved_chars PASSED [ 58%]
+tests/test_narrative_continue.py::test_interrupt_reasons_are_distinct PASSED [ 66%]
+tests/test_narrative_continue.py::test_dual_continue_second_client_gets_busy PASSED [ 75%]
+tests/test_narrative_continue.py::test_continue_survives_process_restart_simulation PASSED [ 83%]
+tests/test_narrative_continue.py::test_sse_disconnect_marks_network_disconnect PASSED [ 91%]
+tests/test_narrative_continue.py::test_run_pauses_before_next_segment_on_low_resources PASSED [100%]
+
+============================== 12 passed in 3.30s ==============================

@@ -535,6 +535,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           regenerate: regen,
           continue_generation: cont,
           profile: params.profile,
+          mode: params.profile === "long_form" ? "narrative" : undefined,
+          target_visible_chars: params.profile === "long_form" ? 20000 : undefined,
+          segment_chars: params.profile === "long_form" ? 2500 : undefined,
           stream: true,
           temperature: params.temperature,
           top_p: params.topP,
@@ -573,13 +576,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (ev.event === "meta") {
           const data = ev.data as {
             conversation_id: string;
-            message_id: string;
+            message_id?: string;
+            assistant_message_id?: string;
             user_message_id: string;
             created: boolean;
+            job_id?: string;
+            mode?: string;
+            target_visible_chars?: number;
           };
           accepted = true;
           userId = data.user_message_id;
-          asstId = data.message_id;
+          asstId = data.message_id || data.assistant_message_id || asstId;
           set((s) => ({
             activeId: data.conversation_id,
             draft: "",
@@ -651,6 +658,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               m.id === asstId ? { ...m, usage } : m,
             ),
           }));
+        } else if (ev.event === "narrative_segment") {
+          // Progress only — body grows via delta events on the same assistant message.
+          continue;
         } else if (ev.event === "ping") {
           continue;
         } else if (ev.event === "transport_eof") {

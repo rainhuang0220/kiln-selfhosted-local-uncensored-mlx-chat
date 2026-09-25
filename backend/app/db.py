@@ -174,6 +174,120 @@ def migrate(conn: sqlite3.Connection) -> None:
         VALUES (4, '0004_private_sessions', CAST(strftime('%s','now') AS INTEGER) * 1000)
         """
     )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS narrative_jobs (
+          job_id TEXT PRIMARY KEY,
+          owner_id TEXT,
+          conversation_id TEXT NOT NULL,
+          assistant_message_id TEXT NOT NULL,
+          mode TEXT NOT NULL,
+          target_visible_chars INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          model TEXT NOT NULL,
+          prompt_version TEXT NOT NULL DEFAULT 'narrative.v1',
+          user_authored_config_hash TEXT NOT NULL DEFAULT '',
+          input_sha256 TEXT NOT NULL,
+          total_visible_chars INTEGER NOT NULL DEFAULT 0,
+          total_model_tokens INTEGER NOT NULL DEFAULT 0,
+          current_segment INTEGER NOT NULL DEFAULT 0,
+          next_beat_id TEXT,
+          last_event_seq INTEGER NOT NULL DEFAULT 0,
+          bible_json TEXT NOT NULL DEFAULT '{}',
+          plan_json TEXT NOT NULL DEFAULT '{}',
+          scene_json TEXT NOT NULL DEFAULT '{}',
+          resume_cursor TEXT NOT NULL DEFAULT '',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_narrative_jobs_owner
+          ON narrative_jobs(owner_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_narrative_jobs_conv
+          ON narrative_jobs(conversation_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS narrative_segments (
+          segment_id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL REFERENCES narrative_jobs(job_id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL,
+          beat_id TEXT NOT NULL,
+          start_offset INTEGER NOT NULL,
+          end_offset INTEGER NOT NULL,
+          generated_token_count INTEGER NOT NULL DEFAULT 0,
+          finish_reason TEXT,
+          output_sha256 TEXT NOT NULL,
+          content TEXT NOT NULL,
+          visible_chars INTEGER NOT NULL DEFAULT 0,
+          han_chars INTEGER NOT NULL DEFAULT 0,
+          state_before_json TEXT NOT NULL DEFAULT '{}',
+          state_after_json TEXT NOT NULL DEFAULT '{}',
+          durably_committed INTEGER NOT NULL DEFAULT 1,
+          transport_integrity TEXT NOT NULL DEFAULT 'ok',
+          idempotency_key TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          UNIQUE(job_id, idempotency_key),
+          UNIQUE(job_id, ordinal)
+        );
+
+        CREATE TABLE IF NOT EXISTS narrative_events (
+          event_id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL REFERENCES narrative_jobs(job_id) ON DELETE CASCADE,
+          seq INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          content_offset INTEGER,
+          content_sha256 TEXT,
+          created_at INTEGER NOT NULL,
+          UNIQUE(job_id, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_narrative_events_job
+          ON narrative_events(job_id, seq);
+
+        CREATE TABLE IF NOT EXISTS narrative_source_docs (
+          doc_id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL REFERENCES narrative_jobs(job_id) ON DELETE CASCADE,
+          owner_id TEXT,
+          sha256 TEXT NOT NULL,
+          content TEXT NOT NULL,
+          char_len INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_narrative_source_job
+          ON narrative_source_docs(job_id);
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+        VALUES (5, '0005_narrative_engine', CAST(strftime('%s','now') AS INTEGER) * 1000)
+        """
+    )
+    if not _has_column(conn, "narrative_jobs", "pause_reason"):
+        conn.execute("ALTER TABLE narrative_jobs ADD COLUMN pause_reason TEXT")
+    if not _has_column(conn, "narrative_jobs", "interrupt_kind"):
+        conn.execute("ALTER TABLE narrative_jobs ADD COLUMN interrupt_kind TEXT")
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS narrative_continue_requests (
+          request_id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL REFERENCES narrative_jobs(job_id) ON DELETE CASCADE,
+          idempotency_key TEXT NOT NULL,
+          owner_id TEXT,
+          status TEXT NOT NULL,
+          result_json TEXT,
+          created_at INTEGER NOT NULL,
+          completed_at INTEGER,
+          UNIQUE(job_id, idempotency_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_narrative_continue_job
+          ON narrative_continue_requests(job_id, created_at DESC);
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+        VALUES (6, '0006_narrative_continue', CAST(strftime('%s','now') AS INTEGER) * 1000)
+        """
+    )
 
 
 def init_db(path: str | None = None) -> sqlite3.Connection:

@@ -1,0 +1,15 @@
+{
+  "status": "KNOWN LIMIT",
+  "paused": true,
+  "reason": "low_pages_free",
+  "resources": {
+    "snapshot": {
+      "swap_free_mib": 1002.12,
+      "swapout_pages": 78954137,
+      "pages_free": 4166
+    },
+    "should_pause": true,
+    "reason": "low_pages_free"
+  },
+  "mlx_pid": 1581
+}

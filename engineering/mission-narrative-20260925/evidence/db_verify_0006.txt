@@ -1,0 +1,6 @@
+0
+narrative_jobs
+narrative_segments
+narrative_events
+narrative_source_docs
+narrative_continue_requests

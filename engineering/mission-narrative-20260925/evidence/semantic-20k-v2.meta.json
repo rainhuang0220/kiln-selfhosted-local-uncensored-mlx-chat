@@ -1,0 +1,18 @@
+{
+  "id": "semantic-20k-v2",
+  "path": "engineering/mission-20260925/eval/semantic-20k-v2.txt",
+  "mirror_path": "engineering/mission-narrative-20260925/eval/semantic-20k-v2.txt",
+  "raw_chars": 20720,
+  "visible_chars": 20227,
+  "han_chars": 12235,
+  "tokenizer_tokens": 13708,
+  "tokenizer": "mlx_lm load_tokenizer qwen3.5-9b-hauhau-aggressive-mxfp4",
+  "sha256": "b3a1509f7361ec07ba42c16103a9cb1cf9507a4248abc8738d04a29c818b808e",
+  "v1_path": "engineering/mission-20260925/eval/semantic-20k.txt",
+  "v1_sha256_unchanged": "10e8768254c1946384d53f263bfb7470894cd6e759f4d9024324dfe03ad93b06",
+  "v1_visible_chars": 19519,
+  "v1_han_chars": 11714,
+  "v1_tokenizer_tokens": 13217,
+  "pass_visible_ge_20000": true,
+  "note": "v1 file was not modified; v2 is additive."
+}

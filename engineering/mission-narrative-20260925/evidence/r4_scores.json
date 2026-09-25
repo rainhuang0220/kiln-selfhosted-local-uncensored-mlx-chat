@@ -1,0 +1,155 @@
+{
+  "input_length": {
+    "axis": "input_length",
+    "raw_chars": 20000,
+    "visible_chars": 19519,
+    "han_chars": 11714,
+    "pass_ge_20000_visible": false,
+    "note": "Han count is reported separately; do not equate visible chars with Han chars."
+  },
+  "fact_retrieval": {
+    "axis": "fact_retrieval",
+    "probes": 15,
+    "source_pass": 15,
+    "source_rate": 1.0,
+    "answer_pass": null,
+    "answer_rate": null,
+    "rows": [
+      {
+        "id": "P01",
+        "kind": "fact",
+        "expect": "128400",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P02",
+        "kind": "fact",
+        "expect": "林昭",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P03",
+        "kind": "fact",
+        "expect": "周晚宁",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P04",
+        "kind": "negation",
+        "expect": "没有批准",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P05",
+        "kind": "fact",
+        "expect": "3次",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P06",
+        "kind": "fact",
+        "expect": "1462",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P07",
+        "kind": "fact",
+        "expect": "187",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P08",
+        "kind": "fact",
+        "expect": "65%",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P09",
+        "kind": "fact",
+        "expect": "300dpi",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P10",
+        "kind": "fact",
+        "expect": "陈屿",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P11",
+        "kind": "relation",
+        "expect": "只读",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P12",
+        "kind": "timeline",
+        "expect": "开工会",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P13",
+        "kind": "timeline",
+        "expect": "潮鸣街道",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P14",
+        "kind": "state",
+        "expect": "48小时",
+        "source_ok": true,
+        "answer_ok": null
+      },
+      {
+        "id": "P15",
+        "kind": "state",
+        "expect": "磁盘B",
+        "source_ok": true,
+        "answer_ok": null
+      }
+    ],
+    "pass": true
+  },
+  "story_quality": {
+    "axis": "story_quality",
+    "visible_chars": 20637,
+    "han_chars": 18148,
+    "repeat_ratio": 0.1309662398137369,
+    "issue_count": 0,
+    "issues": [],
+    "hard_failures": [],
+    "pass": true,
+    "note": "Lexical/heuristic probes only — not a claim of human subjective quality."
+  },
+  "distinctions": {
+    "visible_vs_han": "input visible_chars vs han_chars are separate fields",
+    "length_vs_quality": "long-form length success does not imply story_quality pass",
+    "source_vs_answer": "fact_retrieval.source_* scores the frozen input; answer_* only if model output provided"
+  },
+  "gate_summary": {
+    "input_length": "FAIL",
+    "input_length_detail": "frozen semantic-20k.txt visible_chars=19519 < 20000 (raw=20000, han=11714)",
+    "fact_retrieval_source": "PASS 15/15",
+    "fact_retrieval_answer": "NOT_SCORED (no semantic-20k model answer under GPU pause)",
+    "story_quality_heuristic": "PASS on live fishing-village narrative body (job 9f12425c) — not subjective human QA; length success alone does not imply quality",
+    "visible_vs_han": {
+      "live_body_visible": 20637,
+      "live_body_han": 18148
+    },
+    "raw_output": "evidence/live_narrative_20k_body.txt",
+    "issue_categories_observed": []
+  }
+}

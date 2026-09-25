@@ -13,6 +13,11 @@ describe("profiles", () => {
     expect(PROFILE_PRESETS.interactive_dialogue.maxTokens).toBeLessThanOrEqual(2048);
   });
 
+  it("long_form is the multi-segment 20K path", () => {
+    expect(PROFILE_PRESETS.long_form.profile).toBe("long_form");
+    expect(PROFILE_PRESETS.long_form.maxTokens).toBeGreaterThanOrEqual(2048);
+  });
+
   it("explains abnormal terminals", () => {
     expect(terminalCopy("interrupted_transport", null)).toBe("生成未正常完成");
     expect(terminalCopy("length", null)).toBe("已达到输出上限");

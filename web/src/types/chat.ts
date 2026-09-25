@@ -19,7 +19,12 @@ export interface TokenUsage {
   decodeTokensPerSec?: number | null;
 }
 
-export type GenerationProfile = "interactive_dialogue" | "balanced" | "reasoning";
+export type GenerationProfile =
+  | "interactive_dialogue"
+  | "balanced"
+  | "reasoning"
+  | "long_form";
+
 
 export interface GenerationParams {
   profile: GenerationProfile;
