@@ -244,6 +244,13 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         app.state.media = media_svc
         app.state.chat_lifecycle = media_svc.lifecycle
         app.state.settings = cfg
+        if chat is None:
+            from app.services.readiness_probe import consume_probe_flag
+
+            try:
+                await asyncio.wait_for(consume_probe_flag(app.state.chat), timeout=30)
+            except TimeoutError:
+                app.state.chat.note_inference_timeout("readiness probe timed out")
         try:
             if media is None and chat is None and cfg.pause_chat_for_video:
                 from app.services.media_runtime import _health_ok, restore_mlx
