@@ -1,0 +1,14 @@
+{
+  "id": "L43",
+  "route": "packed",
+  "prompt_tokens_est": 9274,
+  "prompt_tokens_model": 9286,
+  "answer": "8人",
+  "output": "在章节 [L43] 中，调度钱班将夜班人数改成了 **8 人**。\n\n**依据原文：**\n> “赵站按名册先说。他说：「夜班人手是 11 人。」钱班摇头，因为请假条已经到了……两人的更正连在一起。赵站说完，调度钱班说：「不是 11 人，请假后是 8 人。」赵站把名册改",
+  "finish_reason": "length",
+  "seconds": 46.799,
+  "swapout_pages": 0,
+  "mlx_pid": 1581,
+  "model": "qwen3.5-9b-hauhau-aggressive-mxfp4",
+  "temperature": 0
+}

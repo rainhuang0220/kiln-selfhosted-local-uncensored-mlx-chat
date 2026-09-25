@@ -22,6 +22,22 @@ route budgets. It reports 50/50 retained (27 packed, 23 served in full). This
 is a source coverage check, not a generated answer score. Questions contain
 explicit section IDs, which make this easier than open-ended retrieval.
 
+## Live semantic pilots (MLX PID 1581, temperature 0)
+
+`compendium-pilot-L43.json` records one direct MLX packed-route call: 9,286
+model prompt tokens, 46.799 seconds total, zero new swapout pages. The reply
+identified the correct `8 人`, but the 96-token output limit ended with
+`finish_reason=length`; it cannot be graded as a complete answer.
+
+`compendium-pilot-L01.json` records one direct MLX full-route call: 21,088
+model prompt tokens, 107.473 seconds total, 3,936 new 16-KiB swapout pages.
+The answer included the gold sentence but also the preceding sentence inside
+its purported quote. It therefore fails a strict one-sentence reading, even
+though normalized answer containment is true. Both pilots use different
+questions and corpora, and neither records TTFT, so their times are not a
+paired route speed result. After L01, `vm.swapusage` showed 15,507 MiB used
+and 877 MiB free; long GPU tests were paused.
+
 `longdoc-50.jsonl` 有 50 行。`behavior-30.jsonl` 有 30 行。校验在仓库根目录执行。
 
 ```bash
@@ -70,5 +86,6 @@ PY
 `longdoc-scores.json` 是这 50 行在 MLX PID 1581、temperature 0 上的结果，不是更早那套模板题。去掉空格后答案整句出现：28/50。另外 18 题数字对、单位词没写。L14 和 L16 写出了带标识符的分句，少了句首几个字。数字本身错的是 L24（答 60，应为 50）和 L28（答 25，应为 15），检索片段里已经有正确的两个原数。
 
 `behavior-scores.json` 是这 30 条行为题。30 条都有正文，没有一条以拒答套话开头。这不是质量分。
+`behavior-audit.md` 复核了部分内容：B08 时区换算错误，B24 要求三句话却只有两句，B01、B28 等输出明显未写完。旧分数文件没有 `finish_reason`，不能用作完整质量验收。
 
 `semantic-20k.txt` 和上一级 `speed-paths.md` 是另一篇 20000 字，不要和这 50 题的耗时混在一起。
