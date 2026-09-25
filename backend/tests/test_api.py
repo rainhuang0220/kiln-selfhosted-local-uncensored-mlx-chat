@@ -169,6 +169,7 @@ def test_chat_non_stream_roundtrip(client):
     assert body["created"] is True
     assert body["message"]["role"] == "assistant"
     assert "echo:hello kiln" in body["message"]["content"]
+    assert "answer_check" not in body["message"]
     assert body["usage"]["prompt_tokens"] == 12
     cid = body["conversation_id"]
 
@@ -201,6 +202,39 @@ def test_chat_non_stream_roundtrip(client):
     detail2 = client.get(f"/conversation/{cid}")
     user_msgs = [m for m in detail2.json()["messages"] if m["role"] == "user"]
     assert len(user_msgs) == 2
+
+
+def test_evidence_corrects_only_when_the_measurement_is_named(client):
+    checked = client.post(
+        "/chat",
+        json={
+            "message": "当日处理水量比外排达标水量多多少吨",
+            "stream": False,
+            "max_tokens": 16,
+            "evidence": "去年同日的处理水量是700吨。当日处理水量是640吨。外排达标水量是590吨。",
+        },
+    )
+    assert checked.status_code == 200, checked.text
+    corrected = checked.json()["message"]
+    assert corrected["content"] == "50吨"
+    assert corrected["answer_check"]["applied"] is True
+    assert corrected["answer_check"]["reason"] == "evidence_difference"
+    assert corrected["answer_check"]["original"].startswith("echo:")
+
+    refused = client.post(
+        "/chat",
+        json={
+            "message": "合同编号是多少",
+            "stream": False,
+            "max_tokens": 16,
+            "evidence": "这里没有合同编号。",
+        },
+    )
+    assert refused.status_code == 200, refused.text
+    untouched = refused.json()["message"]
+    assert untouched["content"].startswith("echo:")
+    assert untouched["answer_check"]["applied"] is False
+    assert untouched["answer_check"]["reason"] == "insufficient_evidence"
 
 
 def test_delete_message_removes_a_complete_turn(client):

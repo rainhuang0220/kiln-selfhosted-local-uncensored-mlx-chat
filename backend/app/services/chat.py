@@ -18,6 +18,7 @@ from app.services.continuation import (
 from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
 from app.services.inference_watch import InferenceWatch
+from app.services.answer_verify import verify_answer
 from app.services.ingest import pack_user_message, requests_full_document
 from app.services.memory import MemoryService
 from app.services.profiles import resolve_profile
@@ -835,6 +836,7 @@ class ChatService:
         reasoning_effort: str | None = None,
         thinking_continuation: bool | None = None,
         owner_id: str | None = None,
+        evidence: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
         text = (message or "").strip()
@@ -1083,6 +1085,7 @@ class ChatService:
         assistant_id = ""
         snapshot_id = ""
         content_buf = resume_content
+        answer_check: dict[str, Any] | None = None
         reasoning_buf = resume_reasoning
         prompt_tokens = 0
         completion_tokens = 0
@@ -1412,6 +1415,30 @@ class ChatService:
             finish = ledger.stored_finish_reason(terminal)
             if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
                 error = "upstream stream ended before a reliable terminal"
+            if evidence and content_buf:
+                checked = verify_answer(
+                    question=text,
+                    evidence=evidence,
+                    model_output=content_buf,
+                )
+                answer_check = {
+                    "original": content_buf,
+                    "reason": checked.source,
+                    "applied": False,
+                }
+                reliable = checked.source in {
+                    "evidence",
+                    "evidence_difference",
+                    "evidence_quote",
+                }
+                should_apply = reliable and bool(checked.answer) and (
+                    checked.model_number_ok is False
+                    or checked.unit_restored
+                    or checked.extra_context
+                )
+                if should_apply:
+                    content_buf = checked.answer
+                    answer_check["applied"] = True
             try:
                 if assistant_id:
                     if not snapshot_id:
@@ -1520,6 +1547,7 @@ class ChatService:
                     "content": content_buf,
                     "reasoning_content": reasoning_buf or None,
                     "status": status,
+                    **({"answer_check": answer_check} if answer_check else {}),
                 },
             },
         }

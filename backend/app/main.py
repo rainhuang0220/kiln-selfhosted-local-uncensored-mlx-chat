@@ -66,6 +66,7 @@ class ChatBody(BaseModel):
     enable_thinking: bool | None = None
     reasoning_effort: str | None = None
     thinking_continuation: bool | None = None
+    evidence: str | None = Field(default=None, max_length=20000)
 
 
 class RenameBody(BaseModel):
@@ -735,6 +736,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "enable_thinking": body.enable_thinking,
                 "reasoning_effort": body.reasoning_effort,
                 "thinking_continuation": body.thinking_continuation,
+                "evidence": body.evidence,
                 "owner_id": _owner(request),
                 **extra,
             }
