@@ -192,6 +192,13 @@ Labels used only: **PASS**, **PARTIAL**, **KNOWN LIMIT**, **EXTERNAL BLOCKER**.
 2. Log in with the existing owner account (password not in repo)
 3. Accept: short chat, long chat, Long Form generate → Stop → refresh → Continue
 
+### Public static + nginx deploy (this wave)
+
+- Built `web/dist` with Long Form profile; rsynced to VPS `/www/wwwroot/kiln.plainlist.space/` (asset `index-B7dvtbyU.js`, long_form hits=8).
+- Added nginx `location ^~ /narrative` on the live vhost (proxy → `127.0.0.1:17777`). Public `POST /narrative/continue` → **401 auth_required** (not SPA HTML).
+- Brief TLS break when a cert-less template was copied over the live vhost; **restored from `/tmp/kiln.plainlist.space.conf.bak.*`**, patched narrative only, `nginx -t` + reload. Homepage 200 again.
+- Evidence: `../mission-narrative-20260925/evidence/public-release/acceptance_unauth.json`
+
 ## Security checklist
 
 - MLX listen: **127.0.0.1:8081** only (PID 1581)
@@ -200,4 +207,5 @@ Labels used only: **PASS**, **PARTIAL**, **KNOWN LIMIT**, **EXTERNAL BLOCKER**.
 - Secrets offline: `~/Library/Application Support/kiln/api.env`, tunnel key, mission token — **not** in git
 - Rate limit path present in `backend/app/auth.py`
 - Rollback: DB backup above; API-only kickstart; never restart MLX for rollback of this wave
+- Nginx: restore from `/tmp/kiln.plainlist.space.conf.bak.*` on VPS if vhost regresses; static rollback via previous `web/dist` rsync
 

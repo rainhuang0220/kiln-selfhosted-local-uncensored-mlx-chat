@@ -1,0 +1,24 @@
+{
+  "ts": "2026-09-26T02:56:51+0800",
+  "homepage": 200,
+  "auth_status_code": 200,
+  "auth_status_body": "{\"required\":true,\"ok\":false,\"setup\":false,\"signup\":false,\"username\":null,\"role\":null,\"ready\":true,\"exposure\":\"private\"}",
+  "anon_chat_code": 401,
+  "narrative_continue_code": 401,
+  "narrative_continue_body": "{\"error\":{\"message\":\"authentication required\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"auth_required\"}}",
+  "long_form_in_public_js": true,
+  "assets": [
+    {
+      "asset": "/assets/index-B7dvtbyU.js",
+      "hits": 8
+    },
+    {
+      "asset": "/assets/react-W4-VULj-.js",
+      "hits": 0
+    },
+    {
+      "asset": "/assets/markdown-CbqWFPvt.js",
+      "hits": 0
+    }
+  ]
+}
