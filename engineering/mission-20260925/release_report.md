@@ -7,7 +7,7 @@ Labels used only: **PASS**, **PARTIAL**, **KNOWN LIMIT**.
 | Field | Value |
 | --- | --- |
 | Branch | `eng/inference-baseline-20260924` |
-| Commit | _(filled after RC commit)_ |
+| Commit | _d7d5520_ |
 | API | PID **8283**, `127.0.0.1:8787` |
 | MLX | PID **1581**, `127.0.0.1:8081` (not restarted) |
 | Web | PID 97771, `127.0.0.1:7777` |

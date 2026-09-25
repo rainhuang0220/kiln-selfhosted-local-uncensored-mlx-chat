@@ -1,7 +1,7 @@
 {
   "mission": "Kiln Ultimate Mission v3.0",
   "recorded_at": "2026-09-25T20:25:06+08:00",
-  "api_code_commit": "8571a4b+uncommitted-p1",
+  "api_code_commit": "d7d5520",
   "branch": "eng/inference-baseline-20260924",
   "pushed": false,
   "running": {
@@ -123,6 +123,7 @@
     }
   },
   "head_lookup": "git rev-parse --short HEAD",
-  "deployed_backend_commit": "86826-loads-working-tree-with-answer_verify-p1",
-  "release_report": "engineering/mission-20260925/release_report.md"
+  "deployed_backend_commit": "d7d5520",
+  "release_report": "engineering/mission-20260925/release_report.md",
+  "head": "d7d5520"
 }
