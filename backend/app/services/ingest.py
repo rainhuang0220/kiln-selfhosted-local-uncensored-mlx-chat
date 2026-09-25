@@ -40,7 +40,7 @@ def requests_full_document(content: str) -> bool:
     query, _ = split_query_and_body(content)
     if not query:
         query = content.split("\n", 1)[0][:200]
-    return any(mark in query for mark in ("完整阅读", "阅读全文", "全文", "逐字"))
+    return any(mark in query for mark in ("完整阅读", "阅读全文", "全文", "逐字", "比较", "对比"))
 
 
 def split_chunks(text: str, chunk_chars: int = 1600, overlap_chars: int = 80) -> list[str]:
@@ -89,7 +89,7 @@ def _terms(text: str) -> set[str]:
 def _score(chunk: str, query_terms: set[str]) -> int:
     if not query_terms:
         return 0
-    return sum(1 for t in _terms(chunk) if t in query_terms)
+    return sum(10 if len(t) > 1 else 1 for t in _terms(chunk) if t in query_terms)
 
 
 def pack_document(

@@ -1,5 +1,27 @@
 # eval
 
+## Fixed 20K-token paired set (new, unscored)
+
+`build_compendium.py` deterministically joins the existing 50 semantic stories
+into two sectioned corpora. Each scored item appears in exactly one corpus;
+six sections overlap between corpora as distractors. The production 9B
+tokenizer counts 21,041 tokens / 30,135 characters for corpus 1 and 20,559
+tokens / 29,884 characters for corpus 2. Both are distinct from the 20,000
+character `semantic-20k.txt` speed probe.
+
+`compendium-20k-50.jsonl` freezes the 50 questions, source corpus hashes,
+answer text, evidence quotes, and exact character offsets. Every quote was
+checked against its corpus span. This is an anthology of independent semantic
+sections, not one continuous narrative. It is suitable for paired route
+comparisons and section-specific fact tests; it does not by itself prove
+cross-section global reasoning. No model score has been assigned to this set.
+
+`audit_compendium_routes.py` checks whether the current CPU document packer
+retains each item’s frozen evidence quote under the production tokenizer and
+route budgets. It reports 50/50 retained (27 packed, 23 served in full). This
+is a source coverage check, not a generated answer score. Questions contain
+explicit section IDs, which make this easier than open-ended retrieval.
+
 `longdoc-50.jsonl` 有 50 行。`behavior-30.jsonl` 有 30 行。校验在仓库根目录执行。
 
 ```bash
