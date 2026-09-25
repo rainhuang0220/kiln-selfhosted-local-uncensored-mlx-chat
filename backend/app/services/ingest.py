@@ -36,6 +36,13 @@ def split_query_and_body(content: str) -> tuple[str, str]:
     return "", content
 
 
+def requests_full_document(content: str) -> bool:
+    query, _ = split_query_and_body(content)
+    if not query:
+        query = content.split("\n", 1)[0][:200]
+    return any(mark in query for mark in ("完整阅读", "阅读全文", "全文", "逐字"))
+
+
 def split_chunks(text: str, chunk_chars: int = 1600, overlap_chars: int = 80) -> list[str]:
     if not text:
         return []

@@ -123,6 +123,45 @@ def test_huge_file_is_packed_into_budget(tmp_settings, chat_service, fake_provid
     assert pack["original_tokens"] > pack["kept_tokens"]
 
 
+def test_full_document_request_uses_practical_budget_without_packing(client, fake_provider):
+    document = "窑" * 20_000
+    message = "请完整阅读原文，回答末尾问题。\n# File: ledger.txt\n" + document
+    r = client.post(
+        "/chat",
+        json={"message": message, "stream": False, "max_tokens": 64},
+    )
+    assert r.status_code == 200, r.text
+    sent = fake_provider.calls[-1].messages[-1]["content"]
+    assert sent == message
+    occupancy = r.json()["context"]["occupancy"]
+    assert occupancy["effective_window_tokens"] == 32768
+    assert not (occupancy.get("document_pack") or {}).get("applied")
+
+
+def test_full_text_paste_without_file_marker_is_not_packed(client, fake_provider):
+    message = "请阅读全文后回答。\n" + ("窑" * 20_000)
+    r = client.post("/chat", json={"message": message, "stream": False, "max_tokens": 64})
+    assert r.status_code == 200
+    assert fake_provider.calls[-1].messages[-1]["content"] == message
+
+
+def test_full_document_over_practical_budget_errors_instead_of_packing(
+    tmp_settings, chat_service, fake_provider
+):
+    from app.main import create_app
+    from tests.conftest import local_http_client
+
+    tmp_settings.practical_prompt_budget = 800
+    message = "请完整阅读原文。\n# File: ledger.txt\n" + ("窑" * 2_000)
+    with local_http_client(create_app(tmp_settings, chat=chat_service)) as client:
+        r = client.post(
+            "/chat", json={"message": message, "stream": False, "max_tokens": 64}
+        )
+    assert r.status_code == 413
+    assert r.json()["error"]["code"] == "context_overflow"
+    assert fake_provider.calls == []
+
+
 def test_chat_non_stream_roundtrip(client):
     r = client.post("/chat", json={"message": "hello kiln", "stream": False})
     assert r.status_code == 200, r.text

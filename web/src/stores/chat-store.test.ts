@@ -45,6 +45,19 @@ describe("auth privacy", () => {
     });
   });
 
+  it("reads authenticated runtime health through the public proxy path", async () => {
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "rain" });
+      if (url === "/auth/runtime") {
+        return json({ provider: { reachable: true }, gateway: { state: "AVAILABLE", inference_capability: "UNVERIFIED" } });
+      }
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(mocked.mock.calls.map(([url]) => url)).toEqual(["/auth/status", "/auth/runtime"]);
+    expect(useChatStore.getState().health?.gateway?.inference_capability).toBe("UNVERIFIED");
+  });
+
   it("keeps lock as a session-revoke primitive", async () => {
     useChatStore.setState({ username: "rain", authOk: true, draft: "secret" });
     mocked.mockResolvedValue(json({ ok: true, locked: true }));

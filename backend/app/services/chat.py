@@ -18,7 +18,7 @@ from app.services.continuation import (
 from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
 from app.services.inference_watch import InferenceWatch
-from app.services.ingest import pack_user_message
+from app.services.ingest import pack_user_message, requests_full_document
 from app.services.memory import MemoryService
 from app.services.profiles import resolve_profile
 from app.services.repetition import hard_self_loop
@@ -531,6 +531,13 @@ class ChatService:
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
+        latest_user_content = next(
+            (m.get("content") or "" for m in reversed(history) if m.get("role") == "user"),
+            "",
+        )
+        full_document = requests_full_document(latest_user_content)
+        if full_document:
+            budget = self.settings.practical_prompt_budget
         built = build_dialogue_context(
             history,
             budget=budget,
@@ -595,6 +602,8 @@ class ChatService:
             used = self.tokenizer.count_messages(others) if others else 0
             room = max(256, budget - used)
             packed = pack_user_message(sent[last_user_idx]["content"] or "", room, estimate)
+            if full_document and packed.applied:
+                raise ValueError("full document exceeds practical context budget")
             if packed.applied:
                 sent[last_user_idx]["content"] = packed.text
                 document_pack = {
@@ -611,6 +620,8 @@ class ChatService:
             )
 
         prompt_tokens = self.tokenizer.count_messages(sent)
+        if full_document and prompt_tokens > budget:
+            raise ValueError("full document exceeds practical context budget")
         snapshot = {
             "effective_system_prompt": system_text,
             "sent_messages": sent,
@@ -1381,7 +1392,8 @@ class ChatService:
         except Exception as exc:  # noqa: BLE001
             ledger.exception = exc
             error = str(exc)
-            self.note_inference_failure(error)
+            if "exceeds practical context" not in error:
+                self.note_inference_failure(error)
         finally:
             ledger.ended_ms = now_ms()
             terminal = ledger.classify()

@@ -282,7 +282,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ authChecked: true, authRequired: true, authOk: false });
         return;
       }
-      const r = await apiFetch("/health");
+      const r = await apiFetch("/auth/runtime");
       if (!r.ok) throw new Error("health failed");
       const health = await r.json();
       set({ health });

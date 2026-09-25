@@ -301,6 +301,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         allow_headers=["Authorization", "Content-Type"],
     )
 
+    @app.get("/auth/runtime")
     @app.get("/health")
     async def health(request: Request):
         provider = getattr(request.app.state, "provider", None)
