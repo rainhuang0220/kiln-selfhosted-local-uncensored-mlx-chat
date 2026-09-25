@@ -118,8 +118,11 @@ export interface GatewayStatus {
   transport_status?: string;
   model_status?: string;
   inference_status?: string;
+  inference_capability?: "UNVERIFIED" | "READY" | "BUSY" | "DEGRADED" | "FAILED" | string;
   suspension_reason?: string | null;
   last_verified_at?: number | null;
+  verification_method?: string | null;
+  evidence_expires_at?: number | null;
 }
 
 export interface Health {

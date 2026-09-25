@@ -56,6 +56,32 @@ describe("runtimeStatus", () => {
     });
   });
 
+  it("keeps an expired verification distinct from a live model", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "AVAILABLE", inference_capability: "UNVERIFIED", last_verified_at: 1 },
+      } as never),
+    ).toEqual({
+      title: "端口在线",
+      detail: "还没有一次成功生成",
+      online: true,
+    });
+  });
+
+  it("names a failed generator without calling the queue busy", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "DEGRADED", inference_capability: "FAILED" },
+      } as never),
+    ).toEqual({
+      title: "生成失败",
+      detail: "端口还在，生成没有成功",
+      online: false,
+    });
+  });
+
   it("does not claim a completed generation before one has succeeded", () => {
     expect(
       runtimeStatus({

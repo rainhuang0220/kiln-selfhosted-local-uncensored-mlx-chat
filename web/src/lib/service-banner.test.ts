@@ -38,6 +38,19 @@ describe("serviceBanner", () => {
     );
   });
 
+  it("names a failed generation separately from a busy queue", () => {
+    expect(
+      serviceBanner(
+        health({
+          gateway: { state: "DEGRADED", inference_capability: "FAILED" },
+        }),
+      ),
+    ).toBe("模型端口还在，但生成没有成功。这不是队列繁忙。");
+    expect(serviceBanner(health({ gateway: { state: "BUSY", inference_capability: "BUSY" } }))).toBe(
+      "模型正在回答上一条。",
+    );
+  });
+
   it("says the port is up when only inference is degraded", () => {
     expect(
       serviceBanner(

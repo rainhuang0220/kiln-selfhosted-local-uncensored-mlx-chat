@@ -6,8 +6,13 @@ export function serviceBanner(health: Health | null | undefined): string | null 
   if (state === "VIDEO_SUSPENDED") return "视频任务正在使用内存，文本模型被主动暂停。";
   if (state === "STARTING") return "文本模型正在重新加载。";
   if (state === "OFFLINE") return "连不上本机模型端口。";
-  if (state === "DEGRADED") return "模型端口还在，但最近的生成没有正常完成。";
   if (state === "BUSY") return "模型正在回答上一条。";
+  if (health?.gateway?.inference_capability === "FAILED") {
+    return "模型端口还在，但生成没有成功。这不是队列繁忙。";
+  }
+  if (state === "DEGRADED" || health?.gateway?.inference_capability === "DEGRADED") {
+    return "模型端口还在，但最近的生成没有正常完成。";
+  }
   const chatState = health?.chat?.state;
   if (!state && chatState && chatState !== "running") {
     return "视频任务正在使用内存，文本模型被主动暂停。";

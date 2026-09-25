@@ -48,7 +48,10 @@ def test_health(client):
     assert body["default_profile"] == "interactive_dialogue"
     assert body["max_tokens_cap"] >= 32768
     assert body["provider"]["http_alive"] is True
-    assert body["inference"]["ready"] is True
+    assert body["provider"]["reachable"] is True
+    assert body["inference"]["ready"] is False
+    assert body["gateway"]["inference_capability"] == "UNVERIFIED"
+    assert body["gateway"]["state"] == "AVAILABLE"
     assert body["inference"]["consecutive_timeouts"] == 0
 
 

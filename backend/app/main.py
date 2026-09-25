@@ -305,21 +305,40 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         media_svc: MediaService | None = getattr(request.app.state, "media", None)
         chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
         chat = getattr(request.app.state, "chat", None)
-        inference = chat.inference_status() if chat is not None else {"ready": reachable}
-        status = "ok" if reachable and inference.get("ready", True) else "degraded"
         busy = False
         if chat is not None:
             busy = bool(getattr(chat, "_busy", None))
             lock = getattr(chat, "_lock", None)
             if lock is not None and lock.locked():
                 busy = True
+        if chat is not None:
+            inference = chat.inference_status(busy=busy)
+        else:
+            inference = {
+                "ready": False,
+                "consecutive_timeouts": 0,
+                "last_error": None,
+                "last_verified_at": None,
+                "capability": "UNVERIFIED",
+                "verification_method": None,
+                "evidence_expires_at": None,
+            }
+        capability = str(inference.get("capability") or "UNVERIFIED")
+        if not reachable and capability not in {"DEGRADED", "FAILED"}:
+            status = "degraded"
+        elif capability in {"DEGRADED", "FAILED"} and not busy:
+            status = "degraded"
+        else:
+            status = "ok"
         chat_state = chat_life.get("state") if isinstance(chat_life, dict) else None
         gateway = describe_gateway(
             http_alive=bool(reachable),
             chat_state=chat_state,
-            inference_ready=bool(inference.get("ready")),
+            inference_capability=capability,
             busy=busy,
             last_verified_at=inference.get("last_verified_at"),
+            verification_method=inference.get("verification_method"),
+            evidence_expires_at=inference.get("evidence_expires_at"),
         )
         return {
             "status": status,
@@ -331,10 +350,13 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             },
             "gateway": gateway,
             "inference": {
-                "ready": bool(inference.get("ready")),
+                "ready": capability == "READY",
                 "consecutive_timeouts": inference.get("consecutive_timeouts", 0),
                 "last_error": inference.get("last_error"),
                 "last_verified_at": inference.get("last_verified_at"),
+                "capability": capability,
+                "verification_method": inference.get("verification_method"),
+                "evidence_expires_at": inference.get("evidence_expires_at"),
             },
             "chat": chat_life,
             "model": cfg.model_name,

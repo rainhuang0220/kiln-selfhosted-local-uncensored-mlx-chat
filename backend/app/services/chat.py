@@ -17,6 +17,7 @@ from app.services.continuation import (
 )
 from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
+from app.services.inference_watch import InferenceWatch
 from app.services.ingest import pack_user_message
 from app.services.memory import MemoryService
 from app.services.profiles import resolve_profile
@@ -64,9 +65,7 @@ class ChatService:
             self.memory.settings = settings
         self._lock = asyncio.Lock()
         self._busy: set[str] = set()
-        self._timeouts = 0
-        self._last_inference_error: str | None = None
-        self._last_verified_at: int | None = None
+        self.watch = InferenceWatch()
 
     def _conn(self) -> sqlite3.Connection:
         return get_conn()
@@ -312,22 +311,26 @@ class ChatService:
         conn.commit()
         return cur.rowcount > 0
 
-    def note_inference_success(self) -> None:
-        self._timeouts = 0
-        self._last_inference_error = None
-        self._last_verified_at = now_ms()
+    def note_inference_success(self, method: str = "user_generation") -> None:
+        self.watch.note_success(method)
 
     def note_inference_timeout(self, message: str | None = None) -> None:
-        self._timeouts += 1
-        self._last_inference_error = message or "mlx timeout"
+        self.watch.note_timeout(message)
 
-    def inference_status(self) -> dict[str, Any]:
-        ready = self._timeouts < 3
+    def note_inference_failure(self, message: str | None = None) -> None:
+        self.watch.note_failure(message)
+
+    def inference_status(self, *, busy: bool = False) -> dict[str, Any]:
+        snap = self.watch.snapshot()
+        capability = self.watch.capability(busy=busy)
         return {
-            "ready": ready,
-            "consecutive_timeouts": self._timeouts,
-            "last_error": self._last_inference_error,
-            "last_verified_at": self._last_verified_at,
+            "ready": capability == "READY",
+            "consecutive_timeouts": snap["consecutive_timeouts"],
+            "last_error": snap["last_error"],
+            "last_verified_at": snap["last_verified_at"],
+            "capability": capability,
+            "verification_method": snap["verification_method"],
+            "evidence_expires_at": snap["evidence_expires_at"],
         }
 
     def global_context(self) -> dict[str, Any]:
@@ -1378,6 +1381,7 @@ class ChatService:
         except Exception as exc:  # noqa: BLE001
             ledger.exception = exc
             error = str(exc)
+            self.note_inference_failure(error)
         finally:
             ledger.ended_ms = now_ms()
             terminal = ledger.classify()

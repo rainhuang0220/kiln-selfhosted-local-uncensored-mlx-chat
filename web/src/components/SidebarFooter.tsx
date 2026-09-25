@@ -22,11 +22,14 @@ export function runtimeStatus(health: Health | null | undefined): RuntimeStatus 
   if (state === "STARTING") {
     return { title: "模型加载中", detail: "正在恢复文本服务", online: false };
   }
-  if (state === "DEGRADED") {
-    return { title: "生成异常", detail: "端口还在，最近的生成没有完成", online: false };
-  }
   if (state === "BUSY") {
     return { title: "模型忙碌", detail: "上一条还在生成", online: true };
+  }
+  if (health?.gateway?.inference_capability === "FAILED") {
+    return { title: "生成失败", detail: "端口还在，生成没有成功", online: false };
+  }
+  if (state === "DEGRADED" || health?.gateway?.inference_capability === "DEGRADED") {
+    return { title: "生成异常", detail: "端口还在，最近的生成没有完成", online: false };
   }
   if (state === "API_UNREACHABLE") {
     return { title: "接口无响应", detail: "不能据此判断模型进程", online: false };
@@ -34,7 +37,10 @@ export function runtimeStatus(health: Health | null | undefined): RuntimeStatus 
   if (state === "OFFLINE") {
     return { title: "模型离线", detail: "正在重连", online: false };
   }
-  if (state === "AVAILABLE" && health?.gateway?.last_verified_at == null) {
+  if (
+    health?.gateway?.inference_capability === "UNVERIFIED" ||
+    (state === "AVAILABLE" && health?.gateway?.last_verified_at == null)
+  ) {
     return { title: "端口在线", detail: "还没有一次成功生成", online: true };
   }
   if (state === "AVAILABLE" || health?.provider?.reachable) {
