@@ -5,7 +5,7 @@
 | Field | Value |
 | --- | --- |
 | Branch | `eng/inference-baseline-20260924` |
-| Delivered HEAD | *(see `v0.1.1-beta` tag)* |
+| Delivered HEAD | `a4e172f6a133f6ac761b36d24036f511090502fa` |
 | Historical tag | `v0.1.0-beta` → `7061166` (**not moved**) |
 | New tag | `v0.1.1-beta` |
 | Public URL | https://kiln.plainlist.space |

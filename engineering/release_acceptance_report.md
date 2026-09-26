@@ -3,7 +3,7 @@
 **Decision: READY WITH LIMITATIONS**
 
 Date: 2026-09-26 (revalidation wave). Public: https://kiln.plainlist.space  
-Delivered commit: *(filled at publish)* · New tag: `v0.1.1-beta` (does **not** move `v0.1.0-beta` @ `7061166`)  
+Delivered commit: `a4e172f6a133f6ac761b36d24036f511090502fa` · New tag: `v0.1.1-beta` (does **not** move `v0.1.0-beta` @ `7061166`)  
 MLX verified PID **1581** @ **127.0.0.1:8081** (cmdline `mlx_lm.server`, host 127.0.0.1).
 
 Labels: **OBSERVED** = retested this wave · **INHERITED** = prior evidence not re-run · **BLOCKED** = not run.
