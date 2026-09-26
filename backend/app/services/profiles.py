@@ -1,4 +1,4 @@
-"""First-class generation profiles. Public names stay professional."""
+"""Generation profiles. Immersive is the default; Interactive stays for latency evals."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ INTERACTIVE_DIALOGUE = {
     "enable_thinking": False,
     "reasoning_effort": "medium",
     "thinking_continuation": False,
-    "max_tokens": 1536,
+    "max_tokens": 3072,
     "temperature": 0.7,
     "top_p": 0.8,
     "top_k": 20,
@@ -58,20 +58,39 @@ REASONING = {
     "prompt_budget": 32768,
 }
 
-# Long-form narrative: ordinary chat stays on interactive_dialogue.
-# Per-segment max_tokens is a budget, not the whole-work limit.
-LONG_FORM = {
-    **BALANCED,
-    "profile": "long_form",
-    "max_tokens": 2048,
-    "segment_max_tokens": 2048,
-    "target_visible_chars": 20000,
-    "segment_chars": 2500,
-    "mode": "narrative",
+# Immersive multi-scenario: single-segment budget + auto-continue toward 5k–10k chars.
+IMMERSIVE = {
+    "profile": "immersive",
     "enable_thinking": False,
-    "presence_penalty": 0.3,
+    "reasoning_effort": "low",
+    "thinking_continuation": False,
+    "max_tokens": 6144,
+    "segment_max_tokens": 3072,
+    "target_visible_chars": 10000,
+    "min_accept_chars": 5000,
+    "min_output_chars": 5000,
+    "target_output_chars": 10000,
+    "segment_chars": 2800,
+    "auto_continue_max": 3,
+    "mode": "chat",
+    "temperature": 0.78,
+    "top_p": 0.9,
+    "top_k": 40,
+    "min_p": 0.05,
+    "presence_penalty": 0.0,
+    "presence_context_size": 256,
+    "frequency_penalty": 0.15,
+    "frequency_context_size": 256,
+    "repetition_penalty": 1.06,
+    "repetition_context_size": 256,
     "prompt_soft_target": 12288,
     "prompt_budget": 16384,
+}
+
+# long_form aliases immersive (no longer 20K prose orchestrator default).
+LONG_FORM = {
+    **IMMERSIVE,
+    "profile": "long_form",
 }
 
 PROFILES: dict[str, dict[str, Any]] = {
@@ -79,11 +98,13 @@ PROFILES: dict[str, dict[str, Any]] = {
     "conversational": INTERACTIVE_DIALOGUE,
     "balanced": BALANCED,
     "reasoning": REASONING,
+    "immersive": IMMERSIVE,
     "long_form": LONG_FORM,
-    "narrative": LONG_FORM,
+    "narrative": IMMERSIVE,
 }
 
-DEFAULT_PROFILE = "interactive_dialogue"
+
+DEFAULT_PROFILE = "immersive"
 
 
 def normalize_profile(name: str | None) -> str:
@@ -97,7 +118,9 @@ def normalize_profile(name: str | None) -> str:
         "thinking": "reasoning",
         "longform": "long_form",
         "long_output": "long_form",
-        "story": "long_form",
+        "story": "immersive",
+        "沉浸对话": "immersive",
+        "沉浸": "immersive",
     }
     key = aliases.get(key, key)
     if key not in PROFILES:
@@ -105,7 +128,7 @@ def normalize_profile(name: str | None) -> str:
     if key == "conversational":
         return "interactive_dialogue"
     if key == "narrative":
-        return "long_form"
+        return "immersive"
     return key
 
 

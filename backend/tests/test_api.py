@@ -26,6 +26,8 @@ def test_low_effort_cuts_long_thinking(tmp_settings, fake_provider, client):
             "enable_thinking": True,
             "reasoning_effort": "low",
             "max_tokens": 64,
+            "profile": "reasoning",
+            "auto_continue": False,
         },
     ) as r:
         text = "".join(r.iter_text())
@@ -43,9 +45,9 @@ def test_health(client):
     assert body["model"] == "qwen3.5-9b-hauhau-aggressive-mxfp4"
     assert body["practical_prompt_budget"] >= 32768
     assert body["default_max_tokens"] >= 1024
-    assert body["default_max_tokens"] <= 2048
+    assert body["default_max_tokens"] <= 8192
     assert body["enable_thinking"] is False
-    assert body["default_profile"] == "interactive_dialogue"
+    assert body["default_profile"] == "immersive"
     assert body["max_tokens_cap"] >= 32768
     assert body["provider"]["http_alive"] is True
 
@@ -78,13 +80,31 @@ def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):
 def test_chat_non_thinking_uses_qwen_sampling_preset(client, fake_provider):
     r = client.post(
         "/chat",
-        json={"message": "ping", "stream": False, "enable_thinking": False, "max_tokens": 16},
+        json={
+            "message": "ping",
+            "stream": False,
+            "enable_thinking": False,
+            "max_tokens": 16,
+            "profile": "interactive_dialogue",
+        },
     )
     assert r.status_code == 200, r.text
     req = fake_provider.calls[-1]
     assert req.temperature == 0.7
     assert req.top_p == 0.8
     assert req.top_k == 20
+
+
+def test_chat_immersive_default_uses_immersive_sampling(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "ping", "stream": False, "enable_thinking": False, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    req = fake_provider.calls[-1]
+    assert req.temperature == 0.78
+    assert req.top_p == 0.9
+    assert req.top_k == 40
 
 
 def test_ten_thousand_chars_reach_the_model(client, fake_provider):
@@ -192,7 +212,15 @@ def test_full_document_over_practical_budget_errors_instead_of_packing(
 
 
 def test_chat_non_stream_roundtrip(client):
-    r = client.post("/chat", json={"message": "hello kiln", "stream": False})
+    r = client.post(
+        "/chat",
+        json={
+            "message": "hello kiln",
+            "stream": False,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+        },
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["created"] is True
@@ -244,6 +272,8 @@ def test_evidence_corrects_only_when_the_measurement_is_named(client):
             "message": "当日处理水量比外排达标水量多多少吨",
             "stream": False,
             "max_tokens": 16,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
             "evidence": "去年同日的处理水量是700吨。当日处理水量是640吨。外排达标水量是590吨。",
         },
     )
@@ -260,6 +290,8 @@ def test_evidence_corrects_only_when_the_measurement_is_named(client):
             "message": "合同编号是多少",
             "stream": False,
             "max_tokens": 16,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
             "evidence": "这里没有合同编号。",
         },
     )
@@ -289,7 +321,15 @@ def test_evidence_corrects_only_when_the_measurement_is_named(client):
 
 
 def test_delete_message_removes_a_complete_turn(client):
-    created = client.post("/chat", json={"message": "remove this turn", "stream": False})
+    created = client.post(
+        "/chat",
+        json={
+            "message": "remove this turn",
+            "stream": False,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+        },
+    )
     assert created.status_code == 200, created.text
     conversation_id = created.json()["conversation_id"]
     messages = client.get(f"/conversation/{conversation_id}").json()["messages"]

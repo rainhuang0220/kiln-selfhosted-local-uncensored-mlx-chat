@@ -74,6 +74,47 @@ class ChatBody(BaseModel):
     mode: str | None = None
     target_visible_chars: int | None = Field(default=None, ge=1000, le=100000)
     segment_chars: int | None = Field(default=None, ge=500, le=8000)
+    character_card_id: str | None = None
+    auto_continue: bool | None = None
+
+
+class CharacterCardBody(BaseModel):
+    name: str = Field(default="未命名角色", min_length=1, max_length=120)
+    description: str = ""
+    personality: str = ""
+    scenario: str = ""
+    speech_style: str = ""
+    taboos: str = ""
+    relationship_to_user: str = ""
+    first_mes: str = ""
+    mes_example: str = ""
+    immutable_json: list[str] | None = None
+
+
+class CharacterCardPatchBody(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = None
+    personality: str | None = None
+    scenario: str | None = None
+    speech_style: str | None = None
+    taboos: str | None = None
+    relationship_to_user: str | None = None
+    first_mes: str | None = None
+    mes_example: str | None = None
+    immutable_json: list[str] | None = None
+
+
+class LoreBody(BaseModel):
+    keys: list[str] = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=4000)
+    character_card_id: str | None = None
+    secondary_keys: list[str] | None = None
+    priority: int = 0
+    budget_tokens: int = Field(default=256, ge=32, le=1024)
+    scan_depth_turns: int = Field(default=6, ge=1, le=32)
+    sticky: int = 0
+    cooldown_turns: int = 0
+    enabled: bool = True
 
 
 class NarrativeResumeBody(BaseModel):
@@ -715,6 +756,64 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         )
         return {"id": rec.id, "content": rec.content}
 
+    @app.get("/cards")
+    async def list_cards(request: Request):
+        from app.services import character_cards as cards_mod
+
+        return {"object": "list", "data": cards_mod.list_cards(owner_id=_owner(request))}
+
+    @app.post("/cards")
+    async def create_card(body: CharacterCardBody, request: Request):
+        from app.services import character_cards as cards_mod
+
+        return cards_mod.save_card(body.model_dump(), owner_id=_owner(request))
+
+    @app.patch("/cards/{card_id}")
+    async def patch_card(card_id: str, body: CharacterCardPatchBody, request: Request):
+        from app.services import character_cards as cards_mod
+
+        card = cards_mod.patch_card(
+            card_id,
+            body.model_dump(exclude_unset=True),
+            owner_id=_owner(request),
+        )
+        if card is None:
+            return error_body("card not found", "not_found_error", "card_not_found", status=404)
+        return card
+
+    @app.get("/lore")
+    async def list_lore(request: Request, card_id: str | None = None):
+        from app.services import lorebook as lore_mod
+
+        return {
+            "object": "list",
+            "data": lore_mod.list_entries(
+                owner_id=_owner(request),
+                character_card_id=card_id,
+            ),
+        }
+
+    @app.post("/lore")
+    async def create_lore(body: LoreBody, request: Request):
+        from app.services import lorebook as lore_mod
+
+        try:
+            return lore_mod.save_entry(
+                keys=body.keys,
+                content=body.content,
+                owner_id=_owner(request),
+                character_card_id=body.character_card_id,
+                secondary_keys=body.secondary_keys,
+                priority=body.priority,
+                budget_tokens=body.budget_tokens,
+                scan_depth_turns=body.scan_depth_turns,
+                sticky=body.sticky,
+                cooldown_turns=body.cooldown_turns,
+                enabled=body.enabled,
+            )
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_lore", status=400)
+
     @app.get("/memory/{memory_id}")
     async def get_memory(memory_id: str, request: Request):
         rec = request.app.state.chat.memory.get(memory_id, _owner(request))
@@ -763,7 +862,9 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         svc: ChatService = request.app.state.chat
         profile_key = normalize_profile(body.profile)
         mode = (body.mode or "").strip().lower()
-        use_narrative = mode in {"narrative", "long_form", "longform"} or profile_key == "long_form"
+        # Immersive / long_form use chat auto-continue + lore/scene fences.
+        # Only an explicit mode=narrative|long_form body flag uses NarrativeOrchestrator.
+        use_narrative = mode in {"narrative", "long_form", "longform"}
 
         def _chat_kwargs(**extra: Any) -> dict[str, Any]:
             return {
@@ -789,6 +890,8 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "thinking_continuation": body.thinking_continuation,
                 "evidence": body.evidence,
                 "owner_id": _owner(request),
+                "character_card_id": body.character_card_id,
+                "auto_continue": body.auto_continue,
                 **extra,
             }
 
@@ -799,14 +902,20 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 def cancel_check() -> bool:
                     return cancelled["v"]
 
+                from app.services.profiles import resolve_profile
+
+                preset = resolve_profile(profile_key)
                 orch = NarrativeOrchestrator(svc)
                 agen = orch.run(
                     message=body.message,
                     conversation_id=body.conversation_id,
                     owner_id=_owner(request),
-                    target_visible_chars=body.target_visible_chars or 20000,
-                    segment_chars=body.segment_chars or 2500,
-                    segment_max_tokens=body.max_tokens or 2048,
+                    target_visible_chars=body.target_visible_chars
+                    or int(preset.get("target_visible_chars") or 10000),
+                    segment_chars=body.segment_chars
+                    or int(preset.get("segment_chars") or 2800),
+                    segment_max_tokens=body.max_tokens
+                    or int(preset.get("segment_max_tokens") or preset.get("max_tokens") or 3072),
                     temperature=body.temperature,
                     top_p=body.top_p,
                     top_k=body.top_k,
@@ -881,7 +990,11 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         async for event in _iter_chat():
             name = event["event"]
             if name == "meta":
-                meta = event["data"]
+                # Auto-continue emits meta per segment; keep the first created flag.
+                prev_created = bool((meta or {}).get("created"))
+                meta = dict(event["data"] or {})
+                if prev_created:
+                    meta["created"] = True
             elif name == "snapshot":
                 snapshot = event["data"]
             elif name == "done":

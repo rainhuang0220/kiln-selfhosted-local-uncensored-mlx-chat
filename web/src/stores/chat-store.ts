@@ -18,7 +18,7 @@ import type {
   TokenUsage,
 } from "../types/chat";
 
-const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.interactive_dialogue };
+const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.immersive };
 
 interface ChatState {
   health: Health | null;
@@ -27,6 +27,7 @@ interface ChatState {
   messages: Message[];
   draft: string;
   params: GenerationParams;
+  characterCardId: string | null;
   inspectorOpen: boolean;
   snapshot: ContextSnapshot | null;
   streaming: boolean;
@@ -65,6 +66,7 @@ interface ChatState {
   attachFiles: (files: FileList | File[]) => Promise<void>;
   setParams: (p: Partial<GenerationParams>) => void;
   setProfile: (profile: GenerationProfile) => void;
+  setCharacterCardId: (id: string | null) => void;
   toggleInspector: () => void;
   send: (mode?: "regenerate" | "continue") => Promise<void>;
   stop: () => void;
@@ -82,6 +84,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   draft: "",
   params: DEFAULT_PARAMS,
+  characterCardId: null,
   inspectorOpen: true,
   searchQuery: "",
   theme: "light",
@@ -302,10 +305,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           model: "qwen3.5-9b-hauhau-aggressive-mxfp4",
           context_window: 262144,
           practical_prompt_budget: 32768,
-          default_max_tokens: 1536,
+          default_max_tokens: 6144,
           max_tokens_cap: 32768,
           enable_thinking: false,
-          default_profile: "interactive_dialogue",
+          default_profile: "immersive",
         },
       });
     }
@@ -440,6 +443,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   setParams: (p) => set({ params: { ...get().params, ...p } }),
   setProfile: (profile) => set({ params: { ...PROFILE_PRESETS[profile] } }),
+  setCharacterCardId: (id) => set({ characterCardId: id }),
   toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
 
   stop: () => {
@@ -536,8 +540,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           continue_generation: cont,
           profile: params.profile,
           mode: params.profile === "long_form" ? "narrative" : undefined,
-          target_visible_chars: params.profile === "long_form" ? 20000 : undefined,
-          segment_chars: params.profile === "long_form" ? 2500 : undefined,
+          target_visible_chars: params.profile === "long_form" ? 10000 : undefined,
+          segment_chars: params.profile === "long_form" ? 2800 : undefined,
+          auto_continue: params.profile === "immersive" ? true : undefined,
+          character_card_id: get().characterCardId || undefined,
           stream: true,
           temperature: params.temperature,
           top_p: params.topP,

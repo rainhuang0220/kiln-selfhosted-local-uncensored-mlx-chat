@@ -737,10 +737,82 @@ function Inspector() {
   const snapshot = useChatStore((s) => s.snapshot);
   const health = useChatStore((s) => s.health);
   const messages = useChatStore((s) => s.messages);
+  const characterCardId = useChatStore((s) => s.characterCardId);
+  const setCharacterCardId = useChatStore((s) => s.setCharacterCardId);
+  const [cardName, setCardName] = useState("");
+  const [cardPersonality, setCardPersonality] = useState("");
+  const [cardSpeech, setCardSpeech] = useState("");
+  const [cardImmutable, setCardImmutable] = useState("");
+  const [cardScenario, setCardScenario] = useState("");
+  const [cardStatus, setCardStatus] = useState<string | null>(null);
   const last = [...messages].reverse().find((m) => m.role === "assistant");
+
+  async function saveCard() {
+    setCardStatus("saving…");
+    try {
+      const { apiFetch } = await import("./api/http");
+      const body = {
+        name: cardName || "未命名角色",
+        personality: cardPersonality,
+        speech_style: cardSpeech,
+        scenario: cardScenario,
+        immutable_json: cardImmutable
+          .split(/[\n,，]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      };
+      const res = await apiFetch(characterCardId ? `/cards/${characterCardId}` : "/cards", {
+        method: characterCardId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setCardStatus("save failed");
+        return;
+      }
+      const card = await res.json();
+      setCharacterCardId(card.id);
+      setCardStatus(`saved ${card.id.slice(0, 8)}`);
+    } catch {
+      setCardStatus("save failed");
+    }
+  }
+
   if (!snapshot) {
     return (
       <div className="inspector-body">
+        <div className="card">
+          <h4>角色卡</h4>
+          <p style={{ margin: "0 0 8px", color: "var(--muted)", fontSize: 12 }}>
+            保存后，新会话会把卡编译进 system（会话内冻结）。
+          </p>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            名称
+            <input value={cardName} onChange={(e) => setCardName(e.target.value)} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            personality
+            <textarea value={cardPersonality} onChange={(e) => setCardPersonality(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            speech / 称谓
+            <textarea value={cardSpeech} onChange={(e) => setCardSpeech(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            immutable（逗号或换行）
+            <textarea value={cardImmutable} onChange={(e) => setCardImmutable(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            scenario
+            <textarea value={cardScenario} onChange={(e) => setCardScenario(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <button type="button" onClick={() => void saveCard()}>
+            保存角色卡
+          </button>
+          {cardStatus ? (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>{cardStatus}</p>
+          ) : null}
+        </div>
         <div className="card">
           <h4>Waiting</h4>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
@@ -835,6 +907,22 @@ function Inspector() {
         <div className="card">
           <h4>Compressed history</h4>
           <div className="sys">{snapshot.history_summary}</div>
+        </div>
+      ) : null}
+      {(snapshot as { scene_state?: unknown; lore_keys?: string[]; visible_chars?: number }).scene_state ||
+      (snapshot as { lore_keys?: string[] }).lore_keys ? (
+        <div className="card">
+          <h4>Scene / lore</h4>
+          <div className="sys">
+            {JSON.stringify(
+              {
+                lore_keys: (snapshot as { lore_keys?: string[] }).lore_keys,
+                scene_state: (snapshot as { scene_state?: unknown }).scene_state,
+              },
+              null,
+              2,
+            )}
+          </div>
         </div>
       ) : null}
       <div className="card">

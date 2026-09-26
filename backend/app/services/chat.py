@@ -22,8 +22,15 @@ from app.services.inference_watch import InferenceWatch
 from app.services.answer_verify import verify_answer
 from app.services.context_route import extractive_compress, route_document
 from app.services.ingest import pack_user_message, requests_full_document, split_query_and_body
+from app.services.auto_continue import count_output_chars, should_auto_continue
+from app.services.character_cards import compile_card_system, get_card
+from app.services.fact_extractor import extract_facts, must_keep_fence
+from app.services.literary_system import IMMERSIVE_SYSTEM
+from app.services import lorebook as lorebook_mod
 from app.services.memory import MemoryService
+from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
+from app.services.scene_state_store import SceneStateStore
 from app.services.repetition import hard_self_loop
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
@@ -547,6 +554,8 @@ class ChatService:
         prior_summary: str | None = None,
         prompt_budget: int | None = None,
         prompt_soft_target: int | None = None,
+        profile_name: str | None = None,
+        min_recent_turns: int | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
@@ -557,14 +566,17 @@ class ChatService:
         full_document = requests_full_document(latest_user_content)
         if full_document:
             budget = self.settings.practical_prompt_budget
+        recent_min = min_recent_turns if min_recent_turns is not None else (
+            8 if (profile_name or "") in {"immersive", "long_form", "narrative"} else 4
+        )
         built = build_dialogue_context(
             history,
             budget=budget,
             estimate=estimate,
             prior_state=prior_state,
             prior_summary=prior_summary,
-            recent_turn_target=8,
-            min_recent_turns=4,
+            recent_turn_target=max(8, recent_min),
+            min_recent_turns=recent_min,
             fold_every_turns=4,
         )
         kept, dropped, truncated = truncate_messages(
@@ -581,10 +593,82 @@ class ChatService:
         memories = self.memory.retrieve(
             conversation_id,
             last_user,
-            256,
+            512,
             owner_id=owner_id,
         )
-        fence = self.memory.fence(memories)
+        mem_fence = self.memory.fence(memories)
+        lore_hits: list[dict[str, Any]] = []
+        lore_fence = None
+        scene_fence = None
+        scene = None
+        try:
+            scan_texts = [
+                m.get("content") or ""
+                for m in kept
+                if m.get("role") in {"user", "assistant"} and m.get("id") != "dialogue-context"
+            ][-12:]
+            scan_texts.append(last_user)
+            lore_hits = lorebook_mod.activate(
+                lorebook_mod.list_entries(owner_id=owner_id),
+                scan_texts,
+                budget_tokens=768,
+            )
+            lore_fence = lorebook_mod.fence(lore_hits)
+        except Exception:
+            lore_hits = []
+            lore_fence = None
+        turn_facts = extract_facts(last_user)
+        scene = None
+        try:
+            scene = SceneStateStore().get(conversation_id)
+            if scene is None and built.state:
+                # ephemeral render from dialogue state when not yet persisted
+                from app.services.scene_state_store import SceneStateRecord
+
+                scene = SceneStateRecord(
+                    conversation_id=conversation_id,
+                    location=built.state.location,
+                    scene=built.state.scene,
+                    participants=list(built.state.participants),
+                    clothing=list(getattr(built.state, "clothing", []) or []),
+                    body_state=list(getattr(built.state, "body_state", []) or []),
+                    relationship=built.state.relationship,
+                    inventory=list(getattr(built.state, "inventory", []) or []),
+                    open_threads=list(built.state.open_threads),
+                    user_preferences=list(built.state.user_preferences),
+                    character_goals=list(built.state.character_goals),
+                    recent_actions=list(built.state.recent_actions),
+                    forbidden_patterns=list(getattr(built.state, "forbidden_patterns", []) or []),
+                )
+            # Pin current-turn keywords into the fence before generation
+            # (no "地点：" label required for objects like 铜钥匙).
+            if scene is not None and turn_facts.inventory:
+                from app.services.scene_state_store import _uniq
+
+                scene.inventory = _uniq([*list(scene.inventory), *turn_facts.inventory])
+            elif scene is None and turn_facts.inventory:
+                from app.services.scene_state_store import SceneStateRecord
+
+                scene = SceneStateRecord(
+                    conversation_id=conversation_id,
+                    inventory=list(turn_facts.inventory),
+                )
+            scene_fence = scene.fence(budget_tokens=400) if scene else None
+        except Exception:
+            scene_fence = None
+            scene = None
+        keep_pins: list[str] = []
+        if scene is not None:
+            keep_pins.extend(scene.inventory)
+            keep_pins.extend(scene.clothing)
+            if scene.location:
+                keep_pins.append(f"地点：{scene.location}")
+        keep_pins.extend(turn_facts.inventory)
+        keep_pins.extend(turn_facts.time_agreements)
+        keep_pins.extend(h.get("key") for h in lore_hits if h.get("key"))
+        keep_fence = must_keep_fence(keep_pins)
+        fence_parts = [p for p in (lore_fence, scene_fence, keep_fence, mem_fence) if p]
+        fence = "\n\n".join(fence_parts) if fence_parts else None
         sent: list[dict[str, Any]] = []
         system_text = ""
         last_user_idx = None
@@ -618,7 +702,12 @@ class ChatService:
         document_pack = None
         if last_user_idx is not None:
             others = [m for i, m in enumerate(sent) if i != last_user_idx]
-            used = self.tokenizer.count_messages(others) if others else 0
+            if others and any(m.get("role") == "user" for m in others):
+                used = self.tokenizer.count_messages(others)
+            else:
+                # System-only (or empty) prefixes cannot go through Qwen chat_template —
+                # it raises "No user query found in messages."
+                used = sum(estimate(m.get("content") or "") for m in others)
             room = max(256, budget - used)
             original = sent[last_user_idx]["content"] or ""
             query, body = split_query_and_body(original)
@@ -757,9 +846,15 @@ class ChatService:
                         }
 
         if fence and last_user_idx is not None:
-            sent[last_user_idx]["content"] = (
-                fence + "\n\n" + (sent[last_user_idx].get("content") or "")
+            # Keep fences as their own user message so they are not mistaken for user lines.
+            sent.insert(
+                last_user_idx,
+                {"role": "user", "content": fence, "id": "context-fences"},
             )
+            last_user_idx += 1
+        elif fence and sent:
+            insert_at = 1 if sent and sent[0].get("role") == "system" else 0
+            sent.insert(insert_at, {"role": "user", "content": fence, "id": "context-fences"})
 
         prompt_tokens = self.tokenizer.count_messages(sent)
         if full_document and prompt_tokens > budget:
@@ -771,6 +866,8 @@ class ChatService:
             "compressed": built.compressed,
             "history_summary": built.summary,
             "dialogue_state": built.state.__dict__,
+            "scene_state": (scene.to_dict() if scene else built.state.__dict__),
+            "lore_keys": [h.get("key") for h in lore_hits],
             "dropped_message_ids": dropped or built.dropped_ids,
             "memory_ids": [m.id for m in memories],
             "occupancy": {
@@ -1001,6 +1098,8 @@ class ChatService:
         thinking_continuation: bool | None = None,
         owner_id: str | None = None,
         evidence: str | None = None,
+        auto_continue: bool | None = None,
+        character_card_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
         text = (message or "").strip()
@@ -1183,7 +1282,24 @@ class ChatService:
             if thinking_continuation is None
             else thinking_continuation
         )
-        system_prompt = (system if system is not None else s.default_system) or ""
+        card = get_card(character_card_id, owner_id=owner_id) if character_card_id else None
+        if system is not None:
+            system_prompt = system or ""
+        elif card is not None:
+            system_prompt = compile_card_system(card)
+        elif preset["profile"] in {"immersive", "long_form"}:
+            system_prompt = (s.default_system or "").strip() or IMMERSIVE_SYSTEM.strip()
+        else:
+            system_prompt = (s.default_system or "") or ""
+
+        auto_max = int(preset.get("auto_continue_max") or 0)
+        min_output_chars = int(preset.get("min_output_chars") or 0)
+        if auto_continue is None:
+            enable_auto = auto_max > 0 and min_output_chars > 0
+        else:
+            enable_auto = bool(auto_continue) and auto_max > 0
+        auto_count = 0
+
         params = {
             "profile": preset["profile"],
             **sampled,
@@ -1197,9 +1313,13 @@ class ChatService:
                 medium=s.thinking_budget_medium,
                 xhigh=s.thinking_budget_xhigh,
             ),
+            "min_output_chars": min_output_chars,
+            "auto_continue_max": auto_max,
+            "character_card_id": character_card_id,
         }
 
         created = False
+        conversation_created = False
         if conversation_id:
             existing = self.get_conversation(conversation_id, owner_id=owner_id)
             if existing is None:
@@ -1221,6 +1341,7 @@ class ChatService:
                 system_prompt, s.model_name, json.dumps(params), owner_id=owner_id
             )
             created = True
+            conversation_created = True
 
         conflict = None
         async with self._lock:
@@ -1370,281 +1491,365 @@ class ChatService:
                 if closer is not None:
                     await closer()
 
-        try:
-            if skip_user_insert:
-                hist = self._load_history(cid)
-                last_u = next((m for m in reversed(hist) if m.get("role") == "user"), None)
-                user_id = (last_u or {}).get("id") or ""
-            else:
-                user_id, _ = self._insert_message(cid, "user", text)
-            if resume_assistant and resume_assistant_id:
-                assistant_id = resume_assistant_id
-                self._conn().execute(
-                    "UPDATE messages SET status='streaming', updated_at=? WHERE id=?",
-                    (now_ms(), assistant_id),
-                )
-                self._conn().commit()
-                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
-            else:
-                assistant_id, _ = self._insert_message(
-                    cid, "assistant", "", status="streaming"
-                )
-                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
-            prior_state, prior_summary = self._load_dialogue_meta(cid)
-            sent, snapshot_meta = self._build_payload(
-                history,
-                max_tokens=max_tokens,
-                enable_thinking=enable_thinking,
-                reasoning_effort=effort,
-                conversation_id=cid,
-                owner_id=owner_id,
-                prior_state=prior_state,
-                prior_summary=prior_summary,
-                prompt_budget=preset.get("prompt_budget"),
-                prompt_soft_target=preset.get("prompt_soft_target"),
-            )
-            occupancy = snapshot_meta["occupancy"]
-            prompt_tokens = occupancy["prompt_tokens"]
-            if (
-                occupancy["prompt_tokens"] + max_tokens > s.context_window
-                and s.overflow_policy == "error"
-            ):
-                status = "error"
-                error = "prompt exceeds practical context budget"
-                ledger.exception = RuntimeError(error)
-                return
+        sent: list[dict[str, Any]] = []
+        do_auto = False
+        user_cancelled = False
+        while True:
+            if auto_count > 0:
+                resume_assistant = True
+                resume_assistant_id = assistant_id
+                resume_content = content_buf or ""
+                resume_reasoning = reasoning_buf or ""
+                skip_user_insert = True
+                created = False
+                ledger = StreamLedger(started_ms=now_ms())
+                terminal = TerminalState.UNKNOWN_TERMINAL
+                finish = None
+                error = None
+                answer_check = None
+                # keep content_buf / reasoning_buf; continuation appends
 
-            snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
-            if not resume_assistant:
-                self._clear_continue_prompts(cid)
-            self._save_dialogue_meta(
-                cid,
-                state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
-                summary=snapshot_meta.get("history_summary"),
-                params=params,
-            )
-            yield {
-                "event": "meta",
-                "data": {
-                    "conversation_id": cid,
-                    "created": created,
-                    "user_message_id": user_id,
-                    "message_id": assistant_id,
-                    "model": s.model_name,
-                },
-            }
-            yield {
-                "event": "snapshot",
-                "data": {
-                    "request_id": snapshot_id,
-                    "conversation_id": cid,
-                    "model": s.model_name,
-                    "params": params,
-                    "effective_system_prompt": snapshot_meta["effective_system_prompt"],
-                    "sent_messages": snapshot_meta["sent_messages"],
-                    "occupancy": occupancy,
-                    "history_summary": snapshot_meta.get("history_summary"),
-                    "dialogue_state": snapshot_meta.get("dialogue_state"),
-                    "truncation": {
-                        "applied": snapshot_meta["truncated"],
-                        "policy": "fold_turns" if snapshot_meta["truncated"] else "none",
-                        "dropped_message_ids": snapshot_meta["dropped_message_ids"],
-                    },
-                },
-            }
-
-            think_budget = thinking_budget_for(
-                effort,
-                low=s.thinking_budget_low,
-                medium=s.thinking_budget_medium,
-                xhigh=s.thinking_budget_xhigh,
-            )
-            think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
-            req = make_req(sent, max_tokens)
-            tail_stripper = TailStripper(continue_tail)
-
-            if not stream:
-                first_max = max_tokens
-                if use_think_cut and think_budget and enable_thinking:
-                    first_max = think_max
-                first_req = make_req(sent, first_max)
-                if (first_req.extra or {}).get("raw_prompt"):
-                    self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
-                result = await self.provider.complete(first_req)
-                extra_content = result.content or ""
-                if resume_assistant:
-                    extra_content = strip_regenerated_tail(extra_content, continue_tail)
-                content_buf = (resume_content + extra_content) if resume_assistant else extra_content
-                extra_reason = result.reasoning or ""
-                reasoning_buf = (
-                    (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
-                )
-                if not reasoning_buf and content_buf:
-                    content_buf, reasoning_buf = split_thinking(content_buf)
-                if (
-                    use_think_cut
-                    and think_budget
-                    and enable_thinking
-                    and not result.content
-                    and hasattr(self.provider, "complete_after_think")
-                ):
-                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
-                    extra = await self.provider.complete_after_think(
-                        first_req, reasoning_buf, leftover
-                    )
-                    think_prompt = (first_req.extra or {}).get("raw_prompt") or ""
-                    if think_prompt:
-                        self._remember_continue_prompt(cid, think_prompt)
-                    extra_visible = extra.content or ""
-                    if resume_assistant:
-                        extra_visible = strip_regenerated_tail(extra_visible, continue_tail)
-                    content_buf = (resume_content + extra_visible) if resume_assistant else extra_visible
-                    result = extra
-                ledger.observe_finish(result.finish_reason)
-                ledger.observe_done_wire()
-                ledger.had_output = bool(content_buf or reasoning_buf)
-                if result.prompt_tokens is not None:
-                    prompt_tokens = result.prompt_tokens
-                    usage_source = result.usage_source
-                if result.completion_tokens:
-                    completion_tokens = result.completion_tokens
-                cached_tokens = result.cached_tokens
-                if content_buf:
-                    yield {"event": "delta", "data": {"content": content_buf}}
-                if reasoning_buf:
-                    yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
-            else:
-                if (req.extra or {}).get("raw_prompt"):
-                    self._remember_continue_prompt(cid, req.extra["raw_prompt"])
-                async for event in consume_stream(self.provider.stream(req)):
-                    yield event
-                if (
-                    think_cut
-                    and not content_buf
-                    and hasattr(self.provider, "stream_after_think")
-                ):
-                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
-                    async for event in consume_stream(
-                        self.provider.stream_after_think(req, reasoning_buf, leftover)
-                    ):
-                        yield event
-                    think_prompt = (req.extra or {}).get("raw_prompt") or ""
-                    if think_prompt:
-                        self._remember_continue_prompt(cid, think_prompt)
-                if not reasoning_buf and content_buf:
-                    visible, hidden = split_thinking(content_buf)
-                    if hidden:
-                        content_buf, reasoning_buf = visible, hidden
-            if not completion_tokens:
-                completion_tokens = self.tokenizer.count_text(
-                    (reasoning_buf or "") + (content_buf or "")
-                )
-            ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
-            ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
-            if not stream and not ledger.http_eof and not ledger.saw_done_wire:
-                ledger.http_eof = True
-        except (asyncio.CancelledError, GeneratorExit):
-            ledger.cancelled = True
-            status = "cancelled"
-            error = "cancelled"
-            raise
-        except TimeoutError as exc:
-            ledger.exception = exc
-            error = str(exc)
-            self.note_inference_timeout(error)
-        except ConnectionError as exc:
-            ledger.exception = exc
-            error = str(exc)
-            self.note_inference_timeout(error)
-        except Exception as exc:  # noqa: BLE001
-            ledger.exception = exc
-            error = str(exc)
-            if "exceeds practical context" not in error:
-                self.note_inference_failure(error)
-        finally:
-            ledger.ended_ms = now_ms()
-            terminal = ledger.classify()
-            if terminal in COMPLETE_STATES:
-                self.note_inference_success()
-            elif (
-                resume_assistant
-                and ledger.exception is None
-                and terminal is TerminalState.INTERRUPTED_TRANSPORT
-                and not ledger.had_output
-            ):
-                self.note_inference_timeout(
-                    "continue completions ended without a terminal"
-                )
-            status = ledger.message_status(terminal)
-            finish = ledger.stored_finish_reason(terminal)
-            if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
-                error = "upstream stream ended before a reliable terminal"
-            if evidence and content_buf:
-                checked = verify_answer(
-                    question=text,
-                    evidence=evidence,
-                    model_output=content_buf,
-                )
-                answer_check = {
-                    "original": content_buf,
-                    "reason": checked.source,
-                    "applied": False,
-                }
-                reliable = checked.source in {
-                    "evidence",
-                    "evidence_difference",
-                    "evidence_quote",
-                }
-                should_apply = reliable and bool(checked.answer) and (
-                    checked.model_number_ok is False
-                    or checked.unit_restored
-                    or checked.extra_context
-                )
-                if should_apply:
-                    content_buf = checked.answer
-                    answer_check["applied"] = True
             try:
-                if assistant_id:
-                    if not snapshot_id:
-                        snapshot_id = self._save_snapshot(
-                            cid,
-                            {
-                                "sent_messages": [],
-                                "effective_system_prompt": system_prompt,
-                                "occupancy": occupancy
-                                or {
-                                    "prompt_tokens": 0,
-                                    "effective_window_tokens": s.practical_prompt_budget,
-                                },
-                                "truncated": False,
-                                "dropped_message_ids": [],
-                                "memory_ids": [],
-                            },
-                            params,
-                        )
-                    self._finalize_assistant(
-                        conversation_id=cid,
-                        assistant_id=assistant_id,
-                        user_id=user_id,
-                        content=content_buf,
-                        reasoning=reasoning_buf,
-                        status=status,
-                        finish_reason=finish,
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens
-                        or self.tokenizer.count_text(reasoning_buf + content_buf),
-                        cached_tokens=cached_tokens,
-                        snapshot_id=snapshot_id,
-                        model=s.model_name,
-                        params=params,
-                        error=error,
-                        started_ms=started,
-                        user_preview=text,
-                        is_new=created,
-                        answer_check=answer_check,
+                if skip_user_insert:
+                    hist = self._load_history(cid)
+                    last_u = next((m for m in reversed(hist) if m.get("role") == "user"), None)
+                    user_id = (last_u or {}).get("id") or ""
+                else:
+                    user_id, _ = self._insert_message(cid, "user", text)
+                if resume_assistant and resume_assistant_id:
+                    assistant_id = resume_assistant_id
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', updated_at=? WHERE id=?",
+                        (now_ms(), assistant_id),
                     )
+                    self._conn().commit()
+                    history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+                else:
+                    assistant_id, _ = self._insert_message(
+                        cid, "assistant", "", status="streaming"
+                    )
+                    history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+                prior_state, prior_summary = self._load_dialogue_meta(cid)
+                sent, snapshot_meta = self._build_payload(
+                    history,
+                    max_tokens=max_tokens,
+                    enable_thinking=enable_thinking,
+                    reasoning_effort=effort,
+                    conversation_id=cid,
+                    owner_id=owner_id,
+                    prior_state=prior_state,
+                    prior_summary=prior_summary,
+                    prompt_budget=preset.get("prompt_budget"),
+                    prompt_soft_target=preset.get("prompt_soft_target"),
+                    profile_name=preset.get("profile"),
+                )
+                occupancy = snapshot_meta["occupancy"]
+                prompt_tokens = occupancy["prompt_tokens"]
+                if (
+                    occupancy["prompt_tokens"] + max_tokens > s.context_window
+                    and s.overflow_policy == "error"
+                ):
+                    status = "error"
+                    error = "prompt exceeds practical context budget"
+                    ledger.exception = RuntimeError(error)
+                    break
+
+                snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
+                if not resume_assistant:
+                    self._clear_continue_prompts(cid)
+                self._save_dialogue_meta(
+                    cid,
+                    state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
+                    summary=snapshot_meta.get("history_summary"),
+                    params=params,
+                )
+                yield {
+                    "event": "meta",
+                    "data": {
+                        "conversation_id": cid,
+                        "created": created,
+                        "user_message_id": user_id,
+                        "message_id": assistant_id,
+                        "model": s.model_name,
+                    },
+                }
+                yield {
+                    "event": "snapshot",
+                    "data": {
+                        "request_id": snapshot_id,
+                        "conversation_id": cid,
+                        "model": s.model_name,
+                        "params": params,
+                        "effective_system_prompt": snapshot_meta["effective_system_prompt"],
+                        "sent_messages": snapshot_meta["sent_messages"],
+                        "occupancy": occupancy,
+                        "history_summary": snapshot_meta.get("history_summary"),
+                        "dialogue_state": snapshot_meta.get("dialogue_state"),
+                        "truncation": {
+                            "applied": snapshot_meta["truncated"],
+                            "policy": "fold_turns" if snapshot_meta["truncated"] else "none",
+                            "dropped_message_ids": snapshot_meta["dropped_message_ids"],
+                        },
+                    },
+                }
+
+                think_budget = thinking_budget_for(
+                    effort,
+                    low=s.thinking_budget_low,
+                    medium=s.thinking_budget_medium,
+                    xhigh=s.thinking_budget_xhigh,
+                )
+                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
+                req = make_req(sent, max_tokens)
+                tail_stripper = TailStripper(continue_tail)
+
+                if not stream:
+                    first_max = max_tokens
+                    if use_think_cut and think_budget and enable_thinking:
+                        first_max = think_max
+                    first_req = make_req(sent, first_max)
+                    if (first_req.extra or {}).get("raw_prompt"):
+                        self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
+                    result = await self.provider.complete(first_req)
+                    extra_content = result.content or ""
+                    if resume_assistant:
+                        extra_content = strip_regenerated_tail(extra_content, continue_tail)
+                    content_buf = (resume_content + extra_content) if resume_assistant else extra_content
+                    extra_reason = result.reasoning or ""
+                    reasoning_buf = (
+                        (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
+                    )
+                    if not reasoning_buf and content_buf:
+                        content_buf, reasoning_buf = split_thinking(content_buf)
+                    if (
+                        use_think_cut
+                        and think_budget
+                        and enable_thinking
+                        and not result.content
+                        and hasattr(self.provider, "complete_after_think")
+                    ):
+                        leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                        extra = await self.provider.complete_after_think(
+                            first_req, reasoning_buf, leftover
+                        )
+                        think_prompt = (first_req.extra or {}).get("raw_prompt") or ""
+                        if think_prompt:
+                            self._remember_continue_prompt(cid, think_prompt)
+                        extra_visible = extra.content or ""
+                        if resume_assistant:
+                            extra_visible = strip_regenerated_tail(extra_visible, continue_tail)
+                        content_buf = (resume_content + extra_visible) if resume_assistant else extra_visible
+                        result = extra
+                    ledger.observe_finish(result.finish_reason)
+                    ledger.observe_done_wire()
+                    ledger.had_output = bool(content_buf or reasoning_buf)
+                    if result.prompt_tokens is not None:
+                        prompt_tokens = result.prompt_tokens
+                        usage_source = result.usage_source
+                    if result.completion_tokens:
+                        completion_tokens = result.completion_tokens
+                    cached_tokens = result.cached_tokens
+                    if content_buf:
+                        yield {"event": "delta", "data": {"content": content_buf}}
+                    if reasoning_buf:
+                        yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
+                else:
+                    if (req.extra or {}).get("raw_prompt"):
+                        self._remember_continue_prompt(cid, req.extra["raw_prompt"])
+                    async for event in consume_stream(self.provider.stream(req)):
+                        yield event
+                    if (
+                        think_cut
+                        and not content_buf
+                        and hasattr(self.provider, "stream_after_think")
+                    ):
+                        leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                        async for event in consume_stream(
+                            self.provider.stream_after_think(req, reasoning_buf, leftover)
+                        ):
+                            yield event
+                        think_prompt = (req.extra or {}).get("raw_prompt") or ""
+                        if think_prompt:
+                            self._remember_continue_prompt(cid, think_prompt)
+                    if not reasoning_buf and content_buf:
+                        visible, hidden = split_thinking(content_buf)
+                        if hidden:
+                            content_buf, reasoning_buf = visible, hidden
+                if not completion_tokens:
+                    completion_tokens = self.tokenizer.count_text(
+                        (reasoning_buf or "") + (content_buf or "")
+                    )
+                ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
+                ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
+                if not stream and not ledger.http_eof and not ledger.saw_done_wire:
+                    ledger.http_eof = True
+            except (asyncio.CancelledError, GeneratorExit):
+                ledger.cancelled = True
+                status = "cancelled"
+                error = "cancelled"
+                user_cancelled = True
+                do_auto = False
+                # Do not re-raise: finalize the assistant row, then return.
+            except TimeoutError as exc:
+                ledger.exception = exc
+                error = str(exc)
+                self.note_inference_timeout(error)
+            except ConnectionError as exc:
+                ledger.exception = exc
+                error = str(exc)
+                self.note_inference_timeout(error)
+            except Exception as exc:  # noqa: BLE001
+                ledger.exception = exc
+                error = str(exc)
+                if "exceeds practical context" not in error:
+                    self.note_inference_failure(error)
             finally:
-                self._busy.discard(cid)
+                ledger.ended_ms = now_ms()
+                terminal = ledger.classify()
+                if terminal in COMPLETE_STATES:
+                    self.note_inference_success()
+                elif (
+                    resume_assistant
+                    and ledger.exception is None
+                    and terminal is TerminalState.INTERRUPTED_TRANSPORT
+                    and not ledger.had_output
+                ):
+                    self.note_inference_timeout(
+                        "continue completions ended without a terminal"
+                    )
+                status = ledger.message_status(terminal)
+                finish = ledger.stored_finish_reason(terminal)
+                if ledger.cancelled or user_cancelled:
+                    status = "cancelled"
+                    error = error or "cancelled"
+                    do_auto = False
+                if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
+                    error = "upstream stream ended before a reliable terminal"
+                if evidence and content_buf:
+                    checked = verify_answer(
+                        question=text,
+                        evidence=evidence,
+                        model_output=content_buf,
+                    )
+                    answer_check = {
+                        "original": content_buf,
+                        "reason": checked.source,
+                        "applied": False,
+                    }
+                    reliable = checked.source in {
+                        "evidence",
+                        "evidence_difference",
+                        "evidence_quote",
+                    }
+                    should_apply = reliable and bool(checked.answer) and (
+                        checked.model_number_ok is False
+                        or checked.unit_restored
+                        or checked.extra_context
+                    )
+                    if should_apply:
+                        content_buf = checked.answer
+                        answer_check["applied"] = True
+                # Finalize deferred until auto-continue loop exits.
+
+                visible_n = count_output_chars(content_buf or "")
+                rep_guard = terminal == TerminalState.REPETITION_GUARD or finish == "repetition_guard"
+                do_auto = (
+                    enable_auto
+                    and not error
+                    and not user_cancelled
+                    and should_auto_continue(
+                        visible_chars=visible_n,
+                        finish_reason=finish,
+                        min_output_chars=min_output_chars,
+                        auto_continue_count=auto_count,
+                        auto_continue_max=auto_max,
+                        user_text=text,
+                        repetition_guard=rep_guard,
+                    )
+                )
+
+            if user_cancelled:
+                break
+            if do_auto:
+                auto_count += 1
+                # Keep same assistant message streaming for the next segment.
+                if assistant_id:
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
+                        (content_buf or "", reasoning_buf or "", now_ms(), assistant_id),
+                    )
+                    self._conn().commit()
+                continue
+            break
+
+        try:
+            if assistant_id:
+                if not snapshot_id:
+                    snapshot_id = self._save_snapshot(
+                        cid,
+                        {
+                            "sent_messages": [],
+                            "effective_system_prompt": system_prompt,
+                            "occupancy": occupancy
+                            or {
+                                "prompt_tokens": 0,
+                                "effective_window_tokens": s.practical_prompt_budget,
+                            },
+                            "truncated": False,
+                            "dropped_message_ids": [],
+                            "memory_ids": [],
+                        },
+                        params,
+                    )
+                self._finalize_assistant(
+                    conversation_id=cid,
+                    assistant_id=assistant_id,
+                    user_id=user_id,
+                    content=content_buf,
+                    reasoning=reasoning_buf,
+                    status=status,
+                    finish_reason=finish,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens
+                    or self.tokenizer.count_text((reasoning_buf or "") + (content_buf or "")),
+                    cached_tokens=cached_tokens,
+                    snapshot_id=snapshot_id,
+                    model=s.model_name,
+                    params=params,
+                    error=error,
+                    started_ms=started,
+                    user_preview=text,
+                    is_new=conversation_created,
+                    answer_check=answer_check,
+                )
+                # Persist extracted facts / scene after a successful turn.
+                try:
+                    if status != "cancelled":
+                        store = SceneStateStore()
+                        joined = (text or "") + "\n" + (content_buf or "")
+                        extracted = extract_facts(joined)
+                        store.upsert_from_turn(cid, joined)
+                        for prop in extracted.to_proposals():
+                            if float(prop.get("confidence") or 0) >= 0.85:
+                                self.memory.save(
+                                    MemoryRecord(
+                                        id="",
+                                        memory_type=prop["memory_type"],
+                                        key=prop.get("key"),
+                                        content=prop["content"],
+                                        importance=float(prop.get("importance") or 0.5),
+                                        confidence=float(prop.get("confidence") or 0.5),
+                                        user_id=owner_id,
+                                        conversation_id=cid,
+                                    )
+                                )
+                except Exception:
+                    pass
+        finally:
+            self._busy.discard(cid)
+
+        if user_cancelled or status == "cancelled":
+            return
 
         hard_fail = (
             error
@@ -1703,11 +1908,13 @@ class ChatService:
                     "requested_max_tokens": max_tokens,
                     "effective_max_tokens": max_tokens,
                     "generated_tokens": completion_tokens,
-                    "visible_char_count": len("".join((content_buf or "").split())),
+                    "visible_char_count": count_output_chars(content_buf or ""),
                     "finish_reason": finish,
                     "terminal_state": terminal.value,
                     "model_finish_reason": ledger.model_finish_reason,
                 },
+                "visible_chars": count_output_chars(content_buf or ""),
+                "auto_continue_count": auto_count,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,

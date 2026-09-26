@@ -10,12 +10,19 @@ describe("profiles", () => {
 
   it("interactive dialogue disables thinking", () => {
     expect(PROFILE_PRESETS.interactive_dialogue.enableThinking).toBe(false);
-    expect(PROFILE_PRESETS.interactive_dialogue.maxTokens).toBeLessThanOrEqual(2048);
+    expect(PROFILE_PRESETS.interactive_dialogue.maxTokens).toBeLessThanOrEqual(4096);
+    expect(PROFILE_PRESETS.interactive_dialogue.maxTokens).toBeGreaterThanOrEqual(3072);
   });
 
-  it("long_form is the multi-segment 20K path", () => {
+  it("immersive is the default with 6k token budget", () => {
+    expect(PROFILE_PRESETS.immersive.profile).toBe("immersive");
+    expect(PROFILE_PRESETS.immersive.maxTokens).toBe(6144);
+    expect(PROFILE_PRESETS.immersive.presencePenalty).toBe(0);
+  });
+
+  it("long_form tracks immersive length targets", () => {
     expect(PROFILE_PRESETS.long_form.profile).toBe("long_form");
-    expect(PROFILE_PRESETS.long_form.maxTokens).toBeGreaterThanOrEqual(2048);
+    expect(PROFILE_PRESETS.long_form.maxTokens).toBeGreaterThanOrEqual(4096);
   });
 
   it("explains abnormal terminals", () => {

@@ -20,6 +20,7 @@ export interface TokenUsage {
 }
 
 export type GenerationProfile =
+  | "immersive"
   | "interactive_dialogue"
   | "balanced"
   | "reasoning"

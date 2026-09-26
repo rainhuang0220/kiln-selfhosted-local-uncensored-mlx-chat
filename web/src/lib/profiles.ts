@@ -1,6 +1,22 @@
 import type { GenerationParams, GenerationProfile } from "../types/chat";
 
 export const PROFILE_PRESETS: Record<GenerationProfile, GenerationParams> = {
+  immersive: {
+    profile: "immersive",
+    temperature: 0.78,
+    topP: 0.9,
+    topK: 40,
+    minP: 0.05,
+    presencePenalty: 0,
+    presenceContextSize: 256,
+    frequencyPenalty: 0.15,
+    frequencyContextSize: 256,
+    repetitionPenalty: 1.06,
+    repetitionContextSize: 256,
+    maxTokens: 6144,
+    enableThinking: false,
+    reasoningEffort: "low",
+  },
   interactive_dialogue: {
     profile: "interactive_dialogue",
     temperature: 0.7,
@@ -13,7 +29,7 @@ export const PROFILE_PRESETS: Record<GenerationProfile, GenerationParams> = {
     frequencyContextSize: 256,
     repetitionPenalty: 1.0,
     repetitionContextSize: 128,
-    maxTokens: 1536,
+    maxTokens: 3072,
     enableThinking: false,
     reasoningEffort: "medium",
   },
@@ -51,27 +67,28 @@ export const PROFILE_PRESETS: Record<GenerationProfile, GenerationParams> = {
   },
   long_form: {
     profile: "long_form",
-    temperature: 0.7,
+    temperature: 0.78,
     topP: 0.9,
-    topK: 20,
-    minP: 0,
-    presencePenalty: 0.3,
+    topK: 40,
+    minP: 0.05,
+    presencePenalty: 0,
     presenceContextSize: 256,
-    frequencyPenalty: 0,
+    frequencyPenalty: 0.15,
     frequencyContextSize: 256,
-    repetitionPenalty: 1.0,
-    repetitionContextSize: 128,
-    maxTokens: 2048,
+    repetitionPenalty: 1.06,
+    repetitionContextSize: 256,
+    maxTokens: 6144,
     enableThinking: false,
-    reasoningEffort: "medium",
+    reasoningEffort: "low",
   },
 };
 
 export const PROFILE_LABELS: Record<GenerationProfile, string> = {
+  immersive: "沉浸对话",
   interactive_dialogue: "Interactive Dialogue",
   balanced: "Balanced",
   reasoning: "Reasoning",
-  long_form: "Long Form (20K+)",
+  long_form: "Long Form",
 };
 
 export function isIncompleteTerminal(finish?: string | null, terminal?: string | null): boolean {

@@ -84,13 +84,15 @@ class LongFakeProvider:
         yield ChatChunk(id="chatcmpl-fake", model="fake-long", wire_done=True)
 
 
-def test_long_form_profile_is_narrative_not_default():
+def test_long_form_profile_aliases_immersive_chat_path():
     p = resolve_profile("long_form")
     assert p["profile"] == "long_form"
-    assert p["mode"] == "narrative"
-    assert p["target_visible_chars"] >= 20000
-    assert p["max_tokens"] >= 2048
-    assert resolve_profile("interactive_dialogue")["max_tokens"] == 1536
+    assert p["mode"] == "chat"
+    assert p["target_visible_chars"] >= 10000
+    assert p["min_output_chars"] >= 5000
+    assert p["max_tokens"] >= 4096
+    assert resolve_profile("interactive_dialogue")["max_tokens"] == 3072
+    assert resolve_profile("immersive")["max_tokens"] == 6144
 
 
 def test_character_card_keeps_unknown_fields():

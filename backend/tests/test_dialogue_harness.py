@@ -23,7 +23,7 @@ def test_fifty_turns_are_classified_and_ordered(client):
         assert body["message"]["role"] == "assistant"
 
     detail = client.get(f"/conversation/{cid}").json()
-    roles = [m["role"] for m in detail["messages"]]
+    roles = [m["role"] for m in detail["messages"] if m["role"] != "system"]
     assert roles[0] == "user"
     assert roles.count("user") == 50
     assert roles.count("assistant") == 50

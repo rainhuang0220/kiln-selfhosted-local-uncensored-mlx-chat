@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Immersive Dialogue is the default profile: longer replies (max_tokens 6144) with auto-continue toward a visible-character floor, keyword/scene pins next to the latest user turn, and no application-layer content filter. Uncensored local generation already depends on the checkpoint; this change adds multi-scenario continuity and longer replies.
+- Interactive Dialogue hard output budget is 3072. Theme boot loads from `/theme-boot.js` so production CSP can stay `script-src 'self'`.
+- `sysctl` / `vm_stat` sampling never raises on non-Darwin hosts. Quality eval accepts `--profile` / `--max-tokens` / `--timeout` / `--turns` without changing CI defaults.
+
 ## v0.6.8 — Account menu sits above the footer
 
 - The account popover opens above the entire sidebar footer, so runtime status stays visible while the menu is open.
