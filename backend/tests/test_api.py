@@ -48,11 +48,19 @@ def test_health(client):
     assert body["default_profile"] == "interactive_dialogue"
     assert body["max_tokens_cap"] >= 32768
     assert body["provider"]["http_alive"] is True
-    assert body["provider"]["reachable"] is True
-    assert body["inference"]["ready"] is False
-    assert body["gateway"]["inference_capability"] == "UNVERIFIED"
-    assert body["gateway"]["state"] == "AVAILABLE"
-    assert body["inference"]["consecutive_timeouts"] == 0
+
+
+def test_readyz_does_not_claim_e2e_chat(client, fake_provider):
+    before = len(fake_provider.calls)
+    r = client.get("/readyz")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["BACKEND_UP"] is True
+    assert "AUTHENTICATION_UP" in body
+    assert body["MODEL_AVAILABLE"] is True
+    assert body["END_TO_END_CHAT_UP"] == "requires_auth"
+    assert body["generates"] is False
+    assert len(fake_provider.calls) == before
 
 
 def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):

@@ -1,0 +1,31 @@
+{
+  "ts": "2026-09-26T12:42:29+0800",
+  "label": "OBSERVED_retest",
+  "wrong": {
+    "code": 401,
+    "msg": "auth_failed"
+  },
+  "login": {
+    "code": 200,
+    "ok": true,
+    "cookies": [
+      "__Host-kiln_session"
+    ]
+  },
+  "refresh": {
+    "ok": true,
+    "user": "qa_release"
+  },
+  "authed_chat": {
+    "code": 200,
+    "not_401": true
+  },
+  "logout": {
+    "code": 200
+  },
+  "after_logout": {
+    "ok": false
+  },
+  "anon_chat": 401,
+  "pass": true
+}

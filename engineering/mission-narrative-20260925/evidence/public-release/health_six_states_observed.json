@@ -1,0 +1,25 @@
+{
+  "ts": "2026-09-26T04:42:29Z",
+  "origin": "https://kiln.plainlist.space",
+  "STATIC_UP": true,
+  "PUBLIC_API_UP": true,
+  "AUTHENTICATION_UP": true,
+  "BACKEND_UP": true,
+  "MODEL_AVAILABLE": true,
+  "END_TO_END_CHAT_UP": "requires_auth",
+  "readyz": {
+    "BACKEND_UP": true,
+    "AUTHENTICATION_UP": true,
+    "MODEL_AVAILABLE": true,
+    "END_TO_END_CHAT_UP": "requires_auth",
+    "exposure": "private",
+    "generates": false,
+    "note": "STATIC_UP and PUBLIC_API_UP are assigned by an external probe of the public origin."
+  },
+  "codes": {
+    "homepage": 200,
+    "readyz": 200,
+    "auth_status": 200,
+    "local_health": 200
+  }
+}

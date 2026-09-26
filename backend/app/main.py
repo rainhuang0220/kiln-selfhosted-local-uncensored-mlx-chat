@@ -405,6 +405,26 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             "default_profile": cfg.default_profile,
         }
 
+    @app.get("/readyz")
+    async def readyz(request: Request):
+        """Unauthenticated readiness. Does not generate. Does not claim E2E chat."""
+        provider = getattr(request.app.state, "provider", None)
+        reachable = False
+        if provider is not None:
+            reachable = await provider.health()
+        n = accounts.user_count()
+        private = configured_mode(cfg) == "private"
+        auth_ready = (not private) or n > 0
+        return {
+            "BACKEND_UP": True,
+            "AUTHENTICATION_UP": bool(auth_ready),
+            "MODEL_AVAILABLE": bool(reachable),
+            "END_TO_END_CHAT_UP": "requires_auth",
+            "exposure": "private" if private else "local",
+            "generates": False,
+            "note": "STATIC_UP and PUBLIC_API_UP are assigned by an external probe of the public origin.",
+        }
+
     @app.get("/auth/status")
     async def auth_status(request: Request):
         n = accounts.user_count()

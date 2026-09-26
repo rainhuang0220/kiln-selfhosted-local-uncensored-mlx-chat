@@ -1,0 +1,15 @@
+{
+  "ts": "2026-09-26T12:43:31+0800",
+  "label": "OBSERVED_tunnel_interrupt_recovery",
+  "killed_ssh_pid": "86237",
+  "recovered": true,
+  "new_ssh_pid": "87133",
+  "mlx_before": "1581",
+  "mlx_after": "1581",
+  "mlx_unchanged": true,
+  "api_before": "85710",
+  "api_after": "85710",
+  "api_unchanged": true,
+  "homepage_during_or_after": "200",
+  "note": "Killed tunnel ssh only; launchd/script reconnect. Did not restart API or MLX."
+}
