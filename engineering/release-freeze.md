@@ -5,7 +5,7 @@
 | Field | Value |
 | --- | --- |
 | Branch | `eng/inference-baseline-20260924` |
-| HEAD | `3d35cb9` (+ uncommitted auth-gate/CLI freeze deltas in this wave; see release_acceptance_report) |
+| HEAD | `21fef2e` (auth gate + release docs; tag `v0.1.0-beta` remains on `7061166`) |
 | Release tag | `v0.1.0-beta` → `7061166` |
 | Public URL | https://kiln.plainlist.space |
 | API | `127.0.0.1:8787` (uvicorn) |
