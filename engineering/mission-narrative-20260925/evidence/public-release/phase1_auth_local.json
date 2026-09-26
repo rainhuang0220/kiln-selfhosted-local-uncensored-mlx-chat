@@ -1,0 +1,36 @@
+{
+  "label": "local",
+  "origin": "http://127.0.0.1:8787",
+  "ts": "2026-09-26T12:00:29+0800",
+  "username": "qa_release",
+  "wrong_password": {
+    "code": 403,
+    "body": "{\"error\":{\"message\":\"origin not allowed\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"csrf_rejected\"}}",
+    "latency_s": 0.004
+  },
+  "login": {
+    "code": 403,
+    "body": "{\"error\":{\"message\":\"origin not allowed\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"csrf_rejected\"}}",
+    "latency_s": 0.001,
+    "cookies": []
+  },
+  "status_after_login": {
+    "code": 200,
+    "body": "{\"required\":true,\"ok\":false,\"setup\":false,\"signup\":false,\"username\":null,\"role\":null,\"ready\":true,\"exposure\":\"private\"}"
+  },
+  "status_after_refresh": {
+    "code": 200,
+    "body": "{\"required\":true,\"ok\":false,\"setup\":false,\"signup\":false,\"username\":null,\"role\":null,\"ready\":true,\"exposure\":\"private\"}"
+  },
+  "authed_chat": {
+    "code": 401,
+    "body_prefix": "{\"error\":{\"message\":\"authentication required\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"auth_required\"}}",
+    "latency_s": 0.0,
+    "not_401": false
+  },
+  "anon_chat": {
+    "code": 401,
+    "body": "{\"error\":{\"message\":\"authentication required\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"auth_required\"}}"
+  },
+  "phase1_pass": false
+}

@@ -78,10 +78,13 @@ export function AuthGate({
               ? "还没有用户。用户名 3–32 位（小写字母数字下划线），密码至少 10 位。"
               : locked
                 ? "输入密码继续。默认只在关闭浏览器前保持登录。"
-                : "仅此设备上的私有模型与数据。默认只在关闭浏览器前保持登录。"}
+                : "私有远端访问：仅已发放账号可登录。新账号须由本机所有者在 Mac 上创建（python -m app.cli create-user），公网不能自助注册。"}
         </p>
         {!authReady ? (
           <pre className="auth-cli">python -m app.cli create-owner --username YOURNAME</pre>
+        ) : null}
+        {authReady && !authSetup ? (
+          <pre className="auth-cli">python -m app.cli create-user --username NEWUSER</pre>
         ) : null}
 
         <div className="auth-field">

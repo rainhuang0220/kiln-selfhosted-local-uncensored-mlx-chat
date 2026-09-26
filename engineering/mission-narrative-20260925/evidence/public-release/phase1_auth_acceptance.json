@@ -1,0 +1,38 @@
+{
+  "label": "public",
+  "origin": "https://kiln.plainlist.space",
+  "ts": "2026-09-26T12:00:29+0800",
+  "username": "qa_release",
+  "wrong_password": {
+    "code": 401,
+    "body": "{\"error\":{\"message\":\"invalid username or password\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"auth_failed\"}}",
+    "latency_s": 0.598
+  },
+  "login": {
+    "code": 200,
+    "body": "{\"ok\":true,\"required\":true,\"username\":\"qa_release\",\"role\":\"user\"}",
+    "latency_s": 0.512,
+    "cookies": [
+      "__Host-kiln_session"
+    ]
+  },
+  "status_after_login": {
+    "code": 200,
+    "body": "{\"required\":true,\"ok\":true,\"setup\":false,\"signup\":false,\"username\":\"qa_release\",\"role\":\"user\",\"ready\":true,\"exposure\":\"private\"}"
+  },
+  "status_after_refresh": {
+    "code": 200,
+    "body": "{\"required\":true,\"ok\":true,\"setup\":false,\"signup\":false,\"username\":\"qa_release\",\"role\":\"user\",\"ready\":true,\"exposure\":\"private\"}"
+  },
+  "authed_chat": {
+    "code": 200,
+    "body_prefix": "{\"conversation_id\":\"f3910cc0-2355-4f9a-a7ab-b204b57bd2e6\",\"created\":true,\"message\":{\"id\":\"1a61a1b4-a747-49d1-8019-9e493d9f4a51\",\"role\":\"assistant\",\"content\":\"pong\",\"reasoning_content\":null,\"status\":\"complete\"},\"finish_re",
+    "latency_s": 1.78,
+    "not_401": true
+  },
+  "anon_chat": {
+    "code": 401,
+    "body": "{\"error\":{\"message\":\"authentication required\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"auth_required\"}}"
+  },
+  "phase1_pass": true
+}

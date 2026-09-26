@@ -204,8 +204,22 @@ Labels used only: **PASS**, **PARTIAL**, **KNOWN LIMIT**, **EXTERNAL BLOCKER**.
 - MLX listen: **127.0.0.1:8081** only (PID 1581)
 - API auth required when `KILN_EXPOSURE=private`
 - CORS via `allowed_origins` + public origin
-- Secrets offline: `~/Library/Application Support/kiln/api.env`, tunnel key, mission token — **not** in git
+- Secrets offline: `~/Library/Application Support/kiln/api.env`, tunnel key, mission token, QA credentials — **not** in git
 - Rate limit path present in `backend/app/auth.py`
 - Rollback: DB backup above; API-only kickstart; never restart MLX for rollback of this wave
 - Nginx: restore from `/tmp/kiln.plainlist.space.conf.bak.*` on VPS if vhost regresses; static rollback via previous `web/dist` rsync
+
+---
+
+# Auth gate freeze — 2026-09-26 (later same day)
+
+**Decision: READY WITH LIMITATIONS** — see [`../release_acceptance_report.md`](../release_acceptance_report.md).
+
+| Item | Result |
+| --- | --- |
+| Tunnel P0 502 | Fixed (web-tunnel kickstart); MLX untouched |
+| Login root cause | Tunnel down + private owner-issued accounts (not open signup) |
+| Phase 1 public auth loop | **PASS** (`mission-narrative-20260925/evidence/public-release/phase1_auth_acceptance.json`) |
+| Phase 2 model/narrative QA | **not started** (`low_pages_free`) |
+| Account path | `python -m app.cli create-user` + AuthGate copy on public UI |
 
