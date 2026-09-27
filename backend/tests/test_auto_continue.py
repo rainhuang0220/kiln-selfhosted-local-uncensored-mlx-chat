@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.providers.base import ChatChunk, ChatRequest
-from app.services.auto_continue import count_output_chars, should_auto_continue
+from app.services.auto_continue import count_output_chars, drop_last_sentence, should_auto_continue
 
 
 def test_should_auto_continue_on_length_under_min():
@@ -143,7 +143,9 @@ async def test_chat_auto_continue_same_message_id(
     assert msg["id"]
     metas = [e["data"] for e in events if e.get("event") == "meta"]
     assert {m["message_id"] for m in metas} == {msg["id"]}
-    assert msg["content"].startswith(short)
+    # A self-stopped hop resumes before its closed last sentence (next beat, not a rewrite).
+    kept = short if first_finish == "length" else drop_last_sentence(short)
+    assert msg["content"].startswith(kept)
     assert dones[0]["data"].get("visible_chars", visible) >= 5000
 
 
@@ -257,8 +259,9 @@ async def test_stalled_hop_backs_up_a_sentence_instead_of_one_token(
     done = dones[0]
     assert len(sent_contents) >= 2
     hop1, hop2 = sent_contents[0], sent_contents[1]
-    assert hop1.endswith(last)
-    assert hop2 == hop1[: -len(last)], (hop1[-30:], hop2[-30:])
+    # The self-stopped first hop already resumed before its closed last sentence.
+    assert hop1 == opening
+    assert hop2 == drop_last_sentence(hop1) and hop2 != hop1, (hop1[-30:], hop2[-30:])
     assert count_output_chars(done["message"]["content"]) >= 5000
 
 
@@ -295,14 +298,17 @@ async def test_loop_guard_continue_marks_cut_prefix_and_turn_prompt_used(
 
     async def stream(request: ChatRequest):
         requests.append(request)
+        finish = "stop"
         if len(requests) == 1:
             for piece in (opening, looped, middle, "\n\n", looped, middle, looped):
                 yield ChatChunk(id="c", model="fake", delta_content=piece)
         elif len(requests) == 2:
+            # Ends on length so the next prefix is left untouched (a self-stop would drop a sentence).
+            finish = "length"
             yield ChatChunk(id="c", model="fake", delta_content=plain_hop)
         else:
             yield ChatChunk(id="c", model="fake", delta_content=fill)
-        yield ChatChunk(id="c", model="fake", finish_reason="stop", prompt_tokens=10, completion_tokens=100)
+        yield ChatChunk(id="c", model="fake", finish_reason=finish, prompt_tokens=10, completion_tokens=100)
         yield ChatChunk(id="c", model="fake", wire_done=True)
 
     fake_provider.stream = stream  # type: ignore[method-assign]

@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
+from app.services.scene_graph import TYPED_PREFIXES, typed_atom_violated
+
 _OBJECT = re.compile(
     r"(?P<item>铜钥匙|钥匙|纸条|杯子|外套|灯|窗|炉子|床|裙|衬衫)"
     r".{0,12}?(?P<hint>还在|放在|拿着|丢了|在你|在我|柜|抽屉)?"
@@ -28,8 +30,8 @@ _CUE_WORDS = {
     "然后呢", "继续", "好的", "是吗", "往下写", "展开", "再说", "续写", "嗯嗯", "好吧",
     "为什么", "怎么了", "真的吗", "没事", "谢谢", "你好", "对了", "知道了",
 }
-# Only labeled categories drive the post-generation repair hop; "专名" pins stay in the fence.
-REPAIRABLE_PIN_PREFIXES = ("称呼：", "标记：", "物件：", "约定：", "地点：")
+# Only labeled categories and typed scene slots drive the repair hop; "专名" pins stay in the fence.
+REPAIRABLE_PIN_PREFIXES = ("称呼：", "标记：", "物件：", "约定：", "地点：", *TYPED_PREFIXES)
 
 # Synonyms accepted when checking whether prose honored a pin.
 _PIN_SYNONYMS: dict[str, tuple[str, ...]] = {
@@ -353,11 +355,15 @@ def _pin_needles(pin: str) -> list[str]:
 
 
 def pins_absent_from_prose(pins: Iterable[str], prose: str) -> list[str]:
-    """Return pins whose proper nouns are completely missing from assistant prose."""
+    """Pins the prose drops: missing nouns, or typed slots it contradicts (re-dress, teleport)."""
     text = prose or ""
     missing: list[str] = []
     for pin in pins:
         if not (pin or "").strip().startswith(REPAIRABLE_PIN_PREFIXES):
+            continue
+        if pin.startswith(TYPED_PREFIXES):
+            if typed_atom_violated(pin, text):
+                missing.append(pin)
             continue
         needles = _pin_needles(pin)
         if not needles:

@@ -10,6 +10,7 @@ from typing import Any
 from app.db import get_conn
 from app.services.dialogue_context import DialogueState
 from app.services.fact_extractor import ExtractedFacts, extract_facts
+from app.services.scene_graph import SceneGraph
 
 
 def _now() -> int:
@@ -33,6 +34,8 @@ class SceneStateRecord:
     recent_actions: list[str] = field(default_factory=list)
     forbidden_patterns: list[str] = field(default_factory=list)
     updated_at: int = 0
+    # Typed SceneGraph (cast clothes / space / contact / beat); owns body state when present.
+    graph: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -64,6 +67,7 @@ class SceneStateRecord:
                 data.get("forbidden_patterns") or data.get("forbidden_patterns_json") or []
             ),
             updated_at=int(data.get("updated_at") or 0),
+            graph=dict(data.get("graph") or {}),
         )
 
     def _clock(self) -> str:
@@ -121,6 +125,20 @@ class SceneStateRecord:
         return blob
 
     def fence(self, *, budget_tokens: int = 400) -> str | None:
+        graph = SceneGraph.from_dict(self.graph)
+        if not graph.is_empty():
+            inv = "、".join(self.inventory)
+            clock = self._clock()
+            extra = [
+                line
+                for line in (
+                    f"inventory: [{inv}]" if inv else "",
+                    f"clock: {clock}" if clock else "",
+                    "" if graph.space.place or not self.location else f"location: {self.location}",
+                )
+                if line
+            ]
+            return graph.fence(budget_chars=800, extra=extra)
         body = self.render(budget_tokens=budget_tokens)
         if ":" not in body:
             return None
@@ -166,7 +184,13 @@ class SceneStateStore:
             recent_actions=json.loads(row["recent_actions_json"] or "[]"),
             forbidden_patterns=json.loads(row["forbidden_patterns_json"] or "[]"),
             updated_at=int(row["updated_at"] or 0),
+            graph=json.loads(row["graph_json"] or "{}") if "graph_json" in row.keys() else {},
         )
+
+    def save_graph(self, conversation_id: str, graph: SceneGraph) -> SceneStateRecord:
+        record = self.get(conversation_id) or SceneStateRecord(conversation_id=conversation_id)
+        record.graph = graph.to_dict()
+        return self.save(record)
 
     def save(self, record: SceneStateRecord) -> SceneStateRecord:
         ts = _now()
@@ -178,8 +202,8 @@ class SceneStateStore:
               conversation_id, location, scene, participants_json, clothing_json,
               body_state_json, emotion, relationship, inventory_json, open_threads_json,
               user_preferences_json, character_goals_json, recent_actions_json,
-              forbidden_patterns_json, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              forbidden_patterns_json, updated_at, graph_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(conversation_id) DO UPDATE SET
               location=excluded.location,
               scene=excluded.scene,
@@ -194,7 +218,8 @@ class SceneStateStore:
               character_goals_json=excluded.character_goals_json,
               recent_actions_json=excluded.recent_actions_json,
               forbidden_patterns_json=excluded.forbidden_patterns_json,
-              updated_at=excluded.updated_at
+              updated_at=excluded.updated_at,
+              graph_json=excluded.graph_json
             """,
             (
                 record.conversation_id,
@@ -212,6 +237,7 @@ class SceneStateStore:
                 json.dumps(record.recent_actions, ensure_ascii=False),
                 json.dumps(record.forbidden_patterns, ensure_ascii=False),
                 ts,
+                json.dumps(record.graph or {}, ensure_ascii=False),
             ),
         )
         conn.commit()

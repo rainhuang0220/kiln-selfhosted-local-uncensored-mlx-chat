@@ -45,6 +45,13 @@ from app.services.memory import MemoryService
 from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
 from app.services.scene_state_store import SceneStateStore
+from app.services.scene_graph import (
+    SceneGraph,
+    absorb_history,
+    beat_advanced,
+    describe_repair,
+    violation_start,
+)
 from app.services.repetition import hard_self_loop, repeated_sentence_start
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
@@ -59,9 +66,14 @@ from app.services.tokens import TokenEstimator
 
 
 IMMERSIVE_PROFILE_NAMES = {"immersive", "long_form", "narrative", "multi_scenario"}
+# Depth-0 director brief on the user-side fence; immersive only, ≤280 chars.
 IMMERSIVE_AUTHOR_NOTE = (
-    "<author_note>\n本轮可见正文不少于 5000 字；写不完就停在未完成的动作上。\n"
-    "不要复述上一条回复，从它停下的地方往后写。\n</author_note>"
+    "<author_note>\n"
+    "1. 身体、衣着层次、姿势、接触点以 scene_state 为准：脱掉的不会自己穿回，没走动就还在原地。\n"
+    "2. 先接住用户最后一个身体动作，再往前推一拍：写动作和感官——触感、温度、湿度、呼吸、声音。\n"
+    "3. 不黑屏，不写“后来”，不复述上一段，不跳出角色解释。\n"
+    "4. must_keep 里的每一项都必须落进正文。\n"
+    "</author_note>"
 )
 # Turn-boundary tokens suppressed while an auto-continue hop fills toward the floor.
 FILL_HOP_BANNED_TOKENS = ("<|endoftext|>", "<|im_end|>", "<|im_start|>", "<think>")
@@ -590,6 +602,7 @@ class ChatService:
         profile_name: str | None = None,
         min_recent_turns: int | None = None,
         keep_pins: bool = False,
+        repair: list[str] | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
@@ -606,6 +619,13 @@ class ChatService:
             in {"immersive", "long_form", "narrative", "multi_scenario"}
             else 4
         )
+        graph: SceneGraph | None = None
+        if keep_pins:
+            try:
+                record = SceneStateStore().get(conversation_id)
+                graph = SceneGraph.from_dict(record.graph if record else None)
+            except Exception:
+                graph = SceneGraph()
         built = build_dialogue_context(
             history,
             budget=budget,
@@ -615,7 +635,14 @@ class ChatService:
             recent_turn_target=max(8, recent_min),
             min_recent_turns=recent_min,
             fold_every_turns=4,
+            graph=graph,
         )
+        if graph is not None:
+            absorb_history(graph, [m for m in history if m.get("role") != "system"])
+            try:
+                SceneStateStore().save_graph(conversation_id, graph)
+            except Exception:
+                pass
         kept, dropped, truncated = truncate_messages(
             built.messages, budget=budget, estimate=estimate, reserved_output=0
         )
@@ -642,6 +669,8 @@ class ChatService:
                 conversation_id=conversation_id,
                 owner_id=owner_id,
                 mem_fence=mem_fence,
+                graph=graph,
+                repair=repair,
             )
         else:
             fence, pins, scene, lore_hits = mem_fence, [], None, []
@@ -864,6 +893,7 @@ class ChatService:
             },
         }
         snapshot["dialogue_state_obj"] = built.state
+        snapshot["scene_graph_obj"] = graph
         snapshot["history_summary"] = built.summary
         return sent, snapshot
 
@@ -876,6 +906,8 @@ class ChatService:
         conversation_id: str,
         owner_id: str | None,
         mem_fence: str | None,
+        graph: SceneGraph | None = None,
+        repair: list[str] | None = None,
     ) -> tuple[str | None, list[str], Any, list[dict[str, Any]]]:
         """User-side fence for keep_pins profiles: pins, lore, scene state, memory, author note."""
         lore_hits: list[dict[str, Any]] = []
@@ -988,7 +1020,12 @@ class ChatService:
             budget_chars=1200,
         )
         fence = f"{fence}\n\n{IMMERSIVE_AUTHOR_NOTE}" if fence else IMMERSIVE_AUTHOR_NOTE
-        return fence, keep_pins, scene, lore_hits
+        lines = describe_repair(repair or [])
+        if lines:
+            fence += "\n\n<repair>\n上一段漏掉或写错了，接着往下写时补上：\n"
+            fence += "\n".join(f"- {line}" for line in lines) + "\n</repair>"
+        slot_pins = graph.repair_atoms() if graph is not None else []
+        return fence, [*keep_pins, *slot_pins], scene, lore_hits
 
     def _save_snapshot(
         self, conversation_id: str, snapshot: dict[str, Any], params: dict[str, Any]
@@ -1404,7 +1441,13 @@ class ChatService:
         pin_repair_count = 0
         pin_repair_budget = 512
         pin_repair_pending = False
+        repair_slots: list[str] = []
         turn_keep_pins: list[str] = []
+        turn_graph: SceneGraph | None = None
+        stub_hops = 0
+        beat_hops = 0
+        stub_streak = 0
+        guard_hits = 0
         completion_tokens_acc = 0
         immersive_turn = preset["profile"] in IMMERSIVE_PROFILE_NAMES
         hop_logit_bias: dict[str, float] = {}
@@ -1556,7 +1599,7 @@ class ChatService:
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
-            nonlocal guard_trim, prefix_mutated
+            nonlocal guard_trim, prefix_mutated, guard_hits
             try:
                 async for chunk in agen:
                     if chunk.wire_done:
@@ -1604,6 +1647,7 @@ class ChatService:
                             if cut is not None:
                                 content_buf = content_buf[:cut].rstrip()
                                 guard_trim = "runon"
+                                guard_hits += 1
                                 prefix_mutated = True
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
@@ -1617,6 +1661,7 @@ class ChatService:
                                     deflect_ids.add(first[0])
                                 content_buf = content_buf[:loop_at].rstrip()
                                 guard_trim = "loop"
+                                guard_hits += 1
                                 prefix_mutated = True
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
@@ -1659,6 +1704,7 @@ class ChatService:
                 answer_check = None
                 # keep content_buf / reasoning_buf; continuation appends
             hop_start_len = len(content_buf or "")
+            hop_guard_start = guard_hits
 
             try:
                 if skip_user_insert:
@@ -1702,11 +1748,13 @@ class ChatService:
                     prompt_soft_target=preset.get("prompt_soft_target"),
                     profile_name=preset.get("profile"),
                     keep_pins=bool(preset.get("keep_pins")),
+                    repair=repair_slots if pin_repair_pending else None,
                 )
                 occupancy = snapshot_meta["occupancy"]
                 prompt_tokens = occupancy["prompt_tokens"]
                 if snapshot_meta.get("keep_pins"):
                     turn_keep_pins = list(snapshot_meta.get("keep_pins") or [])
+                turn_graph = snapshot_meta.get("scene_graph_obj") or turn_graph
                 if (
                     occupancy["prompt_tokens"] + max_tokens > s.context_window
                     and s.overflow_policy == "error"
@@ -1952,6 +2000,7 @@ class ChatService:
                     prefix_mutated = prefix_mutated or trimmed != (content_buf or "")
                     content_buf = trimmed
                 stalled = False
+                backed_up = False
                 if auto_count > 0 and not pin_hop and len(content_buf or "") <= hop_start_len:
                     # Resending this prompt minus one token can land on a key mlx-lm
                     # cached for the last hop; an exact hit kills its generate thread.
@@ -1960,8 +2009,19 @@ class ChatService:
                     if stall_count == 1 and backed != (content_buf or ""):
                         content_buf = backed
                         prefix_mutated = True
+                        backed_up = True
                     else:
                         stalled = True
+                new_text = (content_buf or "")[hop_start_len:]
+                if immersive_turn and turn_graph is not None and auto_count > 0 and not pin_hop and new_text.strip():
+                    # A Continue hop is a next beat only if it moves verb, contact or clothes.
+                    before = turn_graph.copy().merge((content_buf or "")[:hop_start_len], role="assistant")
+                    if beat_advanced(before, new_text):
+                        beat_hops += 1
+                        stub_streak = 0
+                    else:
+                        stub_hops += 1
+                        stub_streak += 1
                 visible_n = count_output_chars(content_buf or "")
                 rep_guard = terminal == TerminalState.REPETITION_GUARD or finish == "repetition_guard"
                 do_auto = (
@@ -1979,7 +2039,20 @@ class ChatService:
                         completion_tokens_used=completion_tokens_acc,
                         completion_soft_cap=completion_soft_cap,
                     )
+                    and stub_streak < 2
                 )
+                if (
+                    do_auto
+                    and immersive_turn
+                    and not pin_hop
+                    and not backed_up
+                    and (finish in {"stop", "completed_stop"} or guard_hits > hop_guard_start)
+                ):
+                    # The 9B rewrites a closed last sentence; resume before it instead.
+                    backed = drop_last_sentence(content_buf or "")
+                    if backed != (content_buf or "") and len(backed) > hop_start_len:
+                        content_buf = backed
+                        prefix_mutated = True
 
             if user_cancelled:
                 break
@@ -1993,17 +2066,25 @@ class ChatService:
                     )
                     self._conn().commit()
                 continue
-            # Light pin check: if must_keep nouns are absent, one ≤512 repair hop.
+            # Pin / slot check: if must_keep nouns or scene slots are dropped, one ≤512 repair hop.
             if (
                 pin_repair_count == 0
                 and preset.get("keep_pins")
                 and not error
                 and not user_cancelled
                 and turn_keep_pins
-                and pins_absent_from_prose(turn_keep_pins, content_buf or "")
             ):
+                repair_slots = pins_absent_from_prose(turn_keep_pins, content_buf or "")
+            else:
+                repair_slots = []
+            if repair_slots:
                 pin_repair_count = 1
                 pin_repair_pending = True
+                cut = violation_start(turn_graph, content_buf or "") if turn_graph else None
+                if cut:
+                    # A re-dress or teleport cannot be un-said; resume before that sentence.
+                    content_buf = (content_buf or "")[:cut].rstrip()
+                    prefix_mutated = True
                 if assistant_id:
                     self._conn().execute(
                         "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
@@ -2147,6 +2228,8 @@ class ChatService:
                 "visible_chars": count_output_chars(content_buf or ""),
                 "auto_continue_count": auto_count,
                 "pin_repair_count": pin_repair_count,
+                "beat_hops": beat_hops,
+                "stub_hops": stub_hops,
                 "fill_hop_count": fill_hop_count,
                 "guard_trim": guard_trim,
                 "usage": {
