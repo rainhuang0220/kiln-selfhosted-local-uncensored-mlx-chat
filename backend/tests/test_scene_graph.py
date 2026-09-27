@@ -304,6 +304,60 @@ async def test_f6_folded_non_immersive_request_has_no_scene_state_or_director_no
         assert tag not in sent, (profile, tag)
 
 
+# Live-sniff regressions (2-turn F1+F2 scene against the 9B)
+
+
+def test_verb_before_possessive_is_not_a_cast_name():
+    graph = _graph(SCENE["setup"])
+    graph.merge("沈川手里拿着那件刚刚被她脱下的风衣。", role="assistant")
+    assert [m.name for m in graph.cast] == ["林夏"]
+
+
+def test_light_projected_on_mirror_is_not_sex_phase():
+    graph = _graph(SCENE["setup"])
+    graph.merge("光斜斜地切过穿衣镜，将林夏的身影投射在光滑的镜面之上。", role="assistant")
+    assert graph.beat.phase == "approach"
+
+
+def test_generic_room_is_not_a_teleport():
+    from app.services.scene_graph import slots_absent_from_prose
+
+    graph = _graph(SCENE["setup"])
+    assert not _kinds(slots_absent_from_prose(graph, "房间里只剩下两个人的呼吸声。"), "space")
+
+
+async def test_garment_nouns_are_not_object_pins_when_graph_owns_clothes(
+    chat_service, fake_provider, monkeypatch
+):
+    calls: list[ChatRequest] = []
+    fake_provider.stream = _scripted(  # type: ignore[method-assign]
+        ["沈川脱下那件外套，搭在更衣室的衣架上。", "他的指腹压着她的腰。"], calls
+    )
+    first = await _chat(chat_service, SCENE["setup"], auto_continue=False)
+    cid = next(e for e in first if e.get("event") == "meta")["data"]["conversation_id"]
+    turn2 = len(calls)
+
+    done = _done(await _chat(chat_service, SCENE["contact"], conversation_id=cid, auto_continue=False))
+
+    fence = _fence(calls[turn2])
+    assert _done(first)["pin_repair_count"] == 0
+    assert "物件：外套" not in fence and "物件：裙" not in fence
+    assert "专名：慢慢往下" not in fence
+    inventory = [ln for ln in _scene_block(fence).splitlines() if ln.startswith("inventory:")]
+    assert not any("外套" in ln or "裙" in ln for ln in inventory)
+    assert done["pin_repair_count"] == 0
+
+
+def test_named_subject_removing_unworn_garment_owns_it():
+    graph = _graph(SCENE["setup"])
+    graph.merge("沈川脱下那件外套，搭在衣架上。他的指腹压着她的腰。", role="assistant")
+    shen = graph.member("沈川")
+    assert shen is not None and shen.removed == ["外套"]
+    lin = graph.member("林夏")
+    assert lin is not None and "外套" not in lin.removed
+    assert [(c.who, c.target, c.body_region) for c in graph.contact] == [("沈川", "林夏", "腰")]
+
+
 # F7 — cache dodge still holds after the next-beat strip
 
 

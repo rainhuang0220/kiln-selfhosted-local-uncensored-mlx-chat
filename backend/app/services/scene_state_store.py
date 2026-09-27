@@ -10,7 +10,7 @@ from typing import Any
 from app.db import get_conn
 from app.services.dialogue_context import DialogueState
 from app.services.fact_extractor import ExtractedFacts, extract_facts
-from app.services.scene_graph import SceneGraph
+from app.services.scene_graph import SceneGraph, is_scene_noun
 
 
 def _now() -> int:
@@ -127,7 +127,7 @@ class SceneStateRecord:
     def fence(self, *, budget_tokens: int = 400) -> str | None:
         graph = SceneGraph.from_dict(self.graph)
         if not graph.is_empty():
-            inv = "、".join(self.inventory)
+            inv = "、".join(i for i in self.inventory if not is_scene_noun(i))
             clock = self._clock()
             extra = [
                 line

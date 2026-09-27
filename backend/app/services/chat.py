@@ -50,6 +50,7 @@ from app.services.scene_graph import (
     absorb_history,
     beat_advanced,
     describe_repair,
+    graph_owned_pin,
     violation_start,
 )
 from app.services.repetition import hard_self_loop, repeated_sentence_start
@@ -1009,6 +1010,8 @@ class ChatService:
         keep_pins.extend(
             h.get("key") for h in lore_hits if h.get("key") and h.get("key") not in keep_pins
         )
+        if graph is not None and not graph.is_empty():
+            keep_pins = [p for p in keep_pins if not graph_owned_pin(p)]
         keep_pins = keep_pins[:12]
         keep_fence = must_keep_fence(keep_pins)
         # Prefer must_keep → lore → scene_state; truncate lore, never the user turn.

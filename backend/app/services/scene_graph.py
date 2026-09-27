@@ -59,6 +59,8 @@ _PLACE_ALIAS = {
     )},
     "试衣间": "更衣室", "卫生间": "浴室", "淋浴间": "浴室", "主卧": "卧室",
 }
+# Hypernyms that fit inside any specific place ("房间里" in a 更衣室 is not a scene change).
+_GENERIC_PLACES = {"房间"}
 _FURNITURE = (
     "更衣镜", "镜子", "长凳", "床头", "床", "沙发", "书桌", "桌", "墙", "椅子", "门", "窗",
     "浴缸", "地毯", "柜台", "洗手台",
@@ -97,7 +99,9 @@ _POSITION = re.compile(
     r"(跨坐在|靠在|躺在|坐在|跪在|趴在|倚在|伏在|抵在|站在|蜷在|缩在|坐到|躺到|跪到)"
     rf"([{_CJK}]{{1,6}}?)(怀里|上|前|边|里|旁|下)"
 )
-_SEX = re.compile(r"(进入她|进入他|插入|插进|抽送|顶弄|律动|交合|做爱|高潮|射在|射进)")
+_SEX = re.compile(
+    r"(进入她|进入他|插入|插进|抽送|顶弄|律动|交合|做爱|高潮|(?<![投照反映折放辐注散])射(?:在|进))"
+)
 _AFTER = re.compile(r"(事后|余韵|平复下来|瘫软在|结束后)")
 _SLOW = re.compile(r"(慢慢|缓缓|轻轻|慢)")
 _FAST = re.compile(r"(加快|急促|猛地|狠狠|快)")
@@ -154,11 +158,17 @@ def _uniq(items: Iterable[str], cap: int = 12) -> list[str]:
     return out[-cap:]
 
 
+_VERB_TAIL = set("下上开掉起过住到进出来去完好")
+_VERB_RE = _alt((*_REMOVE, *_OPEN, *_DRESS, *_MOVE, *_TOUCH, *_DIRECTION))
+
+
 def _is_name(cand: str) -> bool:
     return (
         2 <= len(cand) <= 3
         and all("\u4e00" <= ch <= "\u9fff" for ch in cand)
         and not any(ch in _FUNC for ch in cand)
+        and cand[-1] not in _VERB_TAIL
+        and not _VERB_RE.search(cand)
         and cand not in _NOT_NAMES
         and cand not in _GARMENT_ALIAS
         and cand not in _REGION_ALIAS
@@ -355,6 +365,10 @@ class SceneGraph:
             wearers = [m.name for m in self.cast if garment in m.clothes_layers]
             if len(wearers) == 1:
                 return wearers[0]
+            sm = _SUBJECT.match(clause.strip())
+            if not wearers and sm and _is_name(sm.group(1)) and sm.group(1) != self.focus:
+                self.actor = sm.group(1)
+                return sm.group(1)
         return self.focus or "她"
 
     # ---- merge -------------------------------------------------------
@@ -457,7 +471,7 @@ class SceneGraph:
                 hit = hit or "undress"
             elif user or garment not in who.removed:
                 who.wear(garment)
-            if kind != "dress" or user:
+            if (kind != "dress" or user) and owner != self.actor:
                 self.focus = owner
             if kind in ("remove", "open"):
                 last = max(last or (-1, ""), (verb[0], verb[2]))
@@ -505,6 +519,10 @@ class SceneGraph:
         return last
 
     def _touch(self, contact: Contact) -> None:
+        if contact.who in _PRONOUNS and any(
+            (c.target, c.body_region) == (contact.target, contact.body_region) for c in self.contact
+        ):
+            return
         for c in list(self.contact):
             if (c.who, c.target, c.body_region) == (contact.who, contact.target, contact.body_region):
                 contact.intensity = contact.intensity or c.intensity
@@ -666,6 +684,22 @@ def absorb_history(
 # ---- prose checks ----------------------------------------------------
 
 
+def is_scene_noun(word: str) -> bool:
+    """Garments, furniture, body regions and places — tracked by the graph, not as loose objects."""
+    w = (word or "").strip()
+    return bool(w) and (
+        w in _GARMENT_ALIAS or w in _FURNITURE or w in _REGION_ALIAS or w in _PLACE_ALIAS
+    )
+
+
+def graph_owned_pin(pin: str) -> bool:
+    """Legacy 物件/专名 pins the graph already covers (scene nouns, motion or pace phrases)."""
+    kind, sep, value = (pin or "").partition("：")
+    if not sep or kind not in {"物件", "专名"}:
+        return False
+    return is_scene_noun(value) or bool(_VERB_RE.search(value) or _SLOW.search(value) or _FAST.search(value))
+
+
 def _garment_needles(garment: str) -> list[str]:
     needles = [a for a, c in _GARMENT_ALIAS.items() if c == garment and len(a) >= 2]
     return needles or [garment]
@@ -686,7 +720,7 @@ def _teleported(place: str, prose: str) -> bool:
     for clause in _CLAUSE_SPLIT.split(prose or ""):
         for m in _PLACE_RE.finditer(clause):
             other = _PLACE_ALIAS[m.group(0)]
-            if other == place:
+            if other == place or other in _GENERIC_PLACES:
                 continue
             if _AWAY.search(clause[max(0, m.start() - 3): m.start()]):
                 continue
