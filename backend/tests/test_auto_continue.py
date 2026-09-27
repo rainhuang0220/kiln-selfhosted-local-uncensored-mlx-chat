@@ -387,3 +387,79 @@ async def test_paragraph_cycle_is_trimmed_and_next_hop_deflects(
     assert len(requests) == 2
     assert (requests[1].extra or {}).get("logit_bias") == {"7": -100.0, "99": -100.0}
     assert count_output_chars(content) >= 5000
+
+
+def test_t_hop_refund_short_unique_chars_do_not_consume_budget():
+    """A guard-aborted hop adding <80 unique chars does not spend a useful continue slot."""
+    from app.services.auto_continue import counts_against_continue_budget, hard_provider_call_cap
+
+    assert not counts_against_continue_budget(unique_chars=12)
+    assert not counts_against_continue_budget(unique_chars=79)
+    assert counts_against_continue_budget(unique_chars=80)
+    assert counts_against_continue_budget(unique_chars=200)
+    # Immersive auto_continue_max is 3 (<6) → total MLX calls hard-capped at 6.
+    assert hard_provider_call_cap(auto_continue_max=3) == 6
+    assert hard_provider_call_cap(auto_continue_max=8) == 8
+
+
+async def test_t_hop_refund_wasted_guard_hops_still_reach_floor(
+    chat_service, fake_provider, monkeypatch
+):
+    """Wasted short *guard-aborted* hops must not burn the useful immersive continue budget."""
+    opening = _varied(1800, "甲")
+    # Long enough for repeated_sentence_start (≥16) so guard_trim=loop fires.
+    looped = "窗外的天色彻底暗了下来，只剩几盏昏黄的灯泡在尘埃里挣扎。"
+    middle = "她把铜钥匙放回柜台，指尖在木纹上停了一下。"
+    fill = _varied(4000, "乙")
+    requests: list[ChatRequest] = []
+    calls = {"n": 0}
+
+    monkeypatch.setattr(
+        chat_service.tokenizer,
+        "continuation_completion_prompt",
+        lambda messages, **kwargs: ("CONTINUE_PROMPT", "尾"),
+    )
+    monkeypatch.setattr(
+        chat_service.tokenizer, "special_token_ids", lambda names: [7], raising=False
+    )
+    monkeypatch.setattr(chat_service.tokenizer, "first_token", lambda text: None, raising=False)
+
+    async def stream(request: ChatRequest):
+        calls["n"] += 1
+        requests.append(request)
+        n = calls["n"]
+        if n == 1:
+            # Plant a paragraph cycle so guard_trim=loop aborts with little unique gain.
+            for piece in (opening, looped, middle, "\n\n", looped):
+                yield ChatChunk(id="c", model="fake", delta_content=piece)
+            finish = "stop"
+        elif n in {2, 3}:
+            # Two more short guard-style scraps after the first cut.
+            yield ChatChunk(id="c", model="fake", delta_content=looped + "\n\n" + looped)
+            finish = "stop"
+        else:
+            yield ChatChunk(id="c", model="fake", delta_content=fill)
+            finish = "stop"
+        yield ChatChunk(
+            id="c", model="fake", finish_reason=finish, prompt_tokens=10, completion_tokens=40
+        )
+        yield ChatChunk(id="c", model="fake", wire_done=True)
+
+    fake_provider.stream = stream  # type: ignore[method-assign]
+
+    events = [
+        e
+        async for e in chat_service.chat(
+            message="继续写长一点",
+            conversation_id=None,
+            stream=True,
+            profile="immersive",
+            auto_continue=True,
+            max_tokens=6144,
+        )
+    ]
+    done = next(e for e in events if e.get("event") == "done")["data"]
+    assert count_output_chars(done["message"]["content"]) >= 5000
+    # First hop + ≤2 wasted guard hops + ≥1 useful fill; under the hard call cap of 6.
+    assert 4 <= len(requests) <= 6
+    assert done.get("auto_continue_count", 0) <= 3

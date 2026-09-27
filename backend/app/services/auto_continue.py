@@ -65,6 +65,17 @@ def should_auto_continue(
     return finish in {"length", "completed_length", "stop", "completed_stop", ""}
 
 
+def counts_against_continue_budget(unique_chars: int, *, min_unique: int = 80) -> bool:
+    """Guard-aborted hops that add almost nothing must not burn a useful continue slot."""
+    return int(unique_chars or 0) >= min_unique
+
+
+def hard_provider_call_cap(auto_continue_max: int) -> int:
+    """Total MLX calls this turn: existing useful cap if ≥6, else 6 (room for refunds)."""
+    cap = int(auto_continue_max or 0)
+    return cap if cap >= 6 else 6
+
+
 _CLAUSE_BREAK = set("。！？!?；;，,、：:…—\n\r\t 「」『』“”‘’\"'（）()《》·~～")
 _SENTENCE_END = set("。！？!?…」』”\n")
 

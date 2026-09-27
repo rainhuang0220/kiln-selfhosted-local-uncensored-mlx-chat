@@ -48,6 +48,13 @@ _CITIES = (
 _WHEN = re.compile(r"(那年|那天|那晚|那周|第二年|后来|春天|夏天|秋天|冬天|周末|傍晚|凌晨|雨夜|年会|毕业)")
 _NOT_NAME_HEAD = set("那这每有某第上下去今明昨前后半整满两几")
 _NOT_NAME_TAIL = set("天年夜里边时次个州京海城市镇村路街楼店馆院室房岛湖山")
+# Pronouns / role nouns / function words that _NAME_SLOT can still catch once.
+_STOP_NAMES = frozenset(
+    {
+        "她", "他", "你", "我", "们", "技师", "客人", "没有", "什么", "自己", "对方",
+        "两人", "彼此", "那里", "这里", "现在", "然后", "继续", "慢慢", "轻轻", "一下",
+    }
+)
 _REGISTER_LEXICON = (
     ("第一人称", "第一人称"), ("第二人称", "第二人称"), ("第三人称", "第三人称"),
     ("短句", "短句"), ("长句", "长句"), ("白描", "白描"), ("口语", "口语"),
@@ -147,15 +154,21 @@ def _uniq(items: Iterable[str], cap: int) -> list[str]:
     return out[:cap]
 
 
-def _name_candidates(corpus: str) -> list[str]:
+def _name_candidates(corpus: str, *, blocked: Iterable[str] = ()) -> list[str]:
+    """Proper-name candidates. Once is enough; stoplist + live names stay out."""
+    blocked_set = {b for b in blocked if b}
     counts: Counter[str] = Counter()
     for clause in _CLAUSE.finditer(corpus):
         for m in _NAME_SLOT.finditer(clause.group(0)):
             counts[m.group(1)] += 1
-    intro = {m.group(1) for m in re.finditer(rf"([{_CJK}]{{2,3}})是(?:她|他|我|你)?的?{_ROLE.pattern}", corpus)}
+    for m in re.finditer(rf"([{_CJK}]{{2,3}})是(?:她|他|我|你)?的?{_ROLE.pattern}", corpus):
+        counts[m.group(1)] += 0  # ensure intro names appear even without a slot hit
+        counts[m.group(1)] = max(counts[m.group(1)], 1)
     out = []
     for cand, n in counts.most_common():
-        if not (n >= 2 or cand in intro):
+        if n < 1:
+            continue
+        if cand in _STOP_NAMES or cand in blocked_set:
             continue
         if cand[0] in _NOT_NAME_HEAD or cand[-1] in _NOT_NAME_TAIL or cand in _CITIES:
             continue
@@ -165,6 +178,20 @@ def _name_candidates(corpus: str) -> list[str]:
             continue
         out.append(cand)
     return out[:24]
+
+
+def scrub_prose(text: str, names: Iterable[str]) -> str:
+    """Delete StyleBank name spans from assistant prose (same-hop intercept)."""
+    out = text or ""
+    ordered = sorted({n for n in names if n and n in out}, key=len, reverse=True)
+    for name in ordered:
+        out = out.replace(name, "")
+    out = re.sub(r"[（(][）)]", "", out)
+    out = re.sub(r"的{2,}", "的", out)
+    out = re.sub(r"[，,]{2,}", "，", out)
+    out = re.sub(r"[。！？!?]{2,}", lambda m: m.group(0)[0], out)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    return out
 
 
 @dataclass
@@ -209,10 +236,10 @@ class StyleBank:
         bank.absorb(corpus)
         return bank
 
-    def absorb(self, corpus: str) -> "StyleBank":
+    def absorb(self, corpus: str, *, blocked: Iterable[str] = ()) -> "StyleBank":
         text = corpus or ""
         known = {n.name for n in self.names}
-        for name in _name_candidates(text):
+        for name in _name_candidates(text, blocked=blocked):
             if name in known:
                 continue
             role = re.search(rf"{re.escape(name)}是(?:她|他|我|你)?的?{_ROLE.pattern}", text)
@@ -270,6 +297,10 @@ class StyleBank:
         self.register = [r for r in self.register if not any(n in r for n in names)]
         self.techniques = [t for t in self.techniques if not any(n in t for n in names)]
 
+    def scrub_prose(self, text: str, *, live_texts: Iterable[str] = ()) -> str:
+        """Same-hop: strip offstage bank names from assistant prose; keep live cast."""
+        return scrub_prose(text, self.offstage(live_texts))
+
     # ---- render ------------------------------------------------------
     def render_digest(self) -> str:
         out = ""
@@ -295,6 +326,19 @@ class StyleBank:
         return {n.name for n in self.names if n.name not in live}
 
 
+def _live_name_blocklist(live: str) -> set[str]:
+    """阿沈-class names already on stage in the live directive must not enter the bank."""
+    blocked = set(_STOP_NAMES)
+    for m in re.finditer(rf"([{_CJK}]{{2,3}})", live or ""):
+        cand = m.group(1)
+        if _is_name(cand) and cand not in _STOP_NAMES:
+            blocked.add(cand)
+    for role in ("技师", "客人"):
+        for m in re.finditer(rf"{role}([{_CJK}]{{2,3}})", live or ""):
+            blocked.add(m.group(1))
+    return blocked
+
+
 def ingest_history(history: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], StyleBank, list[str]]:
     """Replace each user turn by its live directive; collect the parentheses into one StyleBank."""
     bank = StyleBank()
@@ -304,7 +348,7 @@ def ingest_history(history: list[dict[str, Any]]) -> tuple[list[dict[str, Any]],
         if msg.get("role") == "user":
             split = split_style_corpus(msg.get("content") or "")
             if split.corpus:
-                bank.absorb(split.corpus)
+                bank.absorb(split.corpus, blocked=_live_name_blocklist(split.live))
                 msg = {**msg, "content": split.live or STYLE_ONLY_TURN}
             live_texts.append(split.live)
         out.append(msg)

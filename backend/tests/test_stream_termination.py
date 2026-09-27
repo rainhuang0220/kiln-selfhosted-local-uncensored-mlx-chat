@@ -135,7 +135,8 @@ def test_zero_token_upstream_is_unknown_or_error(chat_service, fake_provider):
 
 
 def test_repetition_guard_keeps_text(chat_service, fake_provider):
-    loop = "他抬起头看向窗外。" * 3
+    looped = "他抬起头看向窗外，又把目光缓缓移回桌上那只空了的杯子，像是在等什么人先开口再说话。"
+    loop = looped * 3
 
     async def looping(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_content=loop)

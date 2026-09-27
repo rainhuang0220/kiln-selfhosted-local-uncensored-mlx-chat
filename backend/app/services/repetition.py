@@ -162,8 +162,12 @@ def repeated_sentence_start(text: str, *, min_chars: int = 16) -> int | None:
     return start if text.find(sentence, 0, start) != -1 else None
 
 
-def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 8) -> str | None:
-    """Return the looping sentence if it appears consecutively >= min_repeats times."""
+def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 40) -> str | None:
+    """Return the looping sentence if it appears consecutively >= min_repeats times.
+
+    Short 文爱 sensory clauses (breath / contact deepening under ``min_chars``)
+    are allowed to recur; three consecutive full sentences still trip the guard.
+    """
     norms_and_raw = [(_norm(s), s.strip()) for s in _sentences(text)]
     if len(norms_and_raw) < min_repeats:
         # Also catch an unterminated tail that reprints the same clause.

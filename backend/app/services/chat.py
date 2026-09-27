@@ -25,8 +25,10 @@ from app.services.context_route import extractive_compress, route_document
 from app.services.ingest import pack_user_message, requests_full_document, split_query_and_body
 from app.services.auto_continue import (
     count_output_chars,
+    counts_against_continue_budget,
     drop_last_sentence,
     fill_hop_tokens,
+    hard_provider_call_cap,
     runon_start,
     should_auto_continue,
     trim_to_sentence,
@@ -617,9 +619,12 @@ class ChatService:
         budget = prompt_budget or self.settings.practical_prompt_budget
         style: StyleBank | None = None
         offstage: set[str] = set()
-        if keep_pins:
-            # Split 风格参考 parentheses before fold / graph / pins ever see the raw turn.
-            history, style, offstage = self._ingest_style(conversation_id, history)
+        # Split 风格参考 parentheses for every profile so Interactive cannot dump
+        # the raw corpus. Compact <style_bank> fence stays immersive-only.
+        history, style, offstage = self._ingest_style(conversation_id, history)
+        if not keep_pins:
+            style = None
+            offstage = set()
         latest_user_content = next(
             (m.get("content") or "" for m in reversed(history) if m.get("role") == "user"),
             "",
@@ -1510,6 +1515,9 @@ class ChatService:
         hop_start_len = 0
         pin_hop = False
         echo = EchoSuppressor("")
+        provider_calls = 0
+        provider_call_cap = hard_provider_call_cap(auto_max)
+        turn_live_texts: list[str] = []
 
         params = {
             "profile": preset["profile"],
@@ -1754,6 +1762,11 @@ class ChatService:
                 # keep content_buf / reasoning_buf; continuation appends
             hop_start_len = len(content_buf or "")
             hop_guard_start = guard_hits
+            provider_calls += 1
+            unique_hop_chars = 0
+            guard_aborted = False
+            if not turn_live_texts:
+                turn_live_texts = [split_style_corpus(text or "").live]
 
             try:
                 if skip_user_insert:
@@ -2042,6 +2055,19 @@ class ChatService:
                     if should_apply:
                         content_buf = checked.answer
                         answer_check["applied"] = True
+                # Same-hop StyleBank intercept: strip offstage names before the bubble is final.
+                try:
+                    record = SceneStateStore().get(cid)
+                    bank = StyleBank.from_dict(record.style if record else None)
+                    if not bank.is_empty() and content_buf:
+                        scrubbed = bank.scrub_prose(
+                            content_buf, live_texts=turn_live_texts or [text or ""]
+                        )
+                        if scrubbed != content_buf:
+                            content_buf = scrubbed
+                            prefix_mutated = True
+                except Exception:
+                    pass
                 # Finalize deferred until auto-continue loop exits.
 
                 if fill_hop and not error and ledger.finish_reason == "length":
@@ -2062,8 +2088,20 @@ class ChatService:
                     else:
                         stalled = True
                 new_text = (content_buf or "")[hop_start_len:]
-                if immersive_turn and turn_graph is not None and auto_count > 0 and not pin_hop and new_text.strip():
+                unique_hop_chars = count_output_chars(new_text)
+                guard_aborted = guard_hits > hop_guard_start
+                if (
+                    immersive_turn
+                    and turn_graph is not None
+                    and auto_count > 0
+                    and not pin_hop
+                    and new_text.strip()
+                    and not (
+                        guard_aborted and not counts_against_continue_budget(unique_hop_chars)
+                    )
+                ):
                     # A Continue hop is a next beat only if it moves verb, contact or clothes.
+                    # Guard-aborted hops with almost no unique text must not burn stub_streak.
                     before = turn_graph.copy().merge((content_buf or "")[:hop_start_len], role="assistant")
                     if beat_advanced(before, new_text):
                         beat_hops += 1
@@ -2077,6 +2115,7 @@ class ChatService:
                     enable_auto
                     and not error
                     and not user_cancelled
+                    and provider_calls < provider_call_cap
                     and should_auto_continue(
                         visible_chars=visible_n,
                         finish_reason=finish,
@@ -2095,18 +2134,23 @@ class ChatService:
                     and immersive_turn
                     and not pin_hop
                     and not backed_up
-                    and (finish in {"stop", "completed_stop"} or guard_hits > hop_guard_start)
+                    and (finish in {"stop", "completed_stop"} or guard_aborted)
                 ):
                     # The 9B rewrites a closed last sentence; resume before it instead.
                     backed = drop_last_sentence(content_buf or "")
                     if backed != (content_buf or "") and len(backed) > hop_start_len:
                         content_buf = backed
                         prefix_mutated = True
+                        unique_hop_chars = count_output_chars((content_buf or "")[hop_start_len:])
 
             if user_cancelled:
                 break
             if do_auto:
-                auto_count += 1
+                # Refund only guard-aborted hops that add <80 unique chars.
+                if not (
+                    guard_aborted and not counts_against_continue_budget(unique_hop_chars)
+                ):
+                    auto_count += 1
                 # Keep same assistant message streaming for the next segment.
                 if assistant_id:
                     self._conn().execute(
@@ -2187,7 +2231,7 @@ class ChatService:
                 try:
                     if status != "cancelled":
                         store = SceneStateStore()
-                        said = split_style_corpus(text or "").live if preset.get("keep_pins") else (text or "")
+                        said = split_style_corpus(text or "").live
                         joined = said + "\n" + (content_buf or "")
                         extracted = extract_facts(joined)
                         store.upsert_from_turn(cid, joined)

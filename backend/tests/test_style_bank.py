@@ -210,3 +210,66 @@ async def test_s8_bank_persists_and_only_the_named_one_walks_on(chat_service, fa
     assert not _leaks(" ".join(_cast(cid)), allow={"苏棠"})
     assert not _leaks(_sent(calls[2]), allow={"苏棠"})
     assert "苏棠" in _sent(calls[2])
+
+
+# ---- T-harvest / T-intercept / T-ingest (V08) -------------------------
+
+
+def test_t_harvest_singleton_name_without_role_frame():
+    """A name that appears once, without「X是她的某角色」, still enters the bank."""
+    from app.services.style_bank import StyleBank
+
+    corpus = "褚衡在角落里坐着，没有说话。"
+    names = [n.name for n in StyleBank.from_corpus(corpus).names]
+    assert "褚衡" in names, names
+
+
+async def test_t_intercept_strips_bank_name_same_hop(chat_service, fake_provider):
+    """StyleBank names that leak into this hop's prose are stripped before finalize."""
+    from app.services.scene_state_store import SceneStateStore
+
+    calls: list[ChatRequest] = []
+    leak = "顾遥的指尖掠过她的耳后，阿沈的掌心仍贴着林夏的腰。"
+    clean_tail = "阿沈的掌心贴着林夏的腰，指腹打圈，慢慢往下推。"
+
+    async def stream(request: ChatRequest):
+        calls.append(request)
+        body = leak if len(calls) == 1 else clean_tail
+        yield ChatChunk(id="c1", model="fake", delta_content=body)
+        yield ChatChunk(
+            id="c1", model="fake", finish_reason="stop", prompt_tokens=10, completion_tokens=20
+        )
+        yield ChatChunk(id="c1", model="fake", wire_done=True)
+
+    fake_provider.stream = stream  # type: ignore[method-assign]
+    cid, events = await _turn(chat_service, HEAD)
+    done = next(e for e in events if e.get("event") == "done")["data"]
+    content = done["message"]["content"]
+    assert "顾遥" not in content, content
+    assert "阿沈" in content and "林夏" in content
+    assert "顾遥" not in _cast(cid)
+    record = SceneStateStore().get(cid)
+    stored = [n["name"] for n in (record.style or {}).get("names", [])]
+    assert "顾遥" in stored
+    mid = done["message"]["id"]
+    assert mid  # same message_id path; no second bubble required for the strip
+
+
+@pytest.mark.parametrize(
+    "profile",
+    ["interactive_dialogue", "balanced", "reasoning"],
+    ids=["interactive", "balanced", "reasoning"],
+)
+async def test_t_ingest_all_profiles_no_raw_corpus(chat_service, fake_provider, profile):
+    """Every profile splits the parenthetical; Interactive must not dump the 2.5k corpus."""
+    calls: list[ChatRequest] = []
+    fake_provider.stream = _stream(calls)  # type: ignore[method-assign]
+    cid, _ = await _turn(chat_service, HEAD, profile=profile)
+
+    sent = _sent(calls[0])
+    assert not _leaks(sent), sent[:200]
+    assert FX["paragraphs"][0][:20] not in sent
+    assert "<style_bank>" not in sent and AUTHOR_LINE not in sent
+    record = SceneStateStore().get(cid)
+    stored = [n["name"] for n in (record.style or {}).get("names", [])]
+    assert sum(n in stored for n in OFFSTAGE) >= 8, stored
