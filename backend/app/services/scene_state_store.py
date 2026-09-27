@@ -36,6 +36,8 @@ class SceneStateRecord:
     updated_at: int = 0
     # Typed SceneGraph (cast clothes / space / contact / beat); owns body state when present.
     graph: dict[str, Any] = field(default_factory=dict)
+    # Offstage StyleBank (风格参考 names/events/register); never merged into graph cast.
+    style: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -68,6 +70,7 @@ class SceneStateRecord:
             ),
             updated_at=int(data.get("updated_at") or 0),
             graph=dict(data.get("graph") or {}),
+            style=dict(data.get("style") or {}),
         )
 
     def _clock(self) -> str:
@@ -185,11 +188,17 @@ class SceneStateStore:
             forbidden_patterns=json.loads(row["forbidden_patterns_json"] or "[]"),
             updated_at=int(row["updated_at"] or 0),
             graph=json.loads(row["graph_json"] or "{}") if "graph_json" in row.keys() else {},
+            style=json.loads(row["style_json"] or "{}") if "style_json" in row.keys() else {},
         )
 
     def save_graph(self, conversation_id: str, graph: SceneGraph) -> SceneStateRecord:
         record = self.get(conversation_id) or SceneStateRecord(conversation_id=conversation_id)
         record.graph = graph.to_dict()
+        return self.save(record)
+
+    def save_style(self, conversation_id: str, style: dict[str, Any]) -> SceneStateRecord:
+        record = self.get(conversation_id) or SceneStateRecord(conversation_id=conversation_id)
+        record.style = style
         return self.save(record)
 
     def save(self, record: SceneStateRecord) -> SceneStateRecord:
@@ -202,8 +211,8 @@ class SceneStateStore:
               conversation_id, location, scene, participants_json, clothing_json,
               body_state_json, emotion, relationship, inventory_json, open_threads_json,
               user_preferences_json, character_goals_json, recent_actions_json,
-              forbidden_patterns_json, updated_at, graph_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              forbidden_patterns_json, updated_at, graph_json, style_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(conversation_id) DO UPDATE SET
               location=excluded.location,
               scene=excluded.scene,
@@ -219,7 +228,8 @@ class SceneStateStore:
               recent_actions_json=excluded.recent_actions_json,
               forbidden_patterns_json=excluded.forbidden_patterns_json,
               updated_at=excluded.updated_at,
-              graph_json=excluded.graph_json
+              graph_json=excluded.graph_json,
+              style_json=excluded.style_json
             """,
             (
                 record.conversation_id,
@@ -238,6 +248,7 @@ class SceneStateStore:
                 json.dumps(record.forbidden_patterns, ensure_ascii=False),
                 ts,
                 json.dumps(record.graph or {}, ensure_ascii=False),
+                json.dumps(record.style or {}, ensure_ascii=False),
             ),
         )
         conn.commit()

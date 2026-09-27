@@ -176,6 +176,7 @@ def _is_name(cand: str) -> bool:
         and cand not in _REGION_ALIAS
         and cand not in _PLACE_ALIAS
         and cand not in _FURNITURE
+        and cand not in _INSTRUMENTS
     )
 
 

@@ -354,6 +354,8 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE conversations ADD COLUMN character_card_id TEXT")
     if not _has_column(conn, "scene_states", "graph_json"):
         conn.execute("ALTER TABLE scene_states ADD COLUMN graph_json TEXT NOT NULL DEFAULT '{}'")
+    if not _has_column(conn, "scene_states", "style_json"):
+        conn.execute("ALTER TABLE scene_states ADD COLUMN style_json TEXT NOT NULL DEFAULT '{}'")
     # Widen memories.memory_type CHECK by table rebuild when needed.
     row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories'"

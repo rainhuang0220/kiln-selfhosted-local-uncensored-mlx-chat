@@ -45,6 +45,13 @@ from app.services.memory import MemoryService
 from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
 from app.services.scene_state_store import SceneStateStore
+from app.services.style_bank import (
+    StyleBank,
+    evict_offstage,
+    ingest_history,
+    mentions,
+    split_style_corpus,
+)
 from app.services.scene_graph import (
     SceneGraph,
     absorb_history,
@@ -76,6 +83,7 @@ IMMERSIVE_AUTHOR_NOTE = (
     "4. must_keep 里的每一项都必须落进正文。\n"
     "</author_note>"
 )
+STYLE_AUTHOR_LINE = "5. 括号/风格参考里的人名事件不要写进当前场面。\n"
 # Turn-boundary tokens suppressed while an auto-continue hop fills toward the floor.
 FILL_HOP_BANNED_TOKENS = ("<|endoftext|>", "<|im_end|>", "<|im_start|>", "<think>")
 
@@ -607,6 +615,11 @@ class ChatService:
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
+        style: StyleBank | None = None
+        offstage: set[str] = set()
+        if keep_pins:
+            # Split 风格参考 parentheses before fold / graph / pins ever see the raw turn.
+            history, style, offstage = self._ingest_style(conversation_id, history)
         latest_user_content = next(
             (m.get("content") or "" for m in reversed(history) if m.get("role") == "user"),
             "",
@@ -640,6 +653,7 @@ class ChatService:
         )
         if graph is not None:
             absorb_history(graph, [m for m in history if m.get("role") != "system"])
+            evict_offstage(graph, offstage)
             try:
                 SceneStateStore().save_graph(conversation_id, graph)
             except Exception:
@@ -672,6 +686,8 @@ class ChatService:
                 mem_fence=mem_fence,
                 graph=graph,
                 repair=repair,
+                style=style,
+                offstage=offstage,
             )
         else:
             fence, pins, scene, lore_hits = mem_fence, [], None, []
@@ -898,6 +914,24 @@ class ChatService:
         snapshot["history_summary"] = built.summary
         return sent, snapshot
 
+    def _ingest_style(
+        self, conversation_id: str, history: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], StyleBank, set[str]]:
+        """User turns reduced to their live directive; the StyleBank persisted next to graph_json."""
+        history, bank, live_texts = ingest_history(history)
+        try:
+            store = SceneStateStore()
+            record = store.get(conversation_id)
+            stored = StyleBank.from_dict(record.style if record else None)
+            before = stored.to_dict()
+            stored.update(bank)
+            if stored.to_dict() != before:
+                store.save_style(conversation_id, stored.to_dict())
+            bank = stored
+        except Exception:
+            pass
+        return history, bank, bank.offstage(live_texts)
+
     def _scene_pin_fence(
         self,
         kept: list[dict[str, Any]],
@@ -909,6 +943,8 @@ class ChatService:
         mem_fence: str | None,
         graph: SceneGraph | None = None,
         repair: list[str] | None = None,
+        style: StyleBank | None = None,
+        offstage: set[str] | None = None,
     ) -> tuple[str | None, list[str], Any, list[dict[str, Any]]]:
         """User-side fence for keep_pins profiles: pins, lore, scene state, memory, author note."""
         lore_hits: list[dict[str, Any]] = []
@@ -994,6 +1030,8 @@ class ChatService:
                             *[f"约定：{t}" for t in turn_facts.time_agreements],
                         ]
                     )
+                if offstage:
+                    scene.participants = [p for p in scene.participants if not mentions(p, offstage)]
             scene_fence = scene.fence(budget_tokens=400) if scene else None
         except Exception:
             scene_fence = None
@@ -1012,6 +1050,8 @@ class ChatService:
         )
         if graph is not None and not graph.is_empty():
             keep_pins = [p for p in keep_pins if not graph_owned_pin(p)]
+        if offstage:
+            keep_pins = [p for p in keep_pins if not mentions(p, offstage)]
         keep_pins = keep_pins[:12]
         keep_fence = must_keep_fence(keep_pins)
         # Prefer must_keep → lore → scene_state; truncate lore, never the user turn.
@@ -1022,13 +1062,19 @@ class ChatService:
             memory=mem_fence,
             budget_chars=1200,
         )
-        fence = f"{fence}\n\n{IMMERSIVE_AUTHOR_NOTE}" if fence else IMMERSIVE_AUTHOR_NOTE
+        note = IMMERSIVE_AUTHOR_NOTE
+        style_fence = style.fence() if style is not None else None
+        if style_fence:
+            fence = f"{fence}\n\n{style_fence}" if fence else style_fence
+            note = note.replace("</author_note>", f"{STYLE_AUTHOR_LINE}</author_note>")
+        fence = f"{fence}\n\n{note}" if fence else note
         lines = describe_repair(repair or [])
         if lines:
             fence += "\n\n<repair>\n上一段漏掉或写错了，接着往下写时补上：\n"
             fence += "\n".join(f"- {line}" for line in lines) + "\n</repair>"
         slot_pins = graph.repair_atoms() if graph is not None else []
-        return fence, [*keep_pins, *slot_pins], scene, lore_hits
+        pins = [p for p in [*keep_pins, *slot_pins] if not mentions(p, offstage or ())]
+        return fence, pins, scene, lore_hits
 
     def _save_snapshot(
         self, conversation_id: str, snapshot: dict[str, Any], params: dict[str, Any]
@@ -2141,7 +2187,8 @@ class ChatService:
                 try:
                     if status != "cancelled":
                         store = SceneStateStore()
-                        joined = (text or "") + "\n" + (content_buf or "")
+                        said = split_style_corpus(text or "").live if preset.get("keep_pins") else (text or "")
+                        joined = said + "\n" + (content_buf or "")
                         extracted = extract_facts(joined)
                         store.upsert_from_turn(cid, joined)
                         for prop in extracted.to_proposals():
