@@ -111,7 +111,9 @@ class TokenEstimator:
         *,
         enable_thinking: bool = False,
         used_prompts: list[str] | None = None,
+        mutated: bool = False,
     ) -> tuple[str, str]:
+        """``mutated``: a guard rewrote the assistant text since the last hop."""
         from app.services.continuation import shorten_until_unused
 
         native = self.apply_chat_template(
@@ -126,11 +128,12 @@ class TokenEstimator:
                 "tokenizer.apply_chat_template requires the model chat template "
                 f"at {self.model_path}: {self._load_error}"
             )
+        used = [*(used_prompts or []), native] if mutated else used_prompts
         return shorten_until_unused(
             native,
             encode=lambda text: hf.encode(text, add_special_tokens=False),
             decode=lambda ids: hf.decode(ids, skip_special_tokens=False),
-            used=used_prompts,
+            used=used,
         )
 
     def mid_think_completion_prompt(

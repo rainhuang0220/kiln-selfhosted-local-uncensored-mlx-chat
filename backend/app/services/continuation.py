@@ -24,16 +24,18 @@ def shorten_until_unused(
     """Drop at least one token, then more if this prefix was already sent.
 
     mlx-lm 0.31.3 dies on an exact prompt-cache hit. A second Continue with
-    the same dropped prefix is that exact hit.
+    the same dropped prefix is that exact hit. A seen unshortened prompt
+    (guard-cut back to where an earlier hop ended) was cached minus its last
+    token, so its one-token drop counts as seen too.
     """
     ids = list(encode(prompt))
     if len(ids) < 2:
         return prompt, ""
     seen = set(used or [])
-    drop_n = 1
     max_drop = max(1, len(ids) - min_keep)
-    trimmed = decode(ids[:-1])
-    tail = decode(ids[-1:])
+    drop_n = min(2, max_drop) if prompt in seen else 1
+    trimmed = decode(ids[:-drop_n])
+    tail = decode(ids[-drop_n:])
     while trimmed in seen and drop_n < max_drop:
         drop_n += 1
         trimmed = decode(ids[:-drop_n])

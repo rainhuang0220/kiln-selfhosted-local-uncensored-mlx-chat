@@ -553,6 +553,16 @@ class ChatService:
         )
         self._conn().commit()
 
+    def _remember_turn_prompt(
+        self, conversation_id: str, messages: list[dict[str, Any]], *, enable_thinking: bool
+    ) -> None:
+        """mlx-lm caches the message's first chat-completions prompt; later Continues must avoid it."""
+        try:
+            prompt = self.tokenizer.apply_chat_template(messages, enable_thinking=enable_thinking)
+        except RuntimeError:
+            return
+        self._remember_continue_prompt(conversation_id, prompt)
+
     def _clear_continue_prompts(self, conversation_id: str) -> None:
         data = self._conversation_settings(conversation_id)
         if not data.get("continue_completion_prompts"):
@@ -1403,6 +1413,8 @@ class ChatService:
         guard_trim: str | None = None
         deflect_ids: set[int] = set()
         stall_count = 0
+        prefix_mutated = False
+        hop_mutated = False
         hop_start_len = 0
         pin_hop = False
         echo = EchoSuppressor("")
@@ -1508,6 +1520,7 @@ class ChatService:
                         [*messages, asst],
                         enable_thinking=enable_thinking,
                         used_prompts=extra["used_continue_prompts"],
+                        mutated=hop_mutated,
                     )
                 else:
                     prompt, continue_tail = self.tokenizer.mid_think_completion_prompt(
@@ -1543,7 +1556,7 @@ class ChatService:
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
-            nonlocal guard_trim
+            nonlocal guard_trim, prefix_mutated
             try:
                 async for chunk in agen:
                     if chunk.wire_done:
@@ -1591,6 +1604,7 @@ class ChatService:
                             if cut is not None:
                                 content_buf = content_buf[:cut].rstrip()
                                 guard_trim = "runon"
+                                prefix_mutated = True
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
                                 break
@@ -1603,6 +1617,7 @@ class ChatService:
                                     deflect_ids.add(first[0])
                                 content_buf = content_buf[:loop_at].rstrip()
                                 guard_trim = "loop"
+                                prefix_mutated = True
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
                                 break
@@ -1629,6 +1644,7 @@ class ChatService:
         do_auto = False
         user_cancelled = False
         while True:
+            hop_mutated, prefix_mutated = prefix_mutated, False
             if auto_count > 0 or pin_repair_count > 0:
                 resume_assistant = True
                 resume_assistant_id = assistant_id
@@ -1782,6 +1798,8 @@ class ChatService:
                     first_req = make_req(sent, first_max)
                     if (first_req.extra or {}).get("raw_prompt"):
                         self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
+                    elif not resume_assistant:
+                        self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
                     result = await self.provider.complete(first_req)
                     extra_content = result.content or ""
                     if resume_assistant:
@@ -1828,6 +1846,8 @@ class ChatService:
                 else:
                     if (req.extra or {}).get("raw_prompt"):
                         self._remember_continue_prompt(cid, req.extra["raw_prompt"])
+                    elif not resume_assistant:
+                        self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
                     async for event in consume_stream(self.provider.stream(req)):
                         yield event
                     if (
@@ -1928,7 +1948,9 @@ class ChatService:
                 # Finalize deferred until auto-continue loop exits.
 
                 if fill_hop and not error and ledger.finish_reason == "length":
-                    content_buf = trim_to_sentence(content_buf or "", min_chars=min_output_chars)
+                    trimmed = trim_to_sentence(content_buf or "", min_chars=min_output_chars)
+                    prefix_mutated = prefix_mutated or trimmed != (content_buf or "")
+                    content_buf = trimmed
                 stalled = False
                 if auto_count > 0 and not pin_hop and len(content_buf or "") <= hop_start_len:
                     # Resending this prompt minus one token can land on a key mlx-lm
@@ -1937,6 +1959,7 @@ class ChatService:
                     backed = drop_last_sentence(content_buf or "")
                     if stall_count == 1 and backed != (content_buf or ""):
                         content_buf = backed
+                        prefix_mutated = True
                     else:
                         stalled = True
                 visible_n = count_output_chars(content_buf or "")

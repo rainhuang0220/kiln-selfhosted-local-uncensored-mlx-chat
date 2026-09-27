@@ -30,6 +30,30 @@ def test_shorten_until_unused_drops_further_on_retry():
     assert tail2 == "ij"
 
 
+def test_shorten_until_unused_skips_drop_point_of_a_seen_prompt():
+    """A guard-cut prefix can end where an earlier hop's generation ended.
+
+    mlx-lm keyed that hop as the prefix minus its last token, so when the
+    unshortened prompt itself is already seen, the one-token drop is an
+    exact cache hit too.
+    """
+    alphabet = "abcdefghij"
+    encode = lambda text: [alphabet.index(ch) for ch in text]
+    decode = lambda ids: "".join(alphabet[i] for i in ids)
+    old = "abcdefghij"
+    sent, tail = shorten_until_unused(old, encode=encode, decode=decode, used=[old])
+    assert sent != old
+    assert sent != "abcdefghi"
+    assert sent == "abcdefgh"
+    assert tail == "ij"
+
+    unseen, unseen_tail = shorten_until_unused(
+        old, encode=encode, decode=decode, used=["abcdefgh"]
+    )
+    assert unseen == "abcdefghi"
+    assert unseen_tail == "j"
+
+
 def test_continue_assistant_message_keeps_visible_and_reasoning():
     asst = continue_assistant_message("hello", "plan")
     assert asst == {"role": "assistant", "content": "hello", "reasoning_content": "plan"}

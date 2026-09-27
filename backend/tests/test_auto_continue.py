@@ -262,6 +262,78 @@ async def test_stalled_hop_backs_up_a_sentence_instead_of_one_token(
     assert count_output_chars(done["message"]["content"]) >= 5000
 
 
+async def test_loop_guard_continue_marks_cut_prefix_and_turn_prompt_used(
+    chat_service, fake_provider, monkeypatch
+):
+    """The hop after a guard cut must dodge keys mlx-lm cached but the API never sent.
+
+    That covers the cut prefix itself (mutated=True) and the turn's original
+    /v1/chat/completions prompt. An unmutated hop keeps the single-token drop.
+    """
+    opening = _varied(1200, "开")
+    looped = "窗外的天色彻底暗了下来，只剩几盏昏黄的灯泡在尘埃里挣扎。"
+    middle = "她把铜钥匙放回柜台，指尖在木纹上停了一下。"
+    plain_hop = _varied(800, "中")
+    fill = _varied(4200, "续")
+    requests: list[ChatRequest] = []
+    prompt_calls: list[dict] = []
+
+    def fake_prompt(messages, **kwargs):
+        prompt_calls.append({**kwargs, "used_prompts": list(kwargs.get("used_prompts") or [])})
+        return (f"WIRE{len(prompt_calls)}", "")
+
+    monkeypatch.setattr(chat_service.tokenizer, "continuation_completion_prompt", fake_prompt)
+    monkeypatch.setattr(
+        chat_service.tokenizer,
+        "apply_chat_template",
+        lambda messages, **kwargs: "TURN_PROMPT|" + (messages[-1].get("content") or ""),
+    )
+    monkeypatch.setattr(
+        chat_service.tokenizer, "special_token_ids", lambda names: [7], raising=False
+    )
+    monkeypatch.setattr(chat_service.tokenizer, "first_token", lambda text: None, raising=False)
+
+    async def stream(request: ChatRequest):
+        requests.append(request)
+        if len(requests) == 1:
+            for piece in (opening, looped, middle, "\n\n", looped, middle, looped):
+                yield ChatChunk(id="c", model="fake", delta_content=piece)
+        elif len(requests) == 2:
+            yield ChatChunk(id="c", model="fake", delta_content=plain_hop)
+        else:
+            yield ChatChunk(id="c", model="fake", delta_content=fill)
+        yield ChatChunk(id="c", model="fake", finish_reason="stop", prompt_tokens=10, completion_tokens=100)
+        yield ChatChunk(id="c", model="fake", wire_done=True)
+
+    fake_provider.stream = stream  # type: ignore[method-assign]
+
+    events = [
+        e
+        async for e in chat_service.chat(
+            message="继续", conversation_id=None, stream=True, profile="immersive",
+            auto_continue=True, max_tokens=6144,
+        )
+    ]
+    done = next(e for e in events if e.get("event") == "done")["data"]
+    assert done["guard_trim"] == "loop"
+    assert len(requests) == 3
+    assert len(prompt_calls) == 2
+
+    after_cut, after_plain = prompt_calls
+    assert after_cut.get("mutated") is True
+    assert any(p.startswith("TURN_PROMPT|") for p in after_cut["used_prompts"])
+    assert not after_plain.get("mutated")
+    assert any(p.startswith("TURN_PROMPT|") for p in after_plain["used_prompts"])
+    assert "WIRE1" in after_plain["used_prompts"]
+    assert (requests[1].extra or {}).get("raw_prompt") == "WIRE1"
+    assert (requests[2].extra or {}).get("raw_prompt") == "WIRE2"
+
+    metas = [e["data"] for e in events if e.get("event") == "meta"]
+    assert len(metas) == 3
+    assert {m["message_id"] for m in metas} == {done["message"]["id"]}
+    assert len([e for e in events if e.get("event") == "done"]) == 1
+
+
 async def test_paragraph_cycle_is_trimmed_and_next_hop_deflects(
     chat_service, fake_provider, monkeypatch
 ):
