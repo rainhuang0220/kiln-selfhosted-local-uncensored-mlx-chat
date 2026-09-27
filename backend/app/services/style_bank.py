@@ -24,15 +24,45 @@ from app.services.scene_graph import (
 
 DIGEST_CAP = 600
 STYLE_ONLY_TURN = "（风格参考已收下，继续当前场面。）"
-STYLE_FENCE_NOTE = "仅作文风与手法参考。风格参考里的人名与事件不在当前场面，禁止写进本场正文。"
+STYLE_FENCE_NOTE = (
+    "已确认背景与明确偏好可用于角色回应；其余只作文风与手法参考。"
+    "参考人物与事件不在当前场面；参考情节此刻未发生，勿复述参考正文；"
+    "背景中提及某人不表示此人在场。"
+)
 
 _MARKER = re.compile(r"(?:风格|文风)参考|仅供参考")
+# A user may give the current scene in one sentence and then paste a long,
+# unbracketed background/fantasy reference.  Its source scope must be decided
+# before SceneGraph, facts, lore activation, or prompt packing see the text.
+# Natural markers include the owner line 「以下内容是我的信息背景和性癖参考，
+# 或者幻想参考。」 plus bare heads 信息背景 / 性癖参考 / 幻想参考 / 以下内容是,
+# with or without a following （…） / (...).
+_FREE_REFERENCE = re.compile(
+    r"(?:"
+    r"(?:以下|下面|接下来)[^\n。！？:：]{0,100}(?:参考|素材)"
+    r"|"
+    r"(?:我的)?(?:信息背景|性癖参考|幻想参考)"
+    r"|"
+    r"以下内容是"
+    r")"
+    r"(?:[（(][^）\n]{0,80}[）)])?"
+    r"[^\n。！？:：]{0,40}[。！？:：]?"
+)
+_OFFSTAGE_CUE = re.compile(r"背景|幻想|风格|文风|素材|资料|人设|性癖|参考|以下内容是")
+_RETURN_TO_SCENE = re.compile(
+    r"(?:^|\n|(?<=[。！？]))\s*(?:请)?(?:回到|返回|切回|现在回到|当前场景|本场|你是|我们现在)",
+    re.MULTILINE,
+)
 _OPEN, _CLOSE = "（(", "）)"
 _GAP = re.compile(r"[\s:：，,。]*")
 _CLAUSE_START = re.compile(r"[，,。；;！!？?\n]")
 _SENTENCE = re.compile(r"[^。！？!?\n]+")
 _CLAUSE = re.compile(r"[^，,。；;！!？?、\n]+")
 _LABEL = re.compile(r"(文风|风格|节奏|视角|语气|手法|技巧)[:：]\s*([^\n。]+)")
+_BACKGROUND_LABEL = re.compile(r"^(?:现实背景|真实背景|个人背景|个人信息|我的信息背景|背景事实)\s*[:：]\s*(.+)$")
+_PREFERENCE_LABEL = re.compile(r"^(?:偏好|喜好|明确偏好|我的偏好|我的性癖|边界|雷点)\s*[:：]\s*(.+)$")
+_SCENE_ENTRY_VERB = re.compile(r"(?:推开.{0,6}门|走进|走入|进门|来到|出现|进入|在场|走到|站在|坐在)")
+_SCENE_SWITCH_VERB = re.compile(r"(?:切到|切回|转到|换到|让|叫|请)(?:.{0,16})$")
 _NAME_SLOT = re.compile(
     rf"(?:^|(?<=[，,。；;！!？?、\s和与跟给对把被让替同叫]))([{_CJK}]{{2,3}}?)"
     r"(?=[是在把被将的和与跟说曾又总从给对替让去来也就都还只却便已正刚才后比每站坐靠趴拉帮教用递笑喝剪升辞搬寄开推握伸])"
@@ -117,11 +147,36 @@ def _split_once(text: str) -> StyleSplit | None:
     return None
 
 
+def _split_free_reference(text: str) -> StyleSplit | None:
+    """Split an explicitly labeled, unbracketed reference from the live turn.
+
+    A trailing current-scene instruction is promoted only when it has an
+    explicit return cue near the end. Ambiguous reference prose stays offstage.
+    """
+    for marker in _FREE_REFERENCE.finditer(text):
+        label = marker.group(0)
+        if not _OFFSTAGE_CUE.search(label):
+            continue
+        start = marker.end()
+        tail = text[start:]
+        if not tail.strip():
+            continue
+        return_at = None
+        for match in _RETURN_TO_SCENE.finditer(tail):
+            if match.start() >= 200 and len(tail) - match.start() <= 400:
+                return_at = match.start()
+        corpus = tail[:return_at] if return_at is not None else tail
+        live = text[:marker.start()] + (tail[return_at:] if return_at is not None else "")
+        if corpus.strip():
+            return StyleSplit(live=live.strip(), corpus=corpus.strip(), marker=label.strip())
+    return None
+
+
 def split_style_corpus(text: str) -> StyleSplit:
-    """Split a user turn into the live directive and the marked 风格参考 parenthesis (head or tail)."""
+    """Split explicit offstage reference material from a live user turn."""
     live, corpora, markers = text or "", [], []
     for _ in range(3):
-        split = _split_once(live)
+        split = _split_once(live) or _split_free_reference(live)
         if split is None:
             break
         live, corpora, markers = split.live, [*corpora, split.corpus], [*markers, split.marker]
@@ -143,6 +198,24 @@ class StyleEvent:
     label: str
     who: list[str] = field(default_factory=list)
     gist: str = ""
+
+
+def split_reference_claims(corpus: str) -> tuple[list[str], list[str], str]:
+    """Promote only explicitly labeled real facts and preferences from a reference."""
+    facts: list[str] = []
+    preferences: list[str] = []
+    remaining: list[str] = []
+    for line in (corpus or "").splitlines():
+        stripped = line.strip()
+        fact = _BACKGROUND_LABEL.match(stripped)
+        preference = _PREFERENCE_LABEL.match(stripped)
+        if fact:
+            facts.append(fact.group(1).strip().rstrip("。！？"))
+        elif preference:
+            preferences.append(preference.group(1).strip().rstrip("。！？"))
+        else:
+            remaining.append(line)
+    return _uniq(facts, 12), _uniq(preferences, 12), "\n".join(remaining)
 
 
 def _uniq(items: Iterable[str], cap: int) -> list[str]:
@@ -194,12 +267,47 @@ def scrub_prose(text: str, names: Iterable[str]) -> str:
     return out
 
 
+class OffstageStreamFilter:
+    """Hold incomplete name prefixes so a streamed delta cannot reveal a bank name."""
+
+    def __init__(self, names: Iterable[str] = ()) -> None:
+        self.names = sorted({str(name) for name in names if name}, key=len, reverse=True)
+        self.pending = ""
+
+    def set_names(self, names: Iterable[str]) -> None:
+        self.names = sorted({str(name) for name in names if name}, key=len, reverse=True)
+
+    def _drain(self, *, final: bool) -> str:
+        out: list[str] = []
+        while self.pending:
+            hit = next((name for name in self.names if self.pending.startswith(name)), None)
+            if hit:
+                self.pending = self.pending[len(hit):]
+                continue
+            if not final and any(name.startswith(self.pending) for name in self.names):
+                break
+            out.append(self.pending[0])
+            self.pending = self.pending[1:]
+        return "".join(out)
+
+    def feed(self, chunk: str) -> str:
+        if not self.names:
+            return chunk
+        self.pending += chunk
+        return self._drain(final=False)
+
+    def flush(self) -> str:
+        return self._drain(final=True)
+
+
 @dataclass
 class StyleBank:
     names: list[StyleName] = field(default_factory=list)
     events: list[StyleEvent] = field(default_factory=list)
     register: list[str] = field(default_factory=list)
     techniques: list[str] = field(default_factory=list)
+    background_facts: list[str] = field(default_factory=list)
+    preferences: list[str] = field(default_factory=list)
     digest: str = ""
 
     # ---- persistence -------------------------------------------------
@@ -222,12 +330,15 @@ class StyleBank:
             ],
             register=[str(x) for x in data.get("register") or []],
             techniques=[str(x) for x in data.get("techniques") or []],
+            background_facts=[str(x) for x in data.get("background_facts") or []],
+            preferences=[str(x) for x in data.get("preferences") or []],
         )
+        bank.scrub()
         bank.digest = bank.render_digest()
         return bank
 
     def is_empty(self) -> bool:
-        return not (self.names or self.events or self.register or self.techniques)
+        return not (self.names or self.events or self.register or self.techniques or self.background_facts or self.preferences)
 
     # ---- extraction --------------------------------------------------
     @classmethod
@@ -237,7 +348,9 @@ class StyleBank:
         return bank
 
     def absorb(self, corpus: str, *, blocked: Iterable[str] = ()) -> "StyleBank":
-        text = corpus or ""
+        facts, preferences, text = split_reference_claims(corpus)
+        self.background_facts = _uniq([*self.background_facts, *facts], 12)
+        self.preferences = _uniq([*self.preferences, *preferences], 12)
         known = {n.name for n in self.names}
         for name in _name_candidates(text, blocked=blocked):
             if name in known:
@@ -288,6 +401,8 @@ class StyleBank:
         self.events = [*self.events, *(e for e in other.events if e.label not in labels)][:16]
         self.register = _uniq([*self.register, *other.register], 10)
         self.techniques = _uniq([*self.techniques, *other.techniques], 14)
+        self.background_facts = _uniq([*self.background_facts, *other.background_facts], 12)
+        self.preferences = _uniq([*self.preferences, *other.preferences], 12)
         self.scrub()
         self.digest = self.render_digest()
         return self
@@ -304,7 +419,12 @@ class StyleBank:
     # ---- render ------------------------------------------------------
     def render_digest(self) -> str:
         out = ""
-        for head, items, sep in (("文风：", self.register, "、"), ("手法：", self.techniques, "；")):
+        for head, items, sep in (
+            ("已确认背景：", self.background_facts, "；"),
+            ("明确偏好：", self.preferences, "；"),
+            ("文风：", self.register, "、"),
+            ("手法：", self.techniques, "；"),
+        ):
             line = ""
             for item in items:
                 nxt = f"{line}{sep if line else head}{item}"
@@ -324,6 +444,28 @@ class StyleBank:
         """Bank names no live directive has put on stage."""
         live = "\n".join(live_texts)
         return {n.name for n in self.names if n.name not in live}
+
+    def offstage_scene(self, live_texts: Iterable[str]) -> set[str]:
+        """A question about a reference person does not make them present."""
+        texts = list(live_texts)
+        blocked = set()
+        for person in self.names:
+            name = person.name
+            staged = False
+            for text in texts:
+                for clause in re.split(r"[，,。！？!?；;\n]", text or ""):
+                    at = clause.find(name)
+                    if at < 0:
+                        continue
+                    before, after = clause[:at], clause[at + len(name):]
+                    if _SCENE_ENTRY_VERB.search(after[:30]) or _SCENE_SWITCH_VERB.search(before[-18:]):
+                        staged = True
+                        break
+                if staged:
+                    break
+            if not staged:
+                blocked.add(name)
+        return blocked
 
 
 def _live_name_blocklist(live: str) -> set[str]:

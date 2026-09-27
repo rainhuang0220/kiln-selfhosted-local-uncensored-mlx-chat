@@ -75,6 +75,7 @@ class ChatBody(BaseModel):
     target_visible_chars: int | None = Field(default=None, ge=1000, le=100000)
     segment_chars: int | None = Field(default=None, ge=500, le=8000)
     character_card_id: str | None = None
+    context_preset_id: str | None = None
     auto_continue: bool | None = None
 
 
@@ -102,6 +103,23 @@ class CharacterCardPatchBody(BaseModel):
     first_mes: str | None = None
     mes_example: str | None = None
     immutable_json: list[str] | None = None
+
+
+class ContextPresetPreviewBody(BaseModel):
+    text: str = Field(min_length=1, max_length=50000)
+    deep: bool = False
+
+
+class ContextPresetBody(BaseModel):
+    title: str = Field(default="未命名预设", min_length=1, max_length=120)
+    payload: dict[str, Any]
+    source_text: str = Field(default="", max_length=50000)
+
+
+class ContextPresetPatchBody(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    payload: dict[str, Any] | None = None
+    source_text: str | None = Field(default=None, max_length=50000)
 
 
 class LoreBody(BaseModel):
@@ -756,18 +774,21 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         )
         return {"id": rec.id, "content": rec.content}
 
+    @app.get("/context/cards")
     @app.get("/cards")
     async def list_cards(request: Request):
         from app.services import character_cards as cards_mod
 
         return {"object": "list", "data": cards_mod.list_cards(owner_id=_owner(request))}
 
+    @app.post("/context/cards")
     @app.post("/cards")
     async def create_card(body: CharacterCardBody, request: Request):
         from app.services import character_cards as cards_mod
 
         return cards_mod.save_card(body.model_dump(), owner_id=_owner(request))
 
+    @app.patch("/context/cards/{card_id}")
     @app.patch("/cards/{card_id}")
     async def patch_card(card_id: str, body: CharacterCardPatchBody, request: Request):
         from app.services import character_cards as cards_mod
@@ -780,6 +801,68 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if card is None:
             return error_body("card not found", "not_found_error", "card_not_found", status=404)
         return card
+
+    @app.post("/context/presets/preview")
+    async def preview_context_preset(body: ContextPresetPreviewBody):
+        from app.services.context_presets import deep_preview_preset, preview_preset
+
+        try:
+            draft = preview_preset(body.text)
+            if body.deep:
+                provider = app.state.provider
+                if getattr(app.state.chat, "_busy", set()):
+                    draft["uncertain"].append("模型正在生成；已保留规则预览，请稍后重试深度分析。")
+                elif provider is not None:
+                    try:
+                        draft = await asyncio.wait_for(deep_preview_preset(body.text, draft, provider), timeout=50)
+                    except Exception:
+                        logger.exception("local context analysis failed")
+                        draft["uncertain"].append("本机深度分析暂不可用；已保留规则预览。")
+            return {"draft": draft}
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
+
+    @app.get("/context/presets")
+    async def list_context_presets(request: Request):
+        from app.services.context_presets import list_presets
+
+        return {"object": "list", "data": list_presets(owner_id=_owner(request))}
+
+    @app.post("/context/presets")
+    async def create_context_preset(body: ContextPresetBody, request: Request):
+        from app.services.context_presets import save_preset
+
+        try:
+            return save_preset(body.title, body.payload, body.source_text, owner_id=_owner(request))
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
+
+    @app.get("/context/presets/{preset_id}")
+    async def get_context_preset(preset_id: str, request: Request):
+        from app.services.context_presets import get_preset
+
+        preset = get_preset(preset_id, owner_id=_owner(request))
+        if preset is None:
+            return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
+        return preset
+
+    @app.patch("/context/presets/{preset_id}")
+    async def patch_context_preset(preset_id: str, body: ContextPresetPatchBody, request: Request):
+        from app.services.context_presets import get_preset, save_preset
+
+        current = get_preset(preset_id, owner_id=_owner(request))
+        if current is None:
+            return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
+        try:
+            return save_preset(
+                body.title if body.title is not None else current["title"],
+                body.payload if body.payload is not None else current["payload"],
+                body.source_text if body.source_text is not None else current["source_text"],
+                owner_id=_owner(request),
+                preset_id=preset_id,
+            )
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
 
     @app.get("/lore")
     async def list_lore(request: Request, card_id: str | None = None):
@@ -891,6 +974,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "evidence": body.evidence,
                 "owner_id": _owner(request),
                 "character_card_id": body.character_card_id,
+                "context_preset_id": body.context_preset_id,
                 "auto_continue": body.auto_continue,
                 **extra,
             }

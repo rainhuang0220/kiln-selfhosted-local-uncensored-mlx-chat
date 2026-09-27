@@ -167,6 +167,7 @@ def list_entries(
     *,
     owner_id: str | None = None,
     character_card_id: str | None = None,
+    active_only: bool = False,
 ) -> list[dict[str, Any]]:
     conn = get_conn()
     sql = "SELECT * FROM lore_entries WHERE enabled=1"
@@ -174,7 +175,9 @@ def list_entries(
     if owner_id is not None:
         sql += " AND (owner_id IS NULL OR owner_id=?)"
         args.append(owner_id)
-    if character_card_id:
+    if active_only and not character_card_id:
+        sql += " AND character_card_id IS NULL"
+    elif character_card_id:
         sql += " AND (character_card_id IS NULL OR character_card_id=?)"
         args.append(character_card_id)
     sql += " ORDER BY priority DESC, updated_at DESC"

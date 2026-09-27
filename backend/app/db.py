@@ -425,6 +425,28 @@ def migrate(conn: sqlite3.Connection) -> None:
         VALUES (7, '0007_immersive_cards_lore_scene', CAST(strftime('%s','now') AS INTEGER) * 1000)
         """
     )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS context_presets (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT,
+          title TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          source_text TEXT NOT NULL DEFAULT '',
+          version INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_presets_owner
+          ON context_presets(owner_id, updated_at DESC);
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+        VALUES (8, '0008_context_presets', CAST(strftime('%s','now') AS INTEGER) * 1000)
+        """
+    )
 
 
 def init_db(path: str | None = None) -> sqlite3.Connection:

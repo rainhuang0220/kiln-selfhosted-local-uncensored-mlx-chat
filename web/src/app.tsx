@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
+import { BookUser, LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
 import { AuthGate } from "./components/AuthGate";
 import { SidebarFooter } from "./components/SidebarFooter";
 import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
+import { ContextPresetStudio } from "./components/ContextPresetStudio";
+import { apiFetch } from "./api/http";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
@@ -112,6 +114,7 @@ export function App() {
     () => window.localStorage.getItem("kiln.sidebar") === "collapsed",
   );
   const [modelWorkbenchOpen, setModelWorkbenchOpen] = useState(false);
+  const [presetStudioOpen, setPresetStudioOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches,
   );
@@ -222,6 +225,9 @@ export function App() {
             }}
           >
             <Plus size={15} /> New chat
+          </button>
+          <button className="btn ghost full preset-launch" type="button" onClick={() => { setPresetStudioOpen(true); closeSidebar(); }}>
+            <BookUser size={15} /> 人物与场景预设
           </button>
           {store.role === "owner" || !store.authRequired ? (
             <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
@@ -496,6 +502,11 @@ export function App() {
           }}
         >
           <div className="composer">
+            <button type="button" className="composer-preset-launch" onClick={() => setPresetStudioOpen(true)}>
+              <BookUser size={14} />
+              {store.contextPresetTitle ? `已选预设：${store.contextPresetTitle}` : "人物与场景预设"}
+              <span>{store.activeId ? "下个新会话生效" : "新会话生效"}</span>
+            </button>
             <textarea
               value={store.draft}
               maxLength={DRAFT_MAX_CHARS}
@@ -687,11 +698,25 @@ export function App() {
       <aside className="inspector" id="inspector" aria-label="Context inspector">
         <div className="inspector-head">
           <h3>Context</h3>
-          <span style={{ color: "var(--muted)", fontSize: 12 }}>what the model saw</span>
+          <button type="button" className="btn ghost inspector-preset-launch" onClick={() => setPresetStudioOpen(true)}>
+            <BookUser size={14} /> 人物预设
+          </button>
         </div>
         <Inspector />
       </aside>
       <ModelWorkbench open={modelWorkbenchOpen} onClose={() => setModelWorkbenchOpen(false)} />
+      {presetStudioOpen ? (
+        <ContextPresetStudio
+          onClose={() => setPresetStudioOpen(false)}
+          onStartNewChat={() => {
+            store.stop();
+            void store.openConversation(null);
+            navigate("/");
+            setView("chat");
+            setPresetStudioOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -796,7 +821,6 @@ function Inspector() {
   async function saveCard() {
     setCardStatus("saving…");
     try {
-      const { apiFetch } = await import("./api/http");
       const body = {
         name: cardName || "未命名角色",
         personality: cardPersonality,
@@ -807,7 +831,7 @@ function Inspector() {
           .map((s) => s.trim())
           .filter(Boolean),
       };
-      const res = await apiFetch(characterCardId ? `/cards/${characterCardId}` : "/cards", {
+      const res = await apiFetch(characterCardId ? `/context/cards/${characterCardId}` : "/context/cards", {
         method: characterCardId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

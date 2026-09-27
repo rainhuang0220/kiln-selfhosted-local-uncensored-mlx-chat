@@ -34,6 +34,7 @@ from app.services.auto_continue import (
     trim_to_sentence,
 )
 from app.services.character_cards import compile_card_system, get_card
+from app.services.context_presets import get_preset, reference_context_for_mention, style_bank_for_preset
 from app.services.fact_extractor import (
     extract_atoms,
     extract_facts,
@@ -48,6 +49,7 @@ from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
 from app.services.scene_state_store import SceneStateStore
 from app.services.style_bank import (
+    OffstageStreamFilter,
     StyleBank,
     evict_offstage,
     ingest_history,
@@ -85,7 +87,11 @@ IMMERSIVE_AUTHOR_NOTE = (
     "4. must_keep 里的每一项都必须落进正文。\n"
     "</author_note>"
 )
-STYLE_AUTHOR_LINE = "5. 括号/风格参考里的人名事件不要写进当前场面。\n"
+STYLE_AUTHOR_LINE = (
+    "5. 括号/风格参考里的人名事件不要写进当前场面。\n"
+    "6. 背景和幻想参考只提供已确认事实、偏好或写法；当前角色与场景仍以 active_context 和 scene_state 为准。\n"
+    "7. 参考情节此刻未发生，勿复述参考正文。\n"
+)
 # Turn-boundary tokens suppressed while an auto-continue hop fills toward the floor.
 FILL_HOP_BANNED_TOKENS = ("<|endoftext|>", "<|im_end|>", "<|im_start|>", "<think>")
 
@@ -624,7 +630,6 @@ class ChatService:
         history, style, offstage = self._ingest_style(conversation_id, history)
         if not keep_pins:
             style = None
-            offstage = set()
         latest_user_content = next(
             (m.get("content") or "" for m in reversed(history) if m.get("role") == "user"),
             "",
@@ -872,6 +877,33 @@ class ChatService:
                             },
                         }
 
+        frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
+        if isinstance(frame, dict):
+            active_lines = ["<active_context>", "Only this frame describes the current scene; reference people and events remain offstage."]
+            if frame.get("active_scene"):
+                active_lines.append(f"current_scene: {frame['active_scene']}")
+            if frame.get("user_persona"):
+                active_lines.append(f"user_persona: {frame['user_persona']}")
+            if frame.get("background_facts"):
+                active_lines.append("confirmed_background: " + "；".join(frame["background_facts"]))
+            if frame.get("preferences"):
+                active_lines.append("explicit_preferences: " + "；".join(frame["preferences"]))
+            current_cast = [
+                item for item in frame.get("characters") or []
+                if item.get("scope") == "active" and item.get("name")
+            ][:8]
+            if current_cast:
+                active_lines.append("current_cast: " + "；".join(
+                    f"{item['name']}（{item.get('role') or '在场人物'}；{item.get('notes') or '无补充'}）"
+                    for item in current_cast
+                ))
+            active_lines.append("</active_context>")
+            active_fence = "\n".join(active_lines)
+            fence = f"{active_fence}\n\n{fence}" if fence else active_fence
+            reference_fence = reference_context_for_mention(frame, last_user)
+            if reference_fence:
+                fence = f"{fence}\n\n{reference_fence}"
+
         if fence and last_user_idx is not None:
             # Keep fences as their own user message so they are not mistaken for user lines.
             sent.insert(
@@ -916,6 +948,10 @@ class ChatService:
         }
         snapshot["dialogue_state_obj"] = built.state
         snapshot["scene_graph_obj"] = graph
+        # A named-reference question may say the name aloud without placing
+        # that person in the scene graph. The stream filter only allows names
+        # the user explicitly mentioned in this turn.
+        snapshot["offstage_names"] = {name for name in offstage if name not in latest_user_content}
         snapshot["history_summary"] = built.summary
         return sent, snapshot
 
@@ -935,7 +971,7 @@ class ChatService:
             bank = stored
         except Exception:
             pass
-        return history, bank, bank.offstage(live_texts)
+        return history, bank, bank.offstage_scene(live_texts)
 
     def _scene_pin_fence(
         self,
@@ -964,7 +1000,11 @@ class ChatService:
             ][-12:]
             scan_texts.append(last_user)
             lore_hits = lorebook_mod.activate(
-                lorebook_mod.list_entries(owner_id=owner_id),
+                lorebook_mod.list_entries(
+                    owner_id=owner_id,
+                    character_card_id=self._conversation_settings(conversation_id).get("character_card_id"),
+                    active_only=True,
+                ),
                 scan_texts,
                 budget_tokens=768,
             )
@@ -1291,6 +1331,7 @@ class ChatService:
         evidence: str | None = None,
         auto_continue: bool | None = None,
         character_card_id: str | None = None,
+        context_preset_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
         text = (message or "").strip()
@@ -1473,7 +1514,20 @@ class ChatService:
             if thinking_continuation is None
             else thinking_continuation
         )
+        selected_preset = None
+        if context_preset_id and not conversation_id:
+            selected_preset = get_preset(context_preset_id, owner_id=owner_id)
+            if selected_preset is None:
+                yield {
+                    "event": "error",
+                    "data": {"error": {"message": "preset not found", "type": "not_found_error", "code": "preset_not_found"}},
+                    "status": 404,
+                }
+                return
         card = get_card(character_card_id, owner_id=owner_id) if character_card_id else None
+        if selected_preset is not None:
+            frame = selected_preset["payload"]
+            card = {**frame.get("active_character", {}), "scenario": frame.get("active_scene") or ""}
         if system is not None:
             system_prompt = system or ""
         elif card is not None:
@@ -1535,7 +1589,9 @@ class ChatService:
             "min_output_chars": min_output_chars,
             "auto_continue_max": auto_max,
             "completion_soft_cap": completion_soft_cap or None,
-            "character_card_id": character_card_id,
+            "character_card_id": None if selected_preset is not None else character_card_id,
+            "context_preset_id": context_preset_id if selected_preset is not None else None,
+            "context_preset_snapshot": selected_preset["payload"] if selected_preset is not None else None,
         }
 
         created = False
@@ -1556,12 +1612,35 @@ class ChatService:
                 }
                 return
             cid = conversation_id
+            bound = self._conversation_settings(cid)
+            if context_preset_id and context_preset_id != bound.get("context_preset_id"):
+                yield {
+                    "event": "error",
+                    "data": {"error": {"message": "a conversation cannot switch context presets", "type": "invalid_request_error", "code": "preset_switch_not_allowed"}},
+                    "status": 409,
+                }
+                return
+            params["context_preset_id"] = bound.get("context_preset_id")
+            params["context_preset_snapshot"] = bound.get("context_preset_snapshot")
+            params["character_card_id"] = bound.get("character_card_id")
         else:
             cid = self._create_conversation(
                 system_prompt, s.model_name, json.dumps(params), owner_id=owner_id
             )
             created = True
             conversation_created = True
+            if selected_preset is not None:
+                frame = selected_preset["payload"]
+                graph = SceneGraph()
+                graph.merge(frame.get("active_scene") or "")
+                actor_name = (frame.get("active_character") or {}).get("name")
+                if actor_name:
+                    graph.member(actor_name, create=True)
+                for member in frame.get("characters") or []:
+                    if member.get("scope") == "active" and member.get("name"):
+                        graph.member(member["name"], create=True)
+                SceneStateStore().save_graph(cid, graph)
+                SceneStateStore().save_style(cid, style_bank_for_preset(frame).to_dict())
 
         conflict = None
         async with self._lock:
@@ -1654,6 +1733,8 @@ class ChatService:
         think_max = 0
         tail_stripper = TailStripper("")
 
+        stream_filter = OffstageStreamFilter()
+
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
             nonlocal guard_trim, prefix_mutated, guard_hits
@@ -1696,7 +1777,9 @@ class ChatService:
                                 ledger.first_any_ms = now
                             if ledger.first_visible_ms is None:
                                 ledger.first_visible_ms = now
-                            yield {"event": "delta", "data": {"content": visible}}
+                            safe = stream_filter.feed(visible)
+                            if safe:
+                                yield {"event": "delta", "data": {"content": safe}}
                             if hard_self_loop(content_buf):
                                 ledger.repetition_guard = True
                                 break
@@ -1736,7 +1819,9 @@ class ChatService:
                 held = echo.flush()
                 if held:
                     content_buf += held
-                    yield {"event": "delta", "data": {"content": held}}
+                    safe = stream_filter.feed(held)
+                    if safe:
+                        yield {"event": "delta", "data": {"content": safe}}
             finally:
                 closer = getattr(agen, "aclose", None)
                 if closer is not None:
@@ -1812,6 +1897,7 @@ class ChatService:
                     keep_pins=bool(preset.get("keep_pins")),
                     repair=repair_slots if pin_repair_pending else None,
                 )
+                stream_filter.set_names(snapshot_meta.get("offstage_names") or ())
                 occupancy = snapshot_meta["occupancy"]
                 prompt_tokens = occupancy["prompt_tokens"]
                 if snapshot_meta.get("keep_pins"):
@@ -1950,7 +2036,9 @@ class ChatService:
                         completion_tokens = result.completion_tokens
                     cached_tokens = result.cached_tokens
                     if content_buf:
-                        yield {"event": "delta", "data": {"content": content_buf}}
+                        safe = stream_filter.feed(content_buf) + stream_filter.flush()
+                        if safe:
+                            yield {"event": "delta", "data": {"content": safe}}
                     if reasoning_buf:
                         yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
                 else:
@@ -2304,6 +2392,9 @@ class ChatService:
             "effective_output_tokens_per_sec": metrics["effective_output_tokens_per_sec"],
             "decode_tokens_per_sec": metrics["decode_tokens_per_sec"],
         }
+        trailing = stream_filter.flush()
+        if trailing:
+            yield {"event": "delta", "data": {"content": trailing}}
         yield {"event": "usage", "data": usage}
         yield {
             "event": "done",

@@ -19,6 +19,51 @@ import type {
 } from "../types/chat";
 
 const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.immersive };
+const CONTEXT_PRESET_SESSION_KEY = "kiln.contextPresetSelection.v1";
+
+type SavedPresetSelection = { owner: string; id: string };
+
+function presetOwner(state: Pick<ChatState, "authRequired" | "authOk" | "username">): string | null {
+  if (!state.authRequired) return "local";
+  return state.authOk && state.username ? `user:${state.username}` : null;
+}
+
+function readSavedPreset(): SavedPresetSelection | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem(CONTEXT_PRESET_SESSION_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const record = value as Record<string, unknown>;
+      if (typeof record.owner === "string" && typeof record.id === "string" && record.owner && record.id) {
+        return { owner: record.owner, id: record.id };
+      }
+    }
+    sessionStorage.removeItem(CONTEXT_PRESET_SESSION_KEY);
+  } catch {
+    // Storage may be disabled or contain an older incompatible value.
+  }
+  return null;
+}
+
+function savePresetSelection(selection: SavedPresetSelection): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(CONTEXT_PRESET_SESSION_KEY, JSON.stringify(selection));
+    }
+  } catch {
+    // Session-only selection still works in memory if browser storage is unavailable.
+  }
+}
+
+function clearSavedPreset(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(CONTEXT_PRESET_SESSION_KEY);
+  } catch {
+    // In-memory selection is cleared independently.
+  }
+}
 
 interface ChatState {
   health: Health | null;
@@ -28,6 +73,9 @@ interface ChatState {
   draft: string;
   params: GenerationParams;
   characterCardId: string | null;
+  contextPresetId: string | null;
+  contextPresetTitle: string | null;
+  contextPresetOwner: string | null;
   inspectorOpen: boolean;
   snapshot: ContextSnapshot | null;
   streaming: boolean;
@@ -67,6 +115,8 @@ interface ChatState {
   setParams: (p: Partial<GenerationParams>) => void;
   setProfile: (profile: GenerationProfile) => void;
   setCharacterCardId: (id: string | null) => void;
+  setContextPreset: (id: string | null, title?: string | null) => void;
+  restoreContextPresetSelection: () => Promise<void>;
   toggleInspector: () => void;
   send: (mode?: "regenerate" | "continue") => Promise<void>;
   stop: () => void;
@@ -85,6 +135,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   draft: "",
   params: DEFAULT_PARAMS,
   characterCardId: null,
+  contextPresetId: null,
+  contextPresetTitle: null,
+  contextPresetOwner: null,
   inspectorOpen: true,
   searchQuery: "",
   theme: "light",
@@ -169,6 +222,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [],
       snapshot: null,
       draft: "",
+      characterCardId: null,
+      contextPresetId: null,
+      contextPresetTitle: null,
+      contextPresetOwner: null,
       searchQuery: "",
       error: null,
       localModels: [],
@@ -237,6 +294,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   logout: async () => {
+    clearSavedPreset();
     await apiFetch("/auth/logout", { method: "POST" });
     get().wipePrivateState();
     set({
@@ -253,6 +311,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Retained primitive: same session revoke as logout, but keeps username for the lock screen.
     // Not shown in the default sidebar; the machine lock is the product control.
     const who = get().username;
+    clearSavedPreset();
     await apiFetch("/auth/lock", { method: "POST" });
     get().wipePrivateState();
     set({
@@ -280,7 +339,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           username: s.username || null,
           role: s.role || null,
         });
-        if (s.required && !s.ok) return;
+        if (s.required && !s.ok) {
+          get().wipePrivateState();
+          return;
+        }
+        await get().restoreContextPresetSelection();
       } else {
         set({ authChecked: true, authRequired: true, authOk: false });
         return;
@@ -447,7 +510,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   setParams: (p) => set({ params: { ...get().params, ...p } }),
   setProfile: (profile) => set({ params: { ...PROFILE_PRESETS[profile] } }),
-  setCharacterCardId: (id) => set({ characterCardId: id }),
+  setCharacterCardId: (id) => {
+    if (id) {
+      clearSavedPreset();
+      set({ characterCardId: id, contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    } else {
+      set({ characterCardId: null });
+    }
+  },
+  setContextPreset: (id, title = null) => {
+    if (id) {
+      const owner = presetOwner(get());
+      if (owner) savePresetSelection({ owner, id });
+      set({ contextPresetId: id, contextPresetTitle: title, contextPresetOwner: owner, characterCardId: null });
+    } else {
+      clearSavedPreset();
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    }
+  },
+  restoreContextPresetSelection: async () => {
+    const owner = presetOwner(get());
+    if (!owner) return;
+    if (get().contextPresetId && get().contextPresetOwner !== owner) {
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    }
+    const saved = readSavedPreset();
+    if (!saved) return;
+    if (saved.owner !== owner) {
+      clearSavedPreset();
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+      return;
+    }
+    if (get().contextPresetId === saved.id) return;
+    set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    try {
+      const response = await apiFetch("/context/presets");
+      if (!response.ok) return;
+      const body = await response.json();
+      if (presetOwner(get()) !== owner || readSavedPreset()?.id !== saved.id) return;
+      const item = Array.isArray(body.data)
+        ? body.data.find((entry: { id?: string }) => entry.id === saved.id)
+        : null;
+      if (item) {
+        set({ contextPresetId: saved.id, contextPresetTitle: typeof item.title === "string" ? item.title : null, contextPresetOwner: owner, characterCardId: null });
+      } else {
+        clearSavedPreset();
+      }
+    } catch {
+      // Retry on the next authenticated health refresh.
+    }
+  },
   toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
 
   stop: () => {
@@ -495,7 +607,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (get().streaming) return;
     if ((regen || cont) && !get().activeId) return;
     if (!cont && !text) return;
+    if (!get().activeId && !regen && !cont && !get().contextPresetId) {
+      const saved = readSavedPreset();
+      if (saved && saved.owner === presetOwner(get())) {
+        await get().restoreContextPresetSelection();
+        if (get().streaming) return;
+      }
+    }
     const params = get().params;
+    const contextPresetId = !get().activeId && !regen && !cont ? get().contextPresetId : null;
     const controller = new AbortController();
     const userMsg: Message = {
       id: lastUser?.id || `local-user-${Date.now()}`,
@@ -545,7 +665,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           // long_form aliases the immersive chat path; never start NarrativeOrchestrator from the UI.
           profile: params.profile === "fast" ? "interactive_dialogue" : params.profile,
           auto_continue: params.profile === "immersive" ? true : undefined,
-          character_card_id: get().characterCardId || undefined,
+          character_card_id: contextPresetId ? undefined : get().characterCardId || undefined,
+          context_preset_id: contextPresetId || undefined,
           stream: true,
           temperature: params.temperature,
           top_p: params.topP,
