@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Auto-continue after a guard trim no longer resends a prefix that mlx-lm already holds as a prompt-cache key. The turn's first chat-completions prompt counts as used, and a hop that follows a loop, run-on, stall, or fill-hop trim starts by dropping two tokens instead of one. Untrimmed Continues still drop one token. An exact cache hit had killed the mlx-lm generate thread and ended long Immersive turns in `timeout`.
+
 ## v0.7.0 — Immersive Dialogue defaults and long-output continuation
 
 - Immersive Dialogue (沉浸对话) is the default profile for new chats: `max_tokens` 6144, thinking off, and auto-continue of the same assistant message (up to 3 hops, soft total cap 12288 completion tokens) until at least 5000 visible characters. Continuation triggers on `stop` as well as `length`. No application-layer content filter; uncensored behavior depends on the local checkpoint.
