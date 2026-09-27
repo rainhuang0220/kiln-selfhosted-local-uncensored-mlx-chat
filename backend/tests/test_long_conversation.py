@@ -22,7 +22,11 @@ def test_fifty_turns_list_and_message_count(client):
     conv = detail.json()
     assert conv["message_count"] == 100
     roles = [m["role"] for m in conv["messages"]]
-    assert "system" not in roles
+    # Immersive (default) freezes one system contract at creation; nothing else is system.
+    assert roles.count("system") <= 1
+    if "system" in roles:
+        assert roles[0] == "system"
+        roles = roles[1:]
     assert roles[0] == "user"
     assert roles.count("user") == 50
     assert roles.count("assistant") == 50

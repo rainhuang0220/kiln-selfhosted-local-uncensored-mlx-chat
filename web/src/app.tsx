@@ -9,7 +9,15 @@ import { ModelWorkbench } from "./components/ModelWorkbench";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
-import { PROFILE_LABELS, isIncompleteTerminal, terminalCopy } from "./lib/profiles";
+import {
+  DRAFT_MAX_CHARS,
+  PROFILE_HELP,
+  PROFILE_LABELS,
+  PROFILE_PRIMARY,
+  isIncompleteTerminal,
+  normalizePrimaryProfile,
+  terminalCopy,
+} from "./lib/profiles";
 import { serviceBanner } from "./lib/service-banner";
 import { useChatStore } from "./stores/chat-store";
 import type { GenerationProfile } from "./types/chat";
@@ -490,6 +498,7 @@ export function App() {
           <div className="composer">
             <textarea
               value={store.draft}
+              maxLength={DRAFT_MAX_CHARS}
               placeholder={
                 serviceBanner(store.health)
                   ? "模型暂不可用。看上面的状态说明。"
@@ -498,7 +507,7 @@ export function App() {
                     : "Write to the kiln. Enter to send, Shift+Enter for a newline. Drop text files here."
               }
               rows={3}
-              onChange={(e) => store.setDraft(e.target.value)}
+              onChange={(e) => store.setDraft(e.target.value.slice(0, DRAFT_MAX_CHARS))}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -510,20 +519,52 @@ export function App() {
             />
             <div className="composer-bar">
               <div className="toggles">
-                <select
-                  value={store.params.profile}
-                  onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
-                  aria-label="Generation profile"
-                >
-                  {(Object.keys(PROFILE_LABELS) as GenerationProfile[]).map((key) => (
-                    <option key={key} value={key}>
-                      {PROFILE_LABELS[key]}
-                    </option>
-                  ))}
-                </select>
+                <div className="profile-picker">
+                  <select
+                    value={
+                      store.params.profile === "reasoning"
+                        ? "reasoning"
+                        : normalizePrimaryProfile(store.params.profile)
+                    }
+                    onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
+                    aria-label="Generation profile"
+                  >
+                    {PROFILE_PRIMARY.map((key) => (
+                      <option key={key} value={key}>
+                        {PROFILE_LABELS[key]}
+                      </option>
+                    ))}
+                    {store.params.profile === "reasoning" ? (
+                      <option value="reasoning">{PROFILE_LABELS.reasoning}</option>
+                    ) : null}
+                  </select>
+                  <p className="profile-help">
+                    {PROFILE_HELP[
+                      store.params.profile === "reasoning"
+                        ? "immersive"
+                        : normalizePrimaryProfile(store.params.profile)
+                    ] || PROFILE_HELP.immersive}
+                  </p>
+                </div>
                 <details className="advanced">
                   <summary>Advanced</summary>
                   <div className="advanced-grid">
+                    <label>
+                      profile
+                      <select
+                        value={store.params.profile === "reasoning" ? "reasoning" : "primary"}
+                        onChange={(e) => {
+                          if (e.target.value === "reasoning") {
+                            store.setProfile("reasoning");
+                          } else {
+                            store.setProfile(normalizePrimaryProfile(store.params.profile));
+                          }
+                        }}
+                      >
+                        <option value="primary">primary</option>
+                        <option value="reasoning">{PROFILE_LABELS.reasoning}</option>
+                      </select>
+                    </label>
                     <label>
                       <input
                         type="checkbox"
@@ -618,19 +659,24 @@ export function App() {
                   />
                 </label>
               </div>
-              {store.streaming ? (
-                <button className="btn" onClick={() => store.stop()}>
-                  Stop
-                </button>
-              ) : (
-                <button
-                  className="btn primary"
-                  disabled={!store.draft.trim()}
-                  onClick={() => void store.send()}
-                >
-                  Send
-                </button>
-              )}
+              <div className="composer-actions">
+                <span className="draft-counter" aria-live="polite">
+                  {store.draft.length} / {DRAFT_MAX_CHARS}
+                </span>
+                {store.streaming ? (
+                  <button className="btn" onClick={() => store.stop()}>
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    className="btn primary"
+                    disabled={!store.draft.trim()}
+                    onClick={() => void store.send()}
+                  >
+                    Send
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

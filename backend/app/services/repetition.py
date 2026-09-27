@@ -132,6 +132,36 @@ def score_repetition(text: str) -> RepetitionReport:
     )
 
 
+_TERMINATORS = "。！？!?…"
+_CLOSERS = "”」』\"'"
+
+
+def repeated_sentence_start(text: str, *, min_chars: int = 16) -> int | None:
+    """Start of the just-finished sentence if it already appears earlier in text.
+
+    Catches multi-paragraph cycles that never repeat back-to-back. Short
+    refrains (a quoted line under min_chars) are allowed to recur.
+    """
+    end = len(text.rstrip())
+    k = end
+    while k > 0 and text[k - 1] in _CLOSERS:
+        k -= 1
+    if k == 0 or text[k - 1] not in _TERMINATORS:
+        return None
+    j = k - 1
+    while j > 0 and text[j - 1] in _TERMINATORS:
+        j -= 1
+    while j > 0 and text[j - 1] not in _TERMINATORS and text[j - 1] != "\n":
+        j -= 1
+    start = j
+    while start < end and (text[start].isspace() or text[start] in "”」』"):
+        start += 1
+    sentence = text[start:end]
+    if len(_WS.sub("", sentence)) < min_chars:
+        return None
+    return start if text.find(sentence, 0, start) != -1 else None
+
+
 def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 8) -> str | None:
     """Return the looping sentence if it appears consecutively >= min_repeats times."""
     norms_and_raw = [(_norm(s), s.strip()) for s in _sentences(text)]

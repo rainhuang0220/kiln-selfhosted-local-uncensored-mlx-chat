@@ -59,11 +59,11 @@ class Settings(BaseSettings):
     default_top_p: float = 0.9
     default_top_k: int = 40
     default_min_p: float = 0.05
-    default_presence_penalty: float = 0.0
-    default_presence_context_size: int = 256
-    default_frequency_penalty: float = 0.15
+    default_presence_penalty: float = 0.25
+    default_presence_context_size: int = 1024
+    default_frequency_penalty: float = 0.0
     default_frequency_context_size: int = 256
-    default_repetition_penalty: float = 1.06
+    default_repetition_penalty: float = 1.0
     default_repetition_context_size: int = 256
     default_system: str = ""
     enable_thinking: bool = False

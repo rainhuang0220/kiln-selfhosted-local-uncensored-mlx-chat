@@ -4,7 +4,7 @@ import { createAssembly, observeFrame } from "../api/sse-assembly";
 import { readSse } from "../api/stream";
 import { heuristicTitle } from "../lib/markdown";
 import { applyTheme } from "../lib/theme";
-import { PROFILE_PRESETS } from "../lib/profiles";
+import { DRAFT_MAX_CHARS, PROFILE_PRESETS } from "../lib/profiles";
 import type {
   ContextSnapshot,
   ConversationSummary,
@@ -419,7 +419,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages, snapshot, error: null });
   },
 
-  setDraft: (v) => set({ draft: v }),
+  setDraft: (v) => set({ draft: v.length > DRAFT_MAX_CHARS ? v.slice(0, DRAFT_MAX_CHARS) : v }),
 
   attachFiles: async (files) => {
     const list = Array.from(files);
@@ -439,7 +439,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     if (!chunks.length) return;
     const draft = get().draft;
-    set({ draft: (draft ? draft.replace(/\s*$/, "") : "") + chunks.join(""), error: null });
+    const next = (draft ? draft.replace(/\s*$/, "") : "") + chunks.join("");
+    set({
+      draft: next.length > DRAFT_MAX_CHARS ? next.slice(0, DRAFT_MAX_CHARS) : next,
+      error: null,
+    });
   },
   setParams: (p) => set({ params: { ...get().params, ...p } }),
   setProfile: (profile) => set({ params: { ...PROFILE_PRESETS[profile] } }),
@@ -538,10 +542,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           conversation_id: get().activeId,
           regenerate: regen,
           continue_generation: cont,
-          profile: params.profile,
-          mode: params.profile === "long_form" ? "narrative" : undefined,
-          target_visible_chars: params.profile === "long_form" ? 10000 : undefined,
-          segment_chars: params.profile === "long_form" ? 2800 : undefined,
+          // long_form aliases the immersive chat path; never start NarrativeOrchestrator from the UI.
+          profile: params.profile === "fast" ? "interactive_dialogue" : params.profile,
           auto_continue: params.profile === "immersive" ? true : undefined,
           character_card_id: get().characterCardId || undefined,
           stream: true,

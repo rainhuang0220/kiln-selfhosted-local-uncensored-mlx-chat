@@ -782,16 +782,41 @@ a { color: var(--copper-2); }
 .composer-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
   padding-top: 4px;
 }
 .toggles {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
   color: var(--muted);
   font-size: 12px;
+}
+.profile-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-width: min(420px, 70vw);
+}
+.profile-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.draft-counter {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .toggles label { display: flex; gap: 6px; align-items: center; }
 .advanced { position: relative; }

@@ -2,9 +2,16 @@
 
 ## Unreleased
 
-- Immersive Dialogue is the default profile: longer replies (max_tokens 6144) with auto-continue toward a visible-character floor, keyword/scene pins next to the latest user turn, and no application-layer content filter. Uncensored local generation already depends on the checkpoint; this change adds multi-scenario continuity and longer replies.
-- Interactive Dialogue hard output budget is 3072. Theme boot loads from `/theme-boot.js` so production CSP can stay `script-src 'self'`.
-- `sysctl` / `vm_stat` sampling never raises on non-Darwin hosts. Quality eval accepts `--profile` / `--max-tokens` / `--timeout` / `--turns` without changing CI defaults.
+## v0.7.0 — Immersive Dialogue defaults and long-output continuation
+
+- Immersive Dialogue (沉浸对话) is the default profile for new chats: `max_tokens` 6144, thinking off, and auto-continue of the same assistant message (up to 3 hops, soft total cap 12288 completion tokens) until at least 5000 visible characters. Continuation triggers on `stop` as well as `length`. No application-layer content filter; uncensored behavior depends on the local checkpoint.
+- The model dropdown shows two profiles: Immersive Dialogue and Fast Chat (短对话, formerly Interactive Dialogue, 3072 tokens, no auto-continue), each with a one-line explanation. Balanced is gone from the UI. `fast` / `conversational` alias Fast Chat; `long_form` / `narrative` / `multi_scenario` alias Immersive Dialogue and do not start the 20K narrative job (that still needs an explicit `mode=narrative`).
+- Scene continuity: a deterministic extractor turns the current user turn plus the previous assistant turn into short keyword pins (names and forms of address, body marks, objects and their places, time agreements, locations). Pins are sent as `<must_keep>` / `<lore>` / `<scene_state>` blocks next to the latest user message, never in the frozen system prompt. The current user turn is never truncated.
+- If an Immersive reply omits every mention of a pinned fact, Kiln appends one repair continuation (at most 512 tokens) to the same message.
+- Auto-continue hops below the 5000-character floor suppress end-of-turn tokens and size `max_tokens` to land past the floor; a trailing half-sentence is trimmed when the floor still holds. If a reply starts by retyping the previous assistant message, the copied sentences are dropped before they stream. A run of 80+ characters without punctuation, or a sentence of 16+ characters that already appeared earlier in the same reply, ends the pass and is trimmed (`guard_trim` in the done event); the next hop resumes from the clean text. Immersive sampling uses a flat `presence_penalty` 0.25 over 1024 tokens with frequency and repetition penalties off.
+- The composer accepts 5000 characters with a visible counter.
+- Theme boot loads from `/theme-boot.js` so production CSP can stay `script-src 'self'`.
+- `sysctl` / `vm_stat` sampling never raises: probe order is `which sysctl`, `/usr/sbin/sysctl`, `/proc/meminfo`, then `vm_stat`. Unknown resources never pause generation. The API LaunchAgent PATH includes `/usr/sbin:/sbin`. Quality eval accepts `--profile` / `--max-tokens` / `--timeout` / `--turns` without changing CI defaults.
 
 ## v0.6.8 — Account menu sits above the footer
 

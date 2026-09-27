@@ -77,14 +77,21 @@ IMMERSIVE = {
     "top_p": 0.9,
     "top_k": 40,
     "min_p": 0.05,
-    "presence_penalty": 0.0,
-    "presence_context_size": 256,
-    "frequency_penalty": 0.15,
+    # Flat presence only: count-scaled penalties hit 的/了/是 hardest and turn
+    # long CJK prose into synonym lists after ~3k chars. The window must cover
+    # a multi-paragraph cycle (~900 tokens).
+    "presence_penalty": 0.25,
+    "presence_context_size": 1024,
+    "frequency_penalty": 0.0,
     "frequency_context_size": 256,
-    "repetition_penalty": 1.06,
+    "repetition_penalty": 1.0,
     "repetition_context_size": 256,
     "prompt_soft_target": 12288,
     "prompt_budget": 16384,
+    # Soft total completion tokens across auto-continue hops (not a hard MLX cut).
+    "completion_soft_cap": 12288,
+    # Scene pins on the user-side fence, plus one guarded repair hop when prose drops them.
+    "keep_pins": True,
 }
 
 # long_form aliases immersive (no longer 20K prose orchestrator default).
@@ -96,11 +103,13 @@ LONG_FORM = {
 PROFILES: dict[str, dict[str, Any]] = {
     "interactive_dialogue": INTERACTIVE_DIALOGUE,
     "conversational": INTERACTIVE_DIALOGUE,
+    "fast": INTERACTIVE_DIALOGUE,
     "balanced": BALANCED,
     "reasoning": REASONING,
     "immersive": IMMERSIVE,
     "long_form": LONG_FORM,
     "narrative": IMMERSIVE,
+    "multi_scenario": IMMERSIVE,
 }
 
 
@@ -114,21 +123,26 @@ def normalize_profile(name: str | None) -> str:
     aliases = {
         "dialogue": "interactive_dialogue",
         "chat": "interactive_dialogue",
+        "fast": "interactive_dialogue",
         "think": "reasoning",
         "thinking": "reasoning",
         "longform": "long_form",
         "long_output": "long_form",
         "story": "immersive",
+        "multi_scenario": "immersive",
         "沉浸对话": "immersive",
         "沉浸": "immersive",
     }
     key = aliases.get(key, key)
     if key not in PROFILES:
         return DEFAULT_PROFILE
-    if key == "conversational":
+    if key in {"conversational", "fast"}:
         return "interactive_dialogue"
-    if key == "narrative":
+    if key in {"narrative", "multi_scenario"}:
         return "immersive"
+    if key == "long_form":
+        # Alias stays on immersive chat path (not 20k NarrativeOrchestrator).
+        return "long_form"
     return key
 
 

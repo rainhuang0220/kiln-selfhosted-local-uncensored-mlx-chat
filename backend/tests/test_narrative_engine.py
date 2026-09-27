@@ -226,6 +226,7 @@ def test_chat_routes_long_form_to_narrative(tmp_settings, monkeypatch):
                 "message": "角色：阿远\n写长文",
                 "stream": False,
                 "profile": "long_form",
+                "mode": "narrative",
                 "target_visible_chars": 3000,
                 "segment_chars": 1000,
                 "max_tokens": 500,
@@ -236,3 +237,17 @@ def test_chat_routes_long_form_to_narrative(tmp_settings, monkeypatch):
         assert count_visible_chars(body["message"]["content"]) >= 3000
         assert body.get("job_id")
         assert body["length_trace"]["visible_char_count"] >= 3000
+
+        # profile=long_form alone is the immersive chat path, not the orchestrator.
+        plain = client.post(
+            "/chat",
+            json={
+                "message": "角色：阿远\n写长文",
+                "stream": False,
+                "profile": "long_form",
+                "auto_continue": False,
+                "max_tokens": 500,
+            },
+        )
+        assert plain.status_code == 200, plain.text
+        assert not plain.json().get("job_id")

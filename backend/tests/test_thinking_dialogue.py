@@ -106,6 +106,7 @@ def test_unclosed_think_is_split_and_not_continued_by_default(chat_service, fake
                 enable_thinking=True,
                 thinking_continuation=False,
                 max_tokens=64,
+                auto_continue=False,
             )
         )
     )
@@ -154,6 +155,7 @@ def test_max_tokens_during_visible_output_is_length(chat_service, fake_provider)
                 stream=True,
                 enable_thinking=True,
                 thinking_continuation=False,
+                auto_continue=False,
             )
         )
     )

@@ -22,6 +22,7 @@ export interface TokenUsage {
 export type GenerationProfile =
   | "immersive"
   | "interactive_dialogue"
+  | "fast"
   | "balanced"
   | "reasoning"
   | "long_form";

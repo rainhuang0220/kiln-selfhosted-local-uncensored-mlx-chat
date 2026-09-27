@@ -71,6 +71,65 @@ def strip_regenerated_tail(generated: str, dropped_tail: str) -> str:
     return generated
 
 
+_ECHO_BREAKS = set("。！？!?…」』”\n")
+
+
+class EchoSuppressor:
+    """Hold streamed text while it reprints the previous assistant reply.
+
+    After a length-cut reply, a short cue like 继续 often makes the model
+    retype that reply before writing anything new. Whole copied sentences
+    are dropped; a sentence that starts copied but diverges is kept whole.
+    """
+
+    def __init__(self, previous: str, *, min_match: int = 16):
+        self.previous = previous or ""
+        self.min_match = min_match
+        self._held = ""
+        self._done = not self.previous
+
+    def _cut(self, matched: int) -> str:
+        if matched < self.min_match:
+            return self._held
+        cut = 0
+        for i in range(matched - 1, -1, -1):
+            if self._held[i] in _ECHO_BREAKS:
+                cut = i + 1
+                break
+        return self._held[cut:].lstrip() if cut else self._held
+
+    def feed(self, text: str) -> str:
+        if self._done or not text:
+            return text
+        self._held += text
+        n = min(len(self._held), len(self.previous))
+        matched = 0
+        while matched < n and self._held[matched] == self.previous[matched]:
+            matched += 1
+        if matched == len(self._held) and matched < len(self.previous):
+            return ""
+        if matched == len(self.previous):
+            rest = self._held[matched:].lstrip()
+            if not rest:
+                return ""
+            self._done = True
+            self._held = ""
+            return rest
+        self._done = True
+        out = self._cut(matched)
+        self._held = ""
+        return out
+
+    def flush(self) -> str:
+        if self._done:
+            return ""
+        self._done = True
+        matched = len(self._held)
+        out = "" if matched >= self.min_match and self.previous.startswith(self._held) else self._held
+        self._held = ""
+        return out
+
+
 class TailStripper:
     def __init__(self, dropped_tail: str):
         self.pending = dropped_tail or ""

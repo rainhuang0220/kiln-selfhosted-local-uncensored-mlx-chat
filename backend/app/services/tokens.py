@@ -58,6 +58,23 @@ class TokenEstimator:
             return len(self._hf.encode(text, add_special_tokens=False))
         return max(1, len(text.encode("utf-8")) // 4)
 
+    def special_token_ids(self, names: list[str] | tuple[str, ...]) -> list[int]:
+        """Ids for added tokens that exist in this vocabulary; missing names are skipped."""
+        ids: list[int] = []
+        for name in names:
+            tid = self._tok.token_to_id(name) if self._tok is not None else None
+            if tid is not None:
+                ids.append(int(tid))
+        return ids
+
+    def first_token(self, text: str) -> tuple[int, str] | None:
+        if self._tok is None or not text:
+            return None
+        ids = self._tok.encode(text, add_special_tokens=False).ids
+        if not ids:
+            return None
+        return int(ids[0]), self._tok.decode([ids[0]])
+
     def apply_chat_template(
         self,
         messages: list[dict],

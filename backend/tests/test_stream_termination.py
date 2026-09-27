@@ -174,6 +174,7 @@ def test_continue_does_not_insert_user_message(require_chat_template, chat_servi
                 conversation_id=cid,
                 stream=True,
                 continue_generation=True,
+                auto_continue=False,
             )
         )
     )

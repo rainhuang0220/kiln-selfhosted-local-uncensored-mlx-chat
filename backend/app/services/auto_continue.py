@@ -39,11 +39,16 @@ def should_auto_continue(
     auto_continue_max: int,
     user_text: str = "",
     repetition_guard: bool = False,
+    completion_tokens_used: int = 0,
+    completion_soft_cap: int = 0,
 ) -> bool:
     """Continue the same assistant message_id toward min_output_chars.
 
     Triggers on stop / length / completed_length while under the visible-char
     floor. Does not inject a synthetic user "continue" turn.
+
+    When ``completion_soft_cap`` > 0, hops stop once cumulative completion
+    tokens across the turn reach that soft budget (immersive default 12288).
     """
     del user_text  # reserved for future gating; length floor is authoritative
     if repetition_guard:
@@ -54,5 +59,66 @@ def should_auto_continue(
         return False
     if visible_chars >= min_output_chars:
         return False
+    if completion_soft_cap > 0 and completion_tokens_used >= completion_soft_cap:
+        return False
     finish = (finish_reason or "").strip().lower()
     return finish in {"length", "completed_length", "stop", "completed_stop", ""}
+
+
+_CLAUSE_BREAK = set("。！？!?；;，,、：:…—\n\r\t 「」『』“”‘’\"'（）()《》·~～")
+_SENTENCE_END = set("。！？!?…」』”\n")
+
+
+def runon_start(text: str, *, limit: int = 80) -> int | None:
+    """Index where an unpunctuated tail of >= limit chars begins, else None.
+
+    Chinese prose almost never runs 80 chars without a comma; when it does,
+    the model has fallen into a word list.
+    """
+    run = 0
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] in _CLAUSE_BREAK:
+            break
+        run += 1
+    if run >= limit:
+        return len(text) - run
+    return None
+
+
+def trim_to_sentence(text: str, *, min_chars: int) -> str:
+    """Drop a dangling half-sentence if the floor still holds without it."""
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] in _SENTENCE_END:
+            head = text[: i + 1]
+            if head != text and count_output_chars(head) >= min_chars:
+                return head
+            return text
+    return text
+
+
+def drop_last_sentence(text: str) -> str:
+    """Text up to the end of the second-to-last sentence, or text if there is none."""
+    end = len(text.rstrip())
+    while end > 0 and text[end - 1] in _SENTENCE_END:
+        end -= 1
+    for i in range(end - 1, -1, -1):
+        if text[i] in _SENTENCE_END:
+            return text[: i + 1]
+    return text
+
+
+def fill_hop_tokens(
+    *,
+    visible_chars: int,
+    visible_tokens: int,
+    min_output_chars: int,
+    cap: int,
+    margin_chars: int = 1200,
+) -> int:
+    """max_tokens for an EOS-suppressed hop that lands past the floor."""
+    if visible_chars <= 0 or visible_tokens <= 0:
+        return max(1, cap)
+    chars_per_token = visible_chars / visible_tokens
+    need = max(0, min_output_chars + margin_chars - visible_chars)
+    tokens = int(need / chars_per_token) + 64
+    return max(1, min(cap, max(256, tokens)))

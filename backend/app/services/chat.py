@@ -12,6 +12,7 @@ from app.config import Settings
 from app.db import get_conn
 from app.providers.base import ChatChunk, ChatProvider, ChatRequest
 from app.services.continuation import (
+    EchoSuppressor,
     TailStripper,
     continue_assistant_message,
     strip_regenerated_tail,
@@ -22,16 +23,29 @@ from app.services.inference_watch import InferenceWatch
 from app.services.answer_verify import verify_answer
 from app.services.context_route import extractive_compress, route_document
 from app.services.ingest import pack_user_message, requests_full_document, split_query_and_body
-from app.services.auto_continue import count_output_chars, should_auto_continue
+from app.services.auto_continue import (
+    count_output_chars,
+    drop_last_sentence,
+    fill_hop_tokens,
+    runon_start,
+    should_auto_continue,
+    trim_to_sentence,
+)
 from app.services.character_cards import compile_card_system, get_card
-from app.services.fact_extractor import extract_facts, must_keep_fence
+from app.services.fact_extractor import (
+    extract_atoms,
+    extract_facts,
+    must_keep_fence,
+    pack_user_side_fences,
+    pins_absent_from_prose,
+)
 from app.services.literary_system import IMMERSIVE_SYSTEM
 from app.services import lorebook as lorebook_mod
 from app.services.memory import MemoryService
 from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
 from app.services.scene_state_store import SceneStateStore
-from app.services.repetition import hard_self_loop
+from app.services.repetition import hard_self_loop, repeated_sentence_start
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
 from app.services.thinking import (
@@ -42,6 +56,15 @@ from app.services.thinking import (
     thinking_token_split,
 )
 from app.services.tokens import TokenEstimator
+
+
+IMMERSIVE_PROFILE_NAMES = {"immersive", "long_form", "narrative", "multi_scenario"}
+IMMERSIVE_AUTHOR_NOTE = (
+    "<author_note>\n本轮可见正文不少于 5000 字；写不完就停在未完成的动作上。\n"
+    "不要复述上一条回复，从它停下的地方往后写。\n</author_note>"
+)
+# Turn-boundary tokens suppressed while an auto-continue hop fills toward the floor.
+FILL_HOP_BANNED_TOKENS = ("<|endoftext|>", "<|im_end|>", "<|im_start|>", "<think>")
 
 
 def now_ms() -> int:
@@ -556,6 +579,7 @@ class ChatService:
         prompt_soft_target: int | None = None,
         profile_name: str | None = None,
         min_recent_turns: int | None = None,
+        keep_pins: bool = False,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
@@ -567,7 +591,10 @@ class ChatService:
         if full_document:
             budget = self.settings.practical_prompt_budget
         recent_min = min_recent_turns if min_recent_turns is not None else (
-            8 if (profile_name or "") in {"immersive", "long_form", "narrative"} else 4
+            8
+            if (profile_name or "")
+            in {"immersive", "long_form", "narrative", "multi_scenario"}
+            else 4
         )
         built = build_dialogue_context(
             history,
@@ -597,78 +624,17 @@ class ChatService:
             owner_id=owner_id,
         )
         mem_fence = self.memory.fence(memories)
-        lore_hits: list[dict[str, Any]] = []
-        lore_fence = None
-        scene_fence = None
-        scene = None
-        try:
-            scan_texts = [
-                m.get("content") or ""
-                for m in kept
-                if m.get("role") in {"user", "assistant"} and m.get("id") != "dialogue-context"
-            ][-12:]
-            scan_texts.append(last_user)
-            lore_hits = lorebook_mod.activate(
-                lorebook_mod.list_entries(owner_id=owner_id),
-                scan_texts,
-                budget_tokens=768,
+        if keep_pins:
+            fence, pins, scene, lore_hits = self._scene_pin_fence(
+                kept,
+                last_user,
+                built,
+                conversation_id=conversation_id,
+                owner_id=owner_id,
+                mem_fence=mem_fence,
             )
-            lore_fence = lorebook_mod.fence(lore_hits)
-        except Exception:
-            lore_hits = []
-            lore_fence = None
-        turn_facts = extract_facts(last_user)
-        scene = None
-        try:
-            scene = SceneStateStore().get(conversation_id)
-            if scene is None and built.state:
-                # ephemeral render from dialogue state when not yet persisted
-                from app.services.scene_state_store import SceneStateRecord
-
-                scene = SceneStateRecord(
-                    conversation_id=conversation_id,
-                    location=built.state.location,
-                    scene=built.state.scene,
-                    participants=list(built.state.participants),
-                    clothing=list(getattr(built.state, "clothing", []) or []),
-                    body_state=list(getattr(built.state, "body_state", []) or []),
-                    relationship=built.state.relationship,
-                    inventory=list(getattr(built.state, "inventory", []) or []),
-                    open_threads=list(built.state.open_threads),
-                    user_preferences=list(built.state.user_preferences),
-                    character_goals=list(built.state.character_goals),
-                    recent_actions=list(built.state.recent_actions),
-                    forbidden_patterns=list(getattr(built.state, "forbidden_patterns", []) or []),
-                )
-            # Pin current-turn keywords into the fence before generation
-            # (no "地点：" label required for objects like 铜钥匙).
-            if scene is not None and turn_facts.inventory:
-                from app.services.scene_state_store import _uniq
-
-                scene.inventory = _uniq([*list(scene.inventory), *turn_facts.inventory])
-            elif scene is None and turn_facts.inventory:
-                from app.services.scene_state_store import SceneStateRecord
-
-                scene = SceneStateRecord(
-                    conversation_id=conversation_id,
-                    inventory=list(turn_facts.inventory),
-                )
-            scene_fence = scene.fence(budget_tokens=400) if scene else None
-        except Exception:
-            scene_fence = None
-            scene = None
-        keep_pins: list[str] = []
-        if scene is not None:
-            keep_pins.extend(scene.inventory)
-            keep_pins.extend(scene.clothing)
-            if scene.location:
-                keep_pins.append(f"地点：{scene.location}")
-        keep_pins.extend(turn_facts.inventory)
-        keep_pins.extend(turn_facts.time_agreements)
-        keep_pins.extend(h.get("key") for h in lore_hits if h.get("key"))
-        keep_fence = must_keep_fence(keep_pins)
-        fence_parts = [p for p in (lore_fence, scene_fence, keep_fence, mem_fence) if p]
-        fence = "\n\n".join(fence_parts) if fence_parts else None
+        else:
+            fence, pins, scene, lore_hits = mem_fence, [], None, []
         sent: list[dict[str, Any]] = []
         system_text = ""
         last_user_idx = None
@@ -868,6 +834,7 @@ class ChatService:
             "dialogue_state": built.state.__dict__,
             "scene_state": (scene.to_dict() if scene else built.state.__dict__),
             "lore_keys": [h.get("key") for h in lore_hits],
+            "keep_pins": list(pins),
             "dropped_message_ids": dropped or built.dropped_ids,
             "memory_ids": [m.id for m in memories],
             "occupancy": {
@@ -889,6 +856,129 @@ class ChatService:
         snapshot["dialogue_state_obj"] = built.state
         snapshot["history_summary"] = built.summary
         return sent, snapshot
+
+    def _scene_pin_fence(
+        self,
+        kept: list[dict[str, Any]],
+        last_user: str,
+        built: Any,
+        *,
+        conversation_id: str,
+        owner_id: str | None,
+        mem_fence: str | None,
+    ) -> tuple[str | None, list[str], Any, list[dict[str, Any]]]:
+        """User-side fence for keep_pins profiles: pins, lore, scene state, memory, author note."""
+        lore_hits: list[dict[str, Any]] = []
+        lore_fence = None
+        scene_fence = None
+        scene = None
+        try:
+            scan_texts = [
+                m.get("content") or ""
+                for m in kept
+                if m.get("role") in {"user", "assistant"} and m.get("id") != "dialogue-context"
+            ][-12:]
+            scan_texts.append(last_user)
+            lore_hits = lorebook_mod.activate(
+                lorebook_mod.list_entries(owner_id=owner_id),
+                scan_texts,
+                budget_tokens=768,
+            )
+            lore_fence = lorebook_mod.fence(lore_hits)
+        except Exception:
+            lore_hits = []
+            lore_fence = None
+        prev_assistant = next(
+            (
+                m.get("content") or ""
+                for m in reversed(kept)
+                if m.get("role") == "assistant"
+            ),
+            "",
+        )
+        turn_facts = extract_facts(last_user + "\n" + prev_assistant)
+        keep_pins = extract_atoms(last_user, prev_assistant=prev_assistant)
+        try:
+            scene = SceneStateStore().get(conversation_id)
+            if scene is None and built.state:
+                # ephemeral render from dialogue state when not yet persisted
+                from app.services.scene_state_store import SceneStateRecord
+
+                scene = SceneStateRecord(
+                    conversation_id=conversation_id,
+                    location=built.state.location,
+                    scene=built.state.scene,
+                    participants=list(built.state.participants),
+                    clothing=list(getattr(built.state, "clothing", []) or []),
+                    body_state=list(getattr(built.state, "body_state", []) or []),
+                    relationship=built.state.relationship,
+                    inventory=list(getattr(built.state, "inventory", []) or []),
+                    open_threads=list(built.state.open_threads),
+                    user_preferences=list(built.state.user_preferences),
+                    character_goals=list(built.state.character_goals),
+                    recent_actions=list(built.state.recent_actions),
+                    forbidden_patterns=list(getattr(built.state, "forbidden_patterns", []) or []),
+                )
+            # Pin current-turn keywords into the fence before generation
+            # (no "地点：" label required for objects like 铜钥匙).
+            from app.services.scene_state_store import SceneStateRecord, _uniq
+
+            if scene is None and (
+                turn_facts.inventory or turn_facts.locations or turn_facts.time_agreements
+            ):
+                scene = SceneStateRecord(conversation_id=conversation_id)
+            if scene is not None:
+                if turn_facts.inventory:
+                    scene.inventory = _uniq([*list(scene.inventory), *turn_facts.inventory])
+                if turn_facts.body_marks:
+                    scene.body_state = _uniq(
+                        [*list(scene.body_state), *turn_facts.body_marks]
+                    )
+                if turn_facts.locations and not scene.location:
+                    preferred = next(
+                        (
+                            loc
+                            for loc in turn_facts.locations
+                            if loc in {"旧书店", "卧室", "厨房", "咖啡馆", "巷口"}
+                        ),
+                        turn_facts.locations[0],
+                    )
+                    scene.location = preferred
+                if turn_facts.time_agreements:
+                    scene.open_threads = _uniq(
+                        [
+                            *list(scene.open_threads),
+                            *[f"约定：{t}" for t in turn_facts.time_agreements],
+                        ]
+                    )
+            scene_fence = scene.fence(budget_tokens=400) if scene else None
+        except Exception:
+            scene_fence = None
+            scene = None
+        if scene is not None:
+            if scene.location and f"地点：{scene.location}" not in keep_pins:
+                keep_pins = [*keep_pins, f"地点：{scene.location}"]
+            for item in scene.inventory:
+                line = f"物件：{item}"
+                if item and line not in keep_pins and not any(
+                    p.startswith("物件：") and item in p for p in keep_pins
+                ):
+                    keep_pins.append(line)
+        keep_pins.extend(
+            h.get("key") for h in lore_hits if h.get("key") and h.get("key") not in keep_pins
+        )
+        keep_pins = keep_pins[:12]
+        keep_fence = must_keep_fence(keep_pins)
+        # Prefer must_keep → lore → scene_state; truncate lore, never the user turn.
+        fence = pack_user_side_fences(
+            must_keep=keep_fence,
+            lore=lore_fence,
+            scene_state=scene_fence,
+            memory=mem_fence,
+            budget_chars=1200,
+        )
+        fence = f"{fence}\n\n{IMMERSIVE_AUTHOR_NOTE}" if fence else IMMERSIVE_AUTHOR_NOTE
+        return fence, keep_pins, scene, lore_hits
 
     def _save_snapshot(
         self, conversation_id: str, snapshot: dict[str, Any], params: dict[str, Any]
@@ -1294,11 +1384,28 @@ class ChatService:
 
         auto_max = int(preset.get("auto_continue_max") or 0)
         min_output_chars = int(preset.get("min_output_chars") or 0)
+        # Soft total completion tokens across auto-continue hops (immersive: 12288).
+        completion_soft_cap = int(preset.get("completion_soft_cap") or 0)
         if auto_continue is None:
             enable_auto = auto_max > 0 and min_output_chars > 0
         else:
             enable_auto = bool(auto_continue) and auto_max > 0
         auto_count = 0
+        pin_repair_count = 0
+        pin_repair_budget = 512
+        pin_repair_pending = False
+        turn_keep_pins: list[str] = []
+        completion_tokens_acc = 0
+        immersive_turn = preset["profile"] in IMMERSIVE_PROFILE_NAMES
+        hop_logit_bias: dict[str, float] = {}
+        fill_hop = False
+        fill_hop_count = 0
+        guard_trim: str | None = None
+        deflect_ids: set[int] = set()
+        stall_count = 0
+        hop_start_len = 0
+        pin_hop = False
+        echo = EchoSuppressor("")
 
         params = {
             "profile": preset["profile"],
@@ -1315,6 +1422,7 @@ class ChatService:
             ),
             "min_output_chars": min_output_chars,
             "auto_continue_max": auto_max,
+            "completion_soft_cap": completion_soft_cap or None,
             "character_card_id": character_card_id,
         }
 
@@ -1391,6 +1499,8 @@ class ChatService:
             extra: dict[str, Any] = {
                 "used_continue_prompts": self._used_continue_prompts(cid),
             }
+            if hop_logit_bias:
+                extra["logit_bias"] = dict(hop_logit_bias)
             if resume_assistant and (resume_content or resume_reasoning):
                 if resume_content:
                     asst = continue_assistant_message(resume_content, resume_reasoning)
@@ -1433,6 +1543,7 @@ class ChatService:
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
+            nonlocal guard_trim
             try:
                 async for chunk in agen:
                     if chunk.wire_done:
@@ -1464,7 +1575,7 @@ class ChatService:
                             think_cut = True
                             break
                     if chunk.delta_content:
-                        visible = tail_stripper.feed(chunk.delta_content)
+                        visible = echo.feed(tail_stripper.feed(chunk.delta_content))
                         if visible:
                             content_buf += visible
                             ledger.had_output = True
@@ -1476,6 +1587,25 @@ class ChatService:
                             if hard_self_loop(content_buf):
                                 ledger.repetition_guard = True
                                 break
+                            cut = runon_start(content_buf) if immersive_turn else None
+                            if cut is not None:
+                                content_buf = content_buf[:cut].rstrip()
+                                guard_trim = "runon"
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
+                                break
+                            loop_at = repeated_sentence_start(content_buf) if immersive_turn else None
+                            if loop_at is not None:
+                                lookup = getattr(self.tokenizer, "first_token", None)
+                                first = lookup(content_buf[loop_at:]) if lookup else None
+                                # A one-glyph token (我/她) is too common to ban for a whole hop.
+                                if first and len(first[1].strip()) >= 2:
+                                    deflect_ids.add(first[0])
+                                content_buf = content_buf[:loop_at].rstrip()
+                                guard_trim = "loop"
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
+                                break
                     if chunk.finish_reason:
                         ledger.observe_finish(chunk.finish_reason)
                     if chunk.prompt_tokens is not None:
@@ -1486,6 +1616,10 @@ class ChatService:
                         usage_source = "upstream"
                     if chunk.cached_tokens is not None:
                         cached_tokens = chunk.cached_tokens
+                held = echo.flush()
+                if held:
+                    content_buf += held
+                    yield {"event": "delta", "data": {"content": held}}
             finally:
                 closer = getattr(agen, "aclose", None)
                 if closer is not None:
@@ -1495,7 +1629,7 @@ class ChatService:
         do_auto = False
         user_cancelled = False
         while True:
-            if auto_count > 0:
+            if auto_count > 0 or pin_repair_count > 0:
                 resume_assistant = True
                 resume_assistant_id = assistant_id
                 resume_content = content_buf or ""
@@ -1508,6 +1642,7 @@ class ChatService:
                 error = None
                 answer_check = None
                 # keep content_buf / reasoning_buf; continuation appends
+            hop_start_len = len(content_buf or "")
 
             try:
                 if skip_user_insert:
@@ -1529,6 +1664,14 @@ class ChatService:
                         cid, "assistant", "", status="streaming"
                     )
                     history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+                if immersive_turn and not resume_assistant:
+                    prev_reply = next(
+                        (m.get("content") or "" for m in reversed(history) if m.get("role") == "assistant"),
+                        "",
+                    )
+                    echo = EchoSuppressor(prev_reply)
+                else:
+                    echo = EchoSuppressor("")
                 prior_state, prior_summary = self._load_dialogue_meta(cid)
                 sent, snapshot_meta = self._build_payload(
                     history,
@@ -1542,9 +1685,12 @@ class ChatService:
                     prompt_budget=preset.get("prompt_budget"),
                     prompt_soft_target=preset.get("prompt_soft_target"),
                     profile_name=preset.get("profile"),
+                    keep_pins=bool(preset.get("keep_pins")),
                 )
                 occupancy = snapshot_meta["occupancy"]
                 prompt_tokens = occupancy["prompt_tokens"]
+                if snapshot_meta.get("keep_pins"):
+                    turn_keep_pins = list(snapshot_meta.get("keep_pins") or [])
                 if (
                     occupancy["prompt_tokens"] + max_tokens > s.context_window
                     and s.overflow_policy == "error"
@@ -1599,12 +1745,38 @@ class ChatService:
                     medium=s.thinking_budget_medium,
                     xhigh=s.thinking_budget_xhigh,
                 )
-                think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
-                req = make_req(sent, max_tokens)
+                # Soft-cap remaining completion budget across hops (≤12288 immersive).
+                hop_max = max_tokens
+                pin_hop = pin_repair_pending
+                if pin_repair_pending:
+                    hop_max = min(hop_max, pin_repair_budget)
+                    pin_repair_pending = False
+                if completion_soft_cap > 0:
+                    remaining = completion_soft_cap - completion_tokens_acc
+                    hop_max = max(1, min(hop_max, max(0, remaining) or 1))
+                fill_hop = False
+                hop_logit_bias = {}
+                visible_now = count_output_chars(content_buf or "")
+                if immersive_turn and auto_count > 0 and not pin_hop and 0 < visible_now < min_output_chars:
+                    lookup = getattr(self.tokenizer, "special_token_ids", None)
+                    banned = lookup(FILL_HOP_BANNED_TOKENS) if lookup else []
+                    if banned:
+                        fill_hop = True
+                        fill_hop_count += 1
+                        hop_logit_bias = {str(t): -100.0 for t in [*banned, *sorted(deflect_ids)]}
+                        hop_max = fill_hop_tokens(
+                            visible_chars=visible_now,
+                            visible_tokens=self.tokenizer.count_text(content_buf or ""),
+                            min_output_chars=min_output_chars,
+                            cap=hop_max,
+                        )
+                deflect_ids.clear()
+                think_max, leftover_min = thinking_token_split(hop_max, think_budget)
+                req = make_req(sent, hop_max)
                 tail_stripper = TailStripper(continue_tail)
 
                 if not stream:
-                    first_max = max_tokens
+                    first_max = hop_max
                     if use_think_cut and think_budget and enable_thinking:
                         first_max = think_max
                     first_req = make_req(sent, first_max)
@@ -1628,7 +1800,7 @@ class ChatService:
                         and not result.content
                         and hasattr(self.provider, "complete_after_think")
                     ):
-                        leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                        leftover = max(leftover_min, hop_max - self.tokenizer.count_text(reasoning_buf))
                         extra = await self.provider.complete_after_think(
                             first_req, reasoning_buf, leftover
                         )
@@ -1663,7 +1835,7 @@ class ChatService:
                         and not content_buf
                         and hasattr(self.provider, "stream_after_think")
                     ):
-                        leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
+                        leftover = max(leftover_min, hop_max - self.tokenizer.count_text(reasoning_buf))
                         async for event in consume_stream(
                             self.provider.stream_after_think(req, reasoning_buf, leftover)
                         ):
@@ -1679,6 +1851,10 @@ class ChatService:
                     completion_tokens = self.tokenizer.count_text(
                         (reasoning_buf or "") + (content_buf or "")
                     )
+                # Monotonic soft-cap meter: total visible+reasoning tokens this turn.
+                completion_tokens_acc = self.tokenizer.count_text(
+                    (reasoning_buf or "") + (content_buf or "")
+                )
                 ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
                 ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
                 if not stream and not ledger.http_eof and not ledger.saw_done_wire:
@@ -1751,6 +1927,18 @@ class ChatService:
                         answer_check["applied"] = True
                 # Finalize deferred until auto-continue loop exits.
 
+                if fill_hop and not error and ledger.finish_reason == "length":
+                    content_buf = trim_to_sentence(content_buf or "", min_chars=min_output_chars)
+                stalled = False
+                if auto_count > 0 and not pin_hop and len(content_buf or "") <= hop_start_len:
+                    # Resending this prompt minus one token can land on a key mlx-lm
+                    # cached for the last hop; an exact hit kills its generate thread.
+                    stall_count += 1
+                    backed = drop_last_sentence(content_buf or "")
+                    if stall_count == 1 and backed != (content_buf or ""):
+                        content_buf = backed
+                    else:
+                        stalled = True
                 visible_n = count_output_chars(content_buf or "")
                 rep_guard = terminal == TerminalState.REPETITION_GUARD or finish == "repetition_guard"
                 do_auto = (
@@ -1765,6 +1953,8 @@ class ChatService:
                         auto_continue_max=auto_max,
                         user_text=text,
                         repetition_guard=rep_guard,
+                        completion_tokens_used=completion_tokens_acc,
+                        completion_soft_cap=completion_soft_cap,
                     )
                 )
 
@@ -1773,6 +1963,24 @@ class ChatService:
             if do_auto:
                 auto_count += 1
                 # Keep same assistant message streaming for the next segment.
+                if assistant_id:
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
+                        (content_buf or "", reasoning_buf or "", now_ms(), assistant_id),
+                    )
+                    self._conn().commit()
+                continue
+            # Light pin check: if must_keep nouns are absent, one ≤512 repair hop.
+            if (
+                pin_repair_count == 0
+                and preset.get("keep_pins")
+                and not error
+                and not user_cancelled
+                and turn_keep_pins
+                and pins_absent_from_prose(turn_keep_pins, content_buf or "")
+            ):
+                pin_repair_count = 1
+                pin_repair_pending = True
                 if assistant_id:
                     self._conn().execute(
                         "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
@@ -1915,6 +2123,9 @@ class ChatService:
                 },
                 "visible_chars": count_output_chars(content_buf or ""),
                 "auto_continue_count": auto_count,
+                "pin_repair_count": pin_repair_count,
+                "fill_hop_count": fill_hop_count,
+                "guard_trim": guard_trim,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
