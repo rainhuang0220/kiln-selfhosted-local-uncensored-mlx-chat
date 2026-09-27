@@ -175,11 +175,15 @@ describe("auth privacy", () => {
     useChatStore.setState({ username: "alice", authOk: true });
     useChatStore.getState().setContextPreset("p-alice", "旧标题");
     useChatStore.getState().wipePrivateState();
-    let finishList: ((response: Response) => void) | undefined;
-    const pendingList = new Promise<Response>((resolve) => { finishList = resolve; });
+    let releaseList: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseList = resolve; });
     mocked.mockImplementation(async (url: string) => {
       if (url === "/auth/status") return json({ required: true, ok: true, username: "alice" });
-      if (url === "/context/presets") return pendingList;
+      if (url === "/context/presets") {
+        await gate;
+        // Fresh Response per waiter — body can only be read once.
+        return json({ object: "list", data: [{ id: "p-alice", title: "恢复后标题", payload: {} }] });
+      }
       if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
       if (url === "/chat") return sse('event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n');
       if (String(url).startsWith("/conversation")) return json({ data: [] });
@@ -191,7 +195,7 @@ describe("auth privacy", () => {
     useChatStore.setState({ draft: "开始" });
     const sending = useChatStore.getState().send();
     expect(mocked.mock.calls.filter(([url]) => url === "/chat")).toHaveLength(0);
-    finishList?.(json({ object: "list", data: [{ id: "p-alice", title: "恢复后标题", payload: {} }] }));
+    releaseList?.();
     await Promise.all([loading, sending]);
     expect(useChatStore.getState().contextPresetId).toBe("p-alice");
     const body = JSON.parse(String(mocked.mock.calls.find(([url]) => url === "/chat")?.[1]?.body));

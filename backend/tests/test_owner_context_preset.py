@@ -95,9 +95,10 @@ async def test_naming_one_offstage_retrieves_only_that_one(chat_service, fake_pr
     from app.services.context_presets import preview_preset, save_preset
 
     draft = preview_preset(OWNER_MESSAGE)
-    draft["active_character"]["name"] = draft["active_character"]["name"] or "技师"
+    if not draft["characters"]:
+        draft["characters"] = [{"name": "技师", "identity": "风俗店技师"}]
     target = next(c for c in draft["characters"] if c["name"] == "顾遥")
-    target["notes"] = "只在参考里出现的前任"
+    target["one_event"] = "只在参考里出现的前任"
     saved = save_preset("风俗店", draft, OWNER_MESSAGE, owner_id="owner-a")
     first = [
         event
@@ -139,7 +140,8 @@ async def test_who_is_in_my_background_does_not_stage_cast(chat_service, fake_pr
     from app.services.context_presets import preview_preset, save_preset
 
     draft = preview_preset(OWNER_MESSAGE)
-    draft["active_character"]["name"] = draft["active_character"]["name"] or "技师"
+    if not draft["characters"]:
+        draft["characters"] = [{"name": "技师", "identity": "风俗店技师"}]
     saved = save_preset("风俗店背景问", draft, OWNER_MESSAGE, owner_id="owner-a")
     first = [
         event
@@ -173,33 +175,30 @@ async def test_who_is_in_my_background_does_not_stage_cast(chat_service, fake_pr
 
 
 def test_preview_edit_event_who_save_get_keeps_names(chat_service):
-    from app.services.context_presets import get_preset, preview_preset, save_preset
+    from app.services.context_presets import chat_frame_from_simple, get_preset, preview_preset, save_preset
 
     draft = preview_preset(OWNER_MESSAGE)
-    draft["active_character"]["name"] = draft["active_character"]["name"] or "技师"
-    event = next(e for e in draft["references"]["events"] if e.get("who"))
-    original_who = list(event["who"])
-    # UI often posts who as a joined string; round-trip must restore a list.
-    editable = dict(draft)
-    editable["references"] = {
-        **draft["references"],
-        "events": [{**event, "who": "、".join(original_who)}],
-    }
-    saved = save_preset("who-roundtrip", editable, OWNER_MESSAGE, owner_id="owner-a")
+    if not draft["characters"]:
+        draft["characters"] = [{"name": "技师", "identity": "风俗店技师"}]
+    # Character rows carry optional one_event; StyleBank events stay internal.
+    target = next(c for c in draft["characters"] if c["name"] == "顾遥")
+    target["one_event"] = "顾遥·上海"
+    saved = save_preset("who-roundtrip", draft, OWNER_MESSAGE, owner_id="owner-a")
     got = get_preset(saved["id"], owner_id="owner-a")
     assert got is not None
-    who = got["payload"]["references"]["events"][0]["who"]
-    assert who == original_who
-    assert all(name in who for name in original_who)
+    assert next(c["one_event"] for c in got["payload"]["characters"] if c["name"] == "顾遥") == "顾遥·上海"
+    frame = chat_frame_from_simple(got["payload"], source_text=OWNER_MESSAGE)
+    assert any(e.get("who") for e in frame["references"]["events"])
 
 
 async def test_bound_preset_survives_three_turns_with_zero_of_ten(chat_service, fake_provider):
     from app.services.context_presets import preview_preset, save_preset
 
     draft = preview_preset(OWNER_MESSAGE)
-    draft["active_character"]["name"] = draft["active_character"]["name"] or "技师"
-    draft["active_scene"] = OWNER_LIVE
-    draft["user_persona"] = "我是你的顾客。"
+    if not draft["characters"]:
+        draft["characters"] = [{"name": "技师", "identity": "风俗店技师"}]
+    draft["current_scene"] = OWNER_LIVE
+    draft["me"]["identity"] = "我是你的顾客。"
     saved = save_preset("绑定三轮", draft, OWNER_MESSAGE, owner_id="owner-a")
     first = [
         event

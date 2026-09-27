@@ -5,6 +5,8 @@ def test_cancel_marks_assistant_cancelled(chat_service):
     async def run():
         agen = chat_service.chat(message="hold", conversation_id=None, stream=True)
         ev = await agen.__anext__()
+        while ev["event"] == "status":
+            ev = await agen.__anext__()
         assert ev["event"] == "meta"
         cid = ev["data"]["conversation_id"]
         await agen.aclose()

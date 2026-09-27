@@ -34,7 +34,12 @@ from app.services.auto_continue import (
     trim_to_sentence,
 )
 from app.services.character_cards import compile_card_system, get_card
-from app.services.context_presets import get_preset, reference_context_for_mention, style_bank_for_preset
+from app.services.context_presets import (
+    chat_frame_from_simple,
+    get_preset,
+    reference_context_for_mention,
+    style_bank_for_preset,
+)
 from app.services.fact_extractor import (
     extract_atoms,
     extract_facts,
@@ -1526,7 +1531,10 @@ class ChatService:
                 return
         card = get_card(character_card_id, owner_id=owner_id) if character_card_id else None
         if selected_preset is not None:
-            frame = selected_preset["payload"]
+            frame = chat_frame_from_simple(
+                selected_preset["payload"],
+                source_text=selected_preset.get("source_text") or "",
+            )
             card = {**frame.get("active_character", {}), "scenario": frame.get("active_scene") or ""}
         if system is not None:
             system_prompt = system or ""
@@ -1591,7 +1599,14 @@ class ChatService:
             "completion_soft_cap": completion_soft_cap or None,
             "character_card_id": None if selected_preset is not None else character_card_id,
             "context_preset_id": context_preset_id if selected_preset is not None else None,
-            "context_preset_snapshot": selected_preset["payload"] if selected_preset is not None else None,
+            "context_preset_snapshot": (
+                chat_frame_from_simple(
+                    selected_preset["payload"],
+                    source_text=selected_preset.get("source_text") or "",
+                )
+                if selected_preset is not None
+                else None
+            ),
         }
 
         created = False
@@ -1630,9 +1645,9 @@ class ChatService:
             created = True
             conversation_created = True
             if selected_preset is not None:
-                frame = selected_preset["payload"]
+                frame = params["context_preset_snapshot"] or {}
                 graph = SceneGraph()
-                graph.merge(frame.get("active_scene") or "")
+                graph.merge(frame.get("active_scene") or frame.get("current_scene") or "")
                 actor_name = (frame.get("active_character") or {}).get("name")
                 if actor_name:
                     graph.member(actor_name, create=True)
@@ -1640,7 +1655,13 @@ class ChatService:
                     if member.get("scope") == "active" and member.get("name"):
                         graph.member(member["name"], create=True)
                 SceneStateStore().save_graph(cid, graph)
-                SceneStateStore().save_style(cid, style_bank_for_preset(frame).to_dict())
+                SceneStateStore().save_style(
+                    cid,
+                    style_bank_for_preset(
+                        selected_preset["payload"],
+                        source_text=selected_preset.get("source_text") or "",
+                    ).to_dict(),
+                )
 
         conflict = None
         async with self._lock:
@@ -1663,6 +1684,13 @@ class ChatService:
                 "status": 409,
             }
             return
+
+        # Flush activity immediately so the composer never sits blank while
+        # prompt packing / StyleBank ingest runs (must stay rules-only, tens of ms).
+        yield {
+            "event": "status",
+            "data": {"stage": "准备场景", "eta_s": 2},
+        }
 
         started = now_ms()
         user_id = ""
@@ -1737,9 +1765,37 @@ class ChatService:
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
-            nonlocal guard_trim, prefix_mutated, guard_hits
+            nonlocal guard_trim, prefix_mutated, guard_hits, status, error
+            idle_limit_s = 20.0
+            agen_iter = agen.__aiter__()
+            last_token_ms = now_ms()
             try:
-                async for chunk in agen:
+                while True:
+                    try:
+                        chunk = await asyncio.wait_for(agen_iter.__anext__(), timeout=idle_limit_s)
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        if not ledger.had_output:
+                            status = "error"
+                            error = "生成无响应"
+                            ledger.exception = TimeoutError(error)
+                            yield {
+                                "event": "error",
+                                "data": {
+                                    "error": {
+                                        "message": "生成无响应",
+                                        "type": "api_error",
+                                        "code": "generation_idle_timeout",
+                                    }
+                                },
+                            }
+                            break
+                        yield {
+                            "event": "status",
+                            "data": {"stage": "正在写…", "eta_s": idle_limit_s},
+                        }
+                        continue
                     if chunk.wire_done:
                         ledger.observe_done_wire()
                         continue
@@ -1750,9 +1806,26 @@ class ChatService:
                         ledger.http_eof = True
                         continue
                     if chunk.keepalive:
+                        # Keepalives alone must not hide a dead generate thread.
+                        if not ledger.had_output and (now_ms() - last_token_ms) >= int(idle_limit_s * 1000):
+                            status = "error"
+                            error = "生成无响应"
+                            ledger.exception = TimeoutError(error)
+                            yield {
+                                "event": "error",
+                                "data": {
+                                    "error": {
+                                        "message": "生成无响应",
+                                        "type": "api_error",
+                                        "code": "generation_idle_timeout",
+                                    }
+                                },
+                            }
+                            break
                         yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}
                         continue
                     now = now_ms()
+                    last_token_ms = now
                     if chunk.delta_reasoning:
                         reasoning_buf += chunk.delta_reasoning
                         ledger.had_output = True

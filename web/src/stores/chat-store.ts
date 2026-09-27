@@ -699,9 +699,59 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let reasoning = assistantMsg.reasoning || "";
       let usage: TokenUsage | undefined;
       const assembly = createAssembly(content);
+      const streamStartedAt = Date.now();
+      let sawToken = false;
+      let waitHint: ReturnType<typeof setTimeout> | undefined;
+      let failHint: ReturnType<typeof setTimeout> | undefined;
+      const clearHangTimers = () => {
+        if (waitHint) clearTimeout(waitHint);
+        if (failHint) clearTimeout(failHint);
+        waitHint = undefined;
+        failHint = undefined;
+      };
+      waitHint = setTimeout(() => {
+        if (sawToken) return;
+        const elapsed = Math.round((Date.now() - streamStartedAt) / 1000);
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === asstId
+              ? { ...m, content: m.content || `正在写…（已等待 ${elapsed}s）` }
+              : m,
+          ),
+        }));
+      }, 8000);
+      failHint = setTimeout(() => {
+        if (sawToken) return;
+        clearHangTimers();
+        controller.abort();
+        set((s) => ({
+          streaming: false,
+          controller: null,
+          error: "生成无响应（90s 无输出）",
+          messages: s.messages.map((m) =>
+            m.id === asstId
+              ? { ...m, status: "error", error: "生成无响应（90s 无输出）", content: m.content || "生成无响应" }
+              : m,
+          ),
+        }));
+      }, 90000);
+      try {
       for await (const ev of readSse(res, controller.signal)) {
         const decision = observeFrame(assembly, ev.data, ev.event === "delta");
         if (ev.event === "delta" && decision !== "accept") continue;
+        if (ev.event === "status") {
+          const data = ev.data as { stage?: string; eta_s?: number };
+          const stage = data.stage || "准备中";
+          const eta = typeof data.eta_s === "number" ? `（约 ${data.eta_s}s）` : "";
+          if (!sawToken) {
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === asstId ? { ...m, content: m.content || `${stage}${eta}` } : m,
+              ),
+            }));
+          }
+          continue;
+        }
         if (ev.event === "meta") {
           const data = ev.data as {
             conversation_id: string;
@@ -746,6 +796,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const data = ev.data as { content?: string; reasoning?: string };
           if (data.reasoning) reasoning += data.reasoning;
           content = assembly.text;
+          if (data.content || data.reasoning) {
+            sawToken = true;
+            clearHangTimers();
+          }
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
@@ -875,7 +929,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }));
         }
       }
+      clearHangTimers();
       await get().loadConversations();
+      } finally {
+        clearHangTimers();
+      }
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         set((s) => ({

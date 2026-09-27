@@ -1,5 +1,5 @@
 import { apiFetch } from "./http";
-import type { ContextPresetPayload, ContextPresetRecord } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, MeSlots, SimpleCharacter } from "../types/context-preset";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -11,56 +11,70 @@ function string(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+function meSlots(raw: unknown): MeSlots {
+  const value = object(raw);
+  return {
+    identity: string(value.identity) || "暂无",
+    real_background: string(value.real_background) || "暂无",
+    explicit_prefs: string(value.explicit_prefs) || "暂无",
+  };
+}
+
+function character(raw: unknown): SimpleCharacter {
+  const entry = object(raw);
+  const event = string(entry.one_event);
+  return {
+    id: string(entry.id) || undefined,
+    name: string(entry.name),
+    identity: string(entry.identity) || string(entry.role) || string(entry.description) || "人物",
+    one_event: event || undefined,
+  };
 }
 
 export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
   const value = object(raw);
-  const character = object(value.active_character);
-  const references = object(value.references);
+  // Migrate any leftover legacy blobs so the SPA never crashes.
+  if (!("current_scene" in value) && ("active_scene" in value || "active_character" in value)) {
+    const actor = object(value.active_character);
+    const legacyChars = Array.isArray(value.characters) ? value.characters.map(character) : [];
+    if (string(actor.name)) {
+      legacyChars.unshift({
+        name: string(actor.name),
+        identity: string(actor.description) || "人物",
+      });
+    }
+    return {
+      current_scene: string(value.active_scene),
+      me: {
+        identity: string(value.user_persona) || "暂无",
+        real_background: Array.isArray(value.background_facts)
+          ? (value.background_facts as string[]).filter(Boolean).join("；") || "暂无"
+          : "暂无",
+        explicit_prefs: Array.isArray(value.preferences)
+          ? (value.preferences as string[]).filter(Boolean).join("；") || "暂无"
+          : "暂无",
+      },
+      characters: legacyChars,
+      active_character_ids: [],
+    };
+  }
   return {
-    active_scene: string(value.active_scene),
-    user_persona: string(value.user_persona),
-    background_facts: strings(value.background_facts),
-    preferences: strings(value.preferences),
-    active_character: {
-      name: string(character.name),
-      description: string(character.description),
-      personality: string(character.personality),
-      scenario: string(character.scenario),
-      speech_style: string(character.speech_style),
-      taboos: string(character.taboos),
-      relationship_to_user: string(character.relationship_to_user),
-      immutable_json: strings(character.immutable_json),
-    },
-    characters: Array.isArray(value.characters) ? value.characters.map((item) => {
-      const entry = object(item);
-      return {
-        name: string(entry.name),
-        role: string(entry.role),
-        scope: entry.scope === "active" ? "active" as const : "reference" as const,
-        notes: string(entry.notes),
-      };
-    }) : [],
-    references: {
-      people: Array.isArray(references.people) ? references.people.map((item) => {
-        const entry = object(item);
-        return { name: string(entry.name), role_hint: string(entry.role_hint) };
-      }) : [],
-      events: Array.isArray(references.events) ? references.events.map((item) => {
-        const entry = object(item);
-        return { label: string(entry.label), who: Array.isArray(entry.who) ? strings(entry.who).join("、") : string(entry.who), gist: string(entry.gist) };
-      }) : [],
-      register: strings(references.register),
-      techniques: strings(references.techniques),
-    },
-    uncertain: strings(value.uncertain),
+    current_scene: string(value.current_scene),
+    me: meSlots(value.me),
+    characters: Array.isArray(value.characters) ? value.characters.map(character) : [],
+    active_character_ids: Array.isArray(value.active_character_ids)
+      ? value.active_character_ids.filter((item): item is string => typeof item === "string")
+      : [],
   };
 }
 
 export function emptyPresetPayload(): ContextPresetPayload {
-  return normalizePresetPayload({});
+  return {
+    current_scene: "",
+    me: { identity: "暂无", real_background: "暂无", explicit_prefs: "暂无" },
+    characters: [],
+    active_character_ids: [],
+  };
 }
 
 async function jsonOrError(response: Response): Promise<unknown> {
@@ -88,14 +102,15 @@ function record(raw: unknown): ContextPresetRecord {
     payload: normalizePresetPayload(value.payload),
     updated_at: typeof value.updated_at === "number" || typeof value.updated_at === "string" ? value.updated_at : 0,
     source_text: string(value.source_text),
+    owner_id: string(value.owner_id) || undefined,
   };
 }
 
-export async function previewContextPreset(text: string, options: { deep?: boolean } = {}): Promise<ContextPresetPayload> {
+export async function previewContextPreset(text: string): Promise<ContextPresetPayload> {
   const response = await apiFetch("/context/presets/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(options.deep ? { text, deep: true } : { text }),
+    body: JSON.stringify({ text }),
   });
   const result = object(await jsonOrError(response));
   const draft = object(result.draft);
@@ -114,7 +129,7 @@ export async function getContextPreset(id: string): Promise<ContextPresetRecord>
 }
 
 export async function saveContextPreset(
-  input: { title: string; payload: ContextPresetPayload; source_text: string },
+  input: { title: string; payload: ContextPresetPayload; source_text: string; conversation_id?: string },
   id?: string,
 ): Promise<ContextPresetRecord> {
   const response = await apiFetch(id ? `/context/presets/${encodeURIComponent(id)}` : "/context/presets", {

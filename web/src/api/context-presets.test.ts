@@ -12,21 +12,17 @@ vi.mock("./http", () => ({ apiFetch: vi.fn() }));
 const mocked = vi.mocked(apiFetch);
 
 const payload = {
-  active_scene: "茶室",
-  user_persona: "来访者",
-  background_facts: ["住在城南"],
-  preferences: ["喜欢简短对话"],
-  active_character: {
-    name: "阿青", description: "茶师", personality: "沉稳", scenario: "接待客人",
-    speech_style: "简短", taboos: "", relationship_to_user: "初识", immutable_json: ["不离开茶室"],
+  current_scene: "茶室",
+  me: {
+    identity: "来访者",
+    real_background: "住在城南",
+    explicit_prefs: "喜欢简短对话",
   },
-  characters: [{ name: "阿青", role: "茶师", scope: "active" as const, notes: "主角" }],
-  references: {
-    people: [{ name: "小宋", role_hint: "仅供参考" }],
-    events: [{ label: "旧事", who: "小宋", gist: "发生在过去" }],
-    register: ["克制"], techniques: ["对话为主"],
-  },
-  uncertain: ["地点待定"],
+  characters: [
+    { id: "c1", name: "阿青", identity: "茶师", one_event: "初识" },
+    { name: "小宋", identity: "旧识" },
+  ],
+  active_character_ids: ["c1"],
 };
 
 function json(data: unknown, status = 200): Response {
@@ -36,43 +32,51 @@ function json(data: unknown, status = 200): Response {
 describe("context preset API", () => {
   beforeEach(() => mocked.mockReset());
 
-  it("previews the full source text and retains character scopes", async () => {
+  it("previews the full source text into simple scene/me/character rows", async () => {
     mocked.mockResolvedValue(json({ draft: payload }));
     const longText = "场景" + "参考".repeat(1600) + "回到场景";
     const draft = await previewContextPreset(longText);
-    expect(draft.characters[0].scope).toBe("active");
-    expect(draft.references.people[0].name).toBe("小宋");
-    expect(draft.background_facts).toEqual(["住在城南"]);
-    expect(draft.preferences).toEqual(["喜欢简短对话"]);
+    expect(draft.current_scene).toBe("茶室");
+    expect(draft.me.real_background).toBe("住在城南");
+    expect(draft.characters[0].name).toBe("阿青");
+    expect(draft.characters[0].identity).toBe("茶师");
     expect(mocked).toHaveBeenCalledWith("/context/presets/preview", expect.objectContaining({
       method: "POST", body: JSON.stringify({ text: longText }),
     }));
   });
 
-  it("requests optional local-model analysis only when selected", async () => {
+  it("never sends deep analysis from the SPA preview helper", async () => {
     mocked.mockResolvedValue(json({ draft: payload }));
-    await previewContextPreset("现实设定和参考材料", { deep: true });
+    await previewContextPreset("现实设定和参考材料");
     expect(mocked).toHaveBeenCalledWith("/context/presets/preview", expect.objectContaining({
-      body: JSON.stringify({ text: "现实设定和参考材料", deep: true }),
+      body: JSON.stringify({ text: "现实设定和参考材料" }),
     }));
+    expect(String(mocked.mock.calls[0][1]?.body)).not.toContain("deep");
   });
 
   it("fills missing optional collections so a partial draft stays editable", () => {
-    const draft = normalizePresetPayload({ active_scene: "小店", active_character: { name: "店员" } });
-    expect(draft.active_scene).toBe("小店");
-    expect(draft.active_character.name).toBe("店员");
-    expect(draft.active_character.immutable_json).toEqual([]);
-    expect(draft.characters).toEqual([]);
-    expect(draft.background_facts).toEqual([]);
-    expect(draft.preferences).toEqual([]);
-    expect(draft.references).toEqual({ people: [], events: [], register: [], techniques: [] });
+    const draft = normalizePresetPayload({ current_scene: "小店", characters: [{ name: "店员", identity: "店员" }] });
+    expect(draft.current_scene).toBe("小店");
+    expect(draft.characters[0].name).toBe("店员");
+    expect(draft.me.identity).toBe("暂无");
+    expect(draft.me.real_background).toBe("暂无");
+    expect(draft.me.explicit_prefs).toBe("暂无");
   });
 
-  it("keeps event participants when the preview returns a name array", () => {
+  it("migrates legacy preview blobs into the simple shape", () => {
     const draft = normalizePresetPayload({
-      references: { events: [{ label: "旧事", who: ["小宋", "阿青"], gist: "发生在过去" }] },
+      active_scene: "旧茶室",
+      user_persona: "客人",
+      background_facts: ["城南"],
+      preferences: ["短句"],
+      active_character: { name: "阿青", description: "茶师" },
+      characters: [{ name: "小宋", role: "旧友", scope: "reference", notes: "往事" }],
     });
-    expect(draft.references.events[0].who).toBe("小宋、阿青");
+    expect(draft.current_scene).toBe("旧茶室");
+    expect(draft.me.identity).toBe("客人");
+    expect(draft.me.real_background).toBe("城南");
+    expect(draft.characters.some((c) => c.name === "阿青")).toBe(true);
+    expect(draft.characters.some((c) => c.name === "小宋" && c.identity === "旧友")).toBe(true);
   });
 
   it("uses the routed list, detail, create, and update endpoints", async () => {

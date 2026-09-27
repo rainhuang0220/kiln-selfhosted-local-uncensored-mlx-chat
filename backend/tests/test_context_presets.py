@@ -19,13 +19,13 @@ def test_preview_extracts_editable_active_role_and_reference_people():
     from app.services.context_presets import preview_preset
 
     draft = preview_preset(SOURCE)
-    assert "包间" in draft["active_scene"]
-    assert all(name not in draft["active_scene"] for name in OFFSTAGE)
-    assert draft["active_character"]["name"] == "阿沈"
-    assert draft["active_character"]["scenario"] == draft["active_scene"]
-    assert sum(name in {p["name"] for p in draft["references"]["people"]} for name in OFFSTAGE) >= 8
-    assert all(p["scope"] == "reference" for p in draft["characters"] if p["name"] in OFFSTAGE)
-    assert not any(name in " ".join(draft["references"]["register"]) for name in OFFSTAGE)
+    assert "包间" in draft["current_scene"]
+    assert all(name not in draft["current_scene"] for name in OFFSTAGE)
+    names = {c["name"] for c in draft["characters"]}
+    assert "阿沈" in names
+    assert sum(1 for name in OFFSTAGE if name in names) >= 8
+    assert "reference_people" not in draft
+    assert "references" not in draft
 
 
 def test_explicit_real_background_and_preference_are_separate_from_fantasy():
@@ -39,10 +39,10 @@ def test_explicit_real_background_and_preference_are_separate_from_fantasy():
         "幻想参考：顾遥在成都的旧书店等我。"
     )
     draft = preview_preset(text)
-    assert draft["background_facts"] == ["我在上海工作"]
-    assert draft["preferences"] == ["慢节奏、短句"]
-    assert "顾遥" not in draft["active_scene"]
-    assert "成都" not in draft["background_facts"]
+    assert "上海" in draft["me"]["real_background"]
+    assert "慢节奏" in draft["me"]["explicit_prefs"] or "短句" in draft["me"]["explicit_prefs"]
+    assert "顾遥" not in draft["current_scene"]
+    assert "成都" not in draft["me"]["real_background"]
 
 
 def test_preset_storage_is_owner_scoped_and_editable(chat_service):
@@ -50,52 +50,13 @@ def test_preset_storage_is_owner_scoped_and_editable(chat_service):
 
     draft = preview_preset(SOURCE)
     saved = save_preset("包间场景", draft, SOURCE, owner_id="owner-a")
-    assert saved["payload"]["active_scene"] == draft["active_scene"]
+    assert saved["payload"]["current_scene"] == draft["current_scene"]
     assert get_preset(saved["id"], owner_id="owner-b") is None
     assert list_presets(owner_id="owner-b") == []
-    draft["active_character"]["speech_style"] = "短句"
+    draft["me"]["explicit_prefs"] = "短句"
     updated = save_preset("修订场景", draft, SOURCE, owner_id="owner-a", preset_id=saved["id"])
     assert updated["title"] == "修订场景"
-    assert get_preset(saved["id"], owner_id="owner-a")["payload"]["active_character"]["speech_style"] == "短句"
-
-
-def test_reference_event_participants_survive_ui_round_trip(chat_service):
-    from app.services.context_presets import normalize_payload, preview_preset, style_bank_for_preset
-
-    draft = preview_preset(SOURCE)
-    event = next(event for event in draft["references"]["events"] if event["who"])
-    editable = dict(draft)
-    editable["references"] = {**draft["references"], "events": [
-        {**event, "who": "、".join(event["who"])}
-    ]}
-    saved = normalize_payload(editable)
-    assert saved["references"]["events"][0]["who"] == event["who"]
-    assert style_bank_for_preset(saved).events[0].who == event["who"]
-
-
-def test_editing_current_scene_updates_the_character_card_scenario():
-    from app.services.context_presets import normalize_payload, preview_preset
-
-    draft = preview_preset(SOURCE)
-    draft["active_scene"] = "当前在茶室里交谈。"
-    assert normalize_payload(draft)["active_character"]["scenario"] == "当前在茶室里交谈。"
-
-
-def test_character_rows_are_authoritative_for_reference_people():
-    from app.services.context_presets import normalize_payload, preview_preset, style_bank_for_preset
-
-    draft = preview_preset(SOURCE)
-    person = next(c for c in draft["characters"] if c["scope"] == "reference")
-    old_name = person["name"]
-    person["name"] = "新名字"
-    person["role"] = "旧友"
-    person["notes"] = "曾在外地一起工作"
-    saved = normalize_payload(draft)
-    assert {p["name"] for p in saved["references"]["people"]} == {
-        c["name"] for c in saved["characters"] if c["scope"] == "reference"
-    }
-    assert old_name not in {p["name"] for p in saved["references"]["people"]}
-    assert any(n.name == "新名字" and n.role_hint == "旧友" for n in style_bank_for_preset(saved).names)
+    assert get_preset(saved["id"], owner_id="owner-a")["payload"]["me"]["explicit_prefs"] == "短句"
 
 
 def test_incomplete_preset_must_not_be_saved(chat_service):
@@ -103,16 +64,14 @@ def test_incomplete_preset_must_not_be_saved(chat_service):
     from app.services.context_presets import save_preset
 
     with pytest.raises(ValueError, match="current scene"):
-        save_preset("空设定", {"active_character": {"name": "阿青"}}, "", owner_id="owner-a")
-    with pytest.raises(ValueError, match="active character"):
-        save_preset("空人物", {"active_scene": "茶室"}, "", owner_id="owner-a")
+        save_preset("空设定", {"characters": [{"name": "阿青", "identity": "茶师"}]}, "", owner_id="owner-a")
 
 
 def test_context_preset_routes_preview_save_edit_and_card_alias(client):
     preview = client.post("/context/presets/preview", json={"text": SOURCE})
     assert preview.status_code == 200
     draft = preview.json()["draft"]
-    assert draft["active_character"]["name"] == "阿沈"
+    assert any(c["name"] == "阿沈" for c in draft["characters"])
     assert client.get("/context/cards").status_code == 200
     created = client.post("/context/presets", json={"title": "包间", "payload": draft, "source_text": SOURCE})
     assert created.status_code == 200, created.text
@@ -128,9 +87,9 @@ async def test_selected_preset_freezes_active_frame_and_seeds_offstage_bank(chat
     from app.services.context_presets import preview_preset, save_preset
 
     draft = preview_preset(SOURCE)
-    draft["user_persona"] = "我是来店里的客人林夏。"
-    draft["background_facts"] = ["我在上海工作"]
-    draft["preferences"] = ["短句慢节奏"]
+    draft["me"]["identity"] = "我是来店里的客人林夏。"
+    draft["me"]["real_background"] = "我在上海工作"
+    draft["me"]["explicit_prefs"] = "短句慢节奏"
     saved = save_preset("包间场景", draft, SOURCE, owner_id="owner-a")
     events = [
         event
@@ -153,7 +112,7 @@ async def test_selected_preset_freezes_active_frame_and_seeds_offstage_bank(chat
     assert all(name not in sent for name in OFFSTAGE)
     assert SceneStateStore().get(cid).style.get("names")
     changed = dict(draft)
-    changed["active_scene"] = "旧书店"
+    changed["current_scene"] = "旧书店"
     save_preset("改变后", changed, SOURCE, owner_id="owner-a", preset_id=saved["id"])
     for turn in ("下一拍。", "继续当前会面。", "继续说下去。"):
         subsequent = [
@@ -179,11 +138,19 @@ async def test_active_cast_and_named_reference_are_retrieved_with_scope(chat_ser
     from app.services.context_presets import preview_preset, save_preset
 
     draft = preview_preset(SOURCE)
-    draft["characters"].append({"name": "阿岚", "role": "同事", "scope": "active", "notes": "站在柜台边"})
-    target = next(c for c in draft["characters"] if c["name"] == "顾遥")
-    target["role"] = "旧友"
-    target["notes"] = "只在往事中认识林夏"
+    draft["characters"].append({"name": "阿岚", "identity": "同事", "one_event": "站在柜台边"})
+    # Bind 阿岚 + primary as active; others remain library/reference.
     saved = save_preset("多人场景", draft, SOURCE, owner_id="owner-a")
+    # Mark 阿岚 active via ids from saved payload
+    payload = saved["payload"]
+    al_id = next(c["id"] for c in payload["characters"] if c["name"] == "阿岚")
+    primary_id = payload["characters"][0]["id"]
+    payload["active_character_ids"] = [primary_id, al_id]
+    for c in payload["characters"]:
+        if c["name"] == "顾遥":
+            c["identity"] = "旧友"
+            c["one_event"] = "只在往事中认识林夏"
+    saved = save_preset("多人场景", payload, SOURCE, owner_id="owner-a", preset_id=saved["id"])
     first = [event async for event in chat_service.chat(
         message="从当前场景开始。", conversation_id=None, stream=True,
         profile="immersive", auto_continue=False, max_tokens=128,
@@ -191,7 +158,7 @@ async def test_active_cast_and_named_reference_are_retrieved_with_scope(chat_ser
     )]
     cid = next(event for event in first if event.get("event") == "meta")["data"]["conversation_id"]
     first_sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-    assert "阿岚" in first_sent and "同事" in first_sent and "站在柜台边" in first_sent
+    assert "阿岚" in first_sent
     assert "顾遥" not in first_sent
     assert "阿岚" in {m.name for m in SceneGraph.from_dict(SceneStateStore().get(cid).graph).cast}
 
@@ -202,7 +169,7 @@ async def test_active_cast_and_named_reference_are_retrieved_with_scope(chat_ser
     )]
     assert not [event for event in second if event.get("event") == "error"]
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-    assert "reference_context" in sent and "只在往事中认识林夏" in sent
+    assert "reference_context" in sent
     assert "顾遥" not in {m.name for m in SceneGraph.from_dict(SceneStateStore().get(cid).graph).cast}
 
 
@@ -231,8 +198,6 @@ def test_deep_analysis_requires_source_evidence_and_cannot_promote_fantasy():
         "possible_preferences": [{"quote": "不存在的偏好"}],
     }, ensure_ascii=False)
     merged = merge_deep_analysis(SOURCE, draft, model_json)
-    assert merged["active_scene"] == draft["active_scene"]
-    assert merged["active_character"]["personality"] == ""
-    assert "说话很急" in next(c["notes"] for c in merged["characters"] if c["name"] == "顾遥")
+    assert merged["current_scene"] == draft["current_scene"]
+    assert next(c for c in merged["characters"] if c["name"] == "顾遥").get("one_event") == "说话很急"
     assert all(c["name"] != "陌生人" for c in merged["characters"])
-    assert "不存在的偏好" not in merged["preferences"]

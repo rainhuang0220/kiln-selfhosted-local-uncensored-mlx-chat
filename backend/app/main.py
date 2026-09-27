@@ -114,12 +114,14 @@ class ContextPresetBody(BaseModel):
     title: str = Field(default="未命名预设", min_length=1, max_length=120)
     payload: dict[str, Any]
     source_text: str = Field(default="", max_length=50000)
+    conversation_id: str | None = None
 
 
 class ContextPresetPatchBody(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=120)
     payload: dict[str, Any] | None = None
     source_text: str | None = Field(default=None, max_length=50000)
+    conversation_id: str | None = None
 
 
 class LoreBody(BaseModel):
@@ -833,7 +835,13 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         from app.services.context_presets import save_preset
 
         try:
-            return save_preset(body.title, body.payload, body.source_text, owner_id=_owner(request))
+            return save_preset(
+                body.title,
+                body.payload,
+                body.source_text,
+                owner_id=_owner(request),
+                conversation_id=body.conversation_id,
+            )
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
 
@@ -860,6 +868,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 body.source_text if body.source_text is not None else current["source_text"],
                 owner_id=_owner(request),
                 preset_id=preset_id,
+                conversation_id=body.conversation_id,
             )
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)

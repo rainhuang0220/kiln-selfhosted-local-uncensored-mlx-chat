@@ -1,33 +1,22 @@
-export interface PresetCharacter {
+export interface SimpleCharacter {
+  id?: string;
   name: string;
-  role: string;
-  scope: "active" | "reference";
-  notes: string;
+  identity: string;
+  one_event?: string;
+}
+
+export interface MeSlots {
+  identity: string;
+  real_background: string;
+  explicit_prefs: string;
 }
 
 export interface ContextPresetPayload {
-  active_scene: string;
-  user_persona: string;
-  background_facts: string[];
-  preferences: string[];
-  active_character: {
-    name: string;
-    description: string;
-    personality: string;
-    scenario: string;
-    speech_style: string;
-    taboos: string;
-    relationship_to_user: string;
-    immutable_json: string[];
-  };
-  characters: PresetCharacter[];
-  references: {
-    people: { name: string; role_hint: string }[];
-    events: { label: string; who: string; gist: string }[];
-    register: string[];
-    techniques: string[];
-  };
-  uncertain: string[];
+  current_scene: string;
+  me: MeSlots;
+  characters: SimpleCharacter[];
+  /** Account character ids bound into this conversation (ids only). */
+  active_character_ids?: string[];
 }
 
 export interface ContextPresetRecord {
@@ -36,4 +25,5 @@ export interface ContextPresetRecord {
   payload: ContextPresetPayload;
   updated_at: number | string;
   source_text?: string;
+  owner_id?: string;
 }
