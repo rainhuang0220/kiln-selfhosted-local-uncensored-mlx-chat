@@ -159,6 +159,8 @@ def _uniq(items: Iterable[str], cap: int = 12) -> list[str]:
 
 
 _VERB_TAIL = set("下上开掉起过住到进出来去完好")
+# 脱离 / 脱口 / 脱身 … are not undressing.
+_NOT_UNDRESS = set("离口身颖俗困险")
 _VERB_RE = _alt((*_REMOVE, *_OPEN, *_DRESS, *_MOVE, *_TOUCH, *_DIRECTION))
 
 
@@ -357,18 +359,39 @@ class SceneGraph:
                 best, at = self._resolve(p), i + 1
         return best
 
+    def _after_last_mention(self, prefix: str) -> str:
+        at = -1
+        for token in (*(c.name for c in self.cast), *_PRONOUNS):
+            i = prefix.rfind(token)
+            if i >= 0:
+                at = max(at, i + len(token))
+        return prefix[at:] if at >= 0 else ""
+
     def _owner(self, clause: str, pos: int, garment: str | None = None) -> str:
-        owner = self._possessor(clause[:pos]) or self._nearest(clause[:pos])
+        """Who wears the thing at ``pos``. The one doing the undressing is the actor, not the owner,
+        unless they are the clause-initial subject stripping a garment nobody is wearing."""
+        prefix = clause[:pos]
+        sm = _SUBJECT.match(clause.strip())
+        subject = sm.group(1) if sm and _is_name(sm.group(1)) else None
+        owner = self._possessor(prefix)
         if owner:
+            if garment and subject and subject != owner:
+                self.actor = subject
             return owner
+        near = self._nearest(prefix)
+        tail = self._after_last_mention(prefix)
+        agent = bool(near and garment and (_REMOVE_RE.search(tail) or _OPEN_RE.search(tail)))
+        if near and not agent:
+            return near
         if garment:
             wearers = [m.name for m in self.cast if garment in m.clothes_layers]
+            if agent and near not in wearers and near != self.focus:
+                self.actor = near or self.actor
             if len(wearers) == 1:
                 return wearers[0]
-            sm = _SUBJECT.match(clause.strip())
-            if not wearers and sm and _is_name(sm.group(1)) and sm.group(1) != self.focus:
-                self.actor = sm.group(1)
-                return sm.group(1)
+            if not wearers and subject and subject != self.focus:
+                self.actor = subject
+                return subject
         return self.focus or "她"
 
     # ---- merge -------------------------------------------------------
@@ -444,7 +467,11 @@ class SceneGraph:
             return None, ""
         verbs: list[tuple[int, int, str, str]] = []
         for kind, rx in (("remove", _REMOVE_RE), ("open", _OPEN_RE), ("dress", _DRESS_RE)):
-            verbs.extend((m.start(), m.end(), m.group(0), kind) for m in rx.finditer(clause))
+            verbs.extend(
+                (m.start(), m.end(), m.group(0), kind)
+                for m in rx.finditer(clause)
+                if not (m.group(0) == "脱" and clause[m.end(): m.end() + 1] in _NOT_UNDRESS)
+            )
         if not verbs:
             return None, ""
         verbs.sort()
@@ -459,6 +486,8 @@ class SceneGraph:
                 continue
             owner = self._owner(clause, g.start(), garment)
             who = self.member(owner, create=True)
+            if g.group(0) == "裙":
+                garment = next((x for x in who.clothes_layers if "裙" in x or x == "旗袍"), garment)
             kind = verb[3]
             if kind == "remove":
                 who.take_off(garment)
@@ -490,6 +519,8 @@ class SceneGraph:
             for m in _INSTRUMENT_RE.finditer(prefix):
                 inst = m
             named = (self._possessor(prefix[: inst.start()]) if inst else None) or self._nearest(prefix)
+            if named and named == self.focus and self.actor and self.actor != named:
+                named = None
             actor = named or self.actor or "他"
             region = next((r for r in regions if v.end() <= r.start() < stop), None)
             if region is None:
@@ -502,6 +533,8 @@ class SceneGraph:
             if named:
                 self.actor = named
             if region is None:
+                continue
+            if re.search(rf"(?:{_GARMENT_RE.pattern})的?$", clause[: region.start()]):
                 continue
             canon = _REGION_ALIAS[region.group(0)]
             target = self._possessor(clause[: region.start()])

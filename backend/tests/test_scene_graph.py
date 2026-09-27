@@ -348,6 +348,38 @@ async def test_garment_nouns_are_not_object_pins_when_graph_owns_clothes(
     assert done["pin_repair_count"] == 0
 
 
+def test_undressing_agent_is_not_the_owner():
+    graph = _graph("地点：更衣室。林夏穿着风衣和连衣裙，里面是黑色内衣。沈川把林夏的风衣脱掉。")
+    graph.merge("她微微侧身，让沈川能够更方便地脱下这件外套。随着风衣的完全褪去，她轻轻吸了一口气。", role="assistant")
+    shen = graph.member("沈川")
+    assert shen is None or not shen.removed
+    assert graph.focus == "林夏" and graph.actor == "沈川"
+
+
+def test_touching_a_garment_part_is_not_body_contact():
+    graph = _graph("地点：更衣室。林夏穿着风衣和连衣裙，里面是黑色内衣。沈川把林夏的风衣脱掉。")
+    graph.merge("手里拿着那件刚刚被她脱下的风衣。指尖先触碰到风衣的肩部。", role="assistant")
+    assert graph.actor == "沈川"
+    assert graph.contact == []
+
+
+def test_touched_body_owner_is_not_the_actor():
+    graph = _graph(SCENE["setup"], SCENE["undress"], SCENE["contact"])
+    graph.merge("他的手从她饱满的臀线一路滑向腿根。", role="assistant")
+    assert graph.actor == "沈川"
+    assert ("沈川", "林夏", "大腿") in [(c.who, c.target, c.body_region) for c in graph.contact]
+    assert all(c.who != c.target for c in graph.contact)
+
+
+def test_hem_slipping_off_the_thigh_is_not_undressing():
+    graph = _graph(SCENE["setup"], SCENE["undress"])
+    graph.merge("这一次，裙摆终于完全脱离了大腿的束缚。沈川撩起她的裙摆。", role="assistant")
+    lin = graph.member("林夏")
+    assert lin is not None
+    assert lin.removed == ["风衣"] and lin.clothes_layers == ["连衣裙", "内衣"]
+    assert lin.exposed == ["连衣裙敞开"]
+
+
 def test_named_subject_removing_unworn_garment_owns_it():
     graph = _graph(SCENE["setup"])
     graph.merge("沈川脱下那件外套，搭在衣架上。他的指腹压着她的腰。", role="assistant")
