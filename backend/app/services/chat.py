@@ -2127,7 +2127,11 @@ class ChatService:
                         completion_tokens_used=completion_tokens_acc,
                         completion_soft_cap=completion_soft_cap,
                     )
-                    and stub_streak < 2
+                    and (
+                        # Below the immersive floor, sensory deepening often fails
+                        # beat_advanced and would burn stub_streak before 5000 chars.
+                        visible_n < min_output_chars or stub_streak < 2
+                    )
                 )
                 if (
                     do_auto

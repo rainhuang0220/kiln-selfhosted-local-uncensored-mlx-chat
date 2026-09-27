@@ -227,6 +227,7 @@ def test_second_continue_does_not_reuse_completion_prefix(require_chat_template,
                 conversation_id=None,
                 stream=True,
                 enable_thinking=False,
+                auto_continue=False,
             )
         )
     )

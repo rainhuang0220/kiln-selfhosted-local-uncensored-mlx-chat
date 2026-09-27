@@ -71,7 +71,7 @@ IMMERSIVE = {
     "min_output_chars": 5000,
     "target_output_chars": 10000,
     "segment_chars": 2800,
-    "auto_continue_max": 3,
+    "auto_continue_max": 5,
     "mode": "chat",
     "temperature": 0.78,
     "top_p": 0.9,
