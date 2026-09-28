@@ -61,7 +61,7 @@ _STOP_PERSON = frozenset(
         "设计", "公寓", "节奏", "短句", "温度", "呼吸", "大学", "室友", "海边", "玄关",
         "公司", "同事", "表哥", "花店", "店员", "租房", "邻居", "声音", "楼道", "门锁",
         "图书", "管理", "热水", "地址", "会议", "画室", "助教", "颜料", "咖啡", "店主",
-        "地铁", "天色", "高中", "同桌", "校门", "夜跑", "认识", "天气", "感官",
+        "地铁", "天色", "高中", "同桌", "校门", "夜跑", "认识", "天气", "感官", "计时器", "咨询",
     }
 )
 _JUNK_PERSON = frozenset({
@@ -119,9 +119,14 @@ def _live_scene_line(live: str) -> str:
         parts = re.split(r"(?<=[。！？])", scene)
         scene = "".join(parts[:3]).strip() if parts else scene
         return scene[:160].strip()
-    # Skip bare document titles (e.g. 「测试长文本」) before the shop role line.
     paragraphs = [p.strip() for p in re.split(r"\n+", text) if p.strip()]
+    if paragraphs and re.match(r"^现在[^。！？\n]{0,32}[。！？]", paragraphs[-1]) and "接待室" in paragraphs[-1]:
+        parts = re.split(r"(?<=[。！？])", paragraphs[-1])
+        return "".join(parts[:2]).strip()[:160]
+    # Skip bare document titles (e.g. 「测试长文本」) before the shop role line.
     for para in paragraphs:
+        if para.startswith("# "):
+            continue
         if re.match(r"^你(?:是|扮演)", para) or "风俗店" in para or "包间" in para or "技师" in para:
             parts = re.split(r"(?<=[。！？])", para)
             scene = "".join(parts[:2]).strip() if parts else para
@@ -177,6 +182,9 @@ def _identity_near(corpus: str, name: str) -> str:
             if 1 <= len(clause) <= 24 and name not in clause:
                 return clause[:40]
         before = corpus[max(0, m.start() - 12):m.start()]
+        role_before = re.search(r"(姐姐|妹妹|同事|闺蜜|队员|队长|校医|店员|同学)$", before)
+        if role_before:
+            return role_before.group(1)
         named_role = re.search(
             r"(姐姐|妹妹|哥哥|弟弟|同事|朋友|邻居|老师|记者|助理|工程师|策展人|管理员)(?:名)?叫$",
             before,
@@ -298,7 +306,7 @@ def _one_event_near(corpus: str, name: str) -> str | None:
 _PERSON_HIT = re.compile(
     rf"(?:^|(?<=[，,。；;！!？?\s、\n]))"
     rf"([{_CJK}]{{2,3}})"
-    rf"(?=是|在|把|被|将|的|和|与|跟|说|问|看|叫|曾|又|总|从|给|对|替|让|去|来|也|就|都|还|只|却|便|已|正|刚|站|坐|靠|趴|手|那天)"
+    rf"(?=是|在|把|被|将|的|和|与|跟|说|问|看|叫|曾|又|总|从|给|对|替|让|去|来|也|就|都|还|只|却|便|已|正|刚|站|坐|靠|趴|手|工作|那天)"
 )
 
 
@@ -309,6 +317,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         return []
     counts: dict[str, int] = {}
     anchored: set[str] = set()
+    explicit: set[str] = set()
     for m in _PERSON_HIT.finditer(text):
         cand = m.group(1)
         if not _looks_like_person_name(cand):
@@ -363,6 +372,27 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         if _looks_like_person_name(cand):
             anchored.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
+    # Narrative introductions often use 「姐姐陆遥三十四岁」 or
+    # 「大学同学顾青和我同岁」 instead of a comma-delimited roster.
+    for m in re.finditer(
+        rf"(?:姐姐|妹妹|同事|闺蜜|队员|队长|校医|店员|同学)([{_CJK}]{{2}})"
+        rf"(?=[，。；;\s]|[二三四五六七八九十]{{2,3}}岁|和我同岁|是|在|却|还|比)",
+        text,
+    ):
+        cand = m.group(1)
+        if _looks_like_person_name(cand):
+            explicit.add(cand)
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), text.count(cand))
+    for m in re.finditer(
+        rf"([{_CJK}]{{2}})(?=(?:[，,]\s*)?[二三四五六七八九十]{{2,3}}岁|和我同岁|是她妹妹)",
+        text,
+    ):
+        cand = m.group(1)
+        if _looks_like_person_name(cand):
+            explicit.add(cand)
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), text.count(cand))
     # Dense prose often introduces a person after a connective rather than a
     # sentence boundary, then uses bare mentions later. Count those mentions
     # only after an explicit naming/identity construction has established a name.
@@ -399,13 +429,15 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     for cand in ordered:
         if counts[cand] < 2 and cand not in anchored:
             continue
+        if text.count(cand) < 2 and cand not in explicit:
+            continue
         if any(cand != other and (cand in other or other in cand) for other in kept):
             continue
         kept.append(cand)
     rows: list[dict[str, Any]] = []
     for name in kept:
         identity = _identity_near(text, name)
-        if identity == "人物" and text.count(name) < 3:
+        if identity == "人物" and text.count(name) < 3 and name not in explicit:
             continue
         rows.append({
             "name": name,

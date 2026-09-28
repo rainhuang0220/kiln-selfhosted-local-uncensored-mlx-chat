@@ -12,7 +12,7 @@ SHARED = (Path(__file__).parent / "fixtures" / "preset_shared_scene_ten.txt").re
 TEN = (Path(__file__).parent / "fixtures" / "preset_ten_people.txt").read_text("utf-8")
 PEOPLE = {"祁律", "顾遥", "褚衡", "林夏", "阿沈", "沈知意", "方晏", "叶澄", "裴晚", "阮疏", "岑照"}
 FORBIDDEN = ("待确认", "未定义", "文档分区", "needs_review", "suggested_who", "source_span")
-LONG_DOC = Path(__file__).resolve().parents[2] / "docs" / "测试长文本.md"
+LONG_DOC = Path(__file__).resolve().parents[2] / "docs" / "test" / "测试长文本.md"
 
 
 def _public(source: str = SHARED):

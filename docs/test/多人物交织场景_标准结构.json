@@ -1,0 +1,65 @@
+{
+  "fixture": "多人物交织场景_输入.md",
+  "purpose": "把自然叙事拆为当前现场、日记片段、事实碎片、想象拼接和互斥分支；不补写连接事件",
+  "narrator": "陆闻",
+  "assistant_persona": {"name": "许澄", "age": 32, "identity": "风俗店技师", "evidence": "你是风俗店技师许澄，三十二岁"},
+  "user_avatar": {"name": "陆闻", "age": 29, "identity": "顾客；日记叙述者", "evidence": "我是二十九岁的顾客陆闻"},
+  "current_scene": {
+    "place": "接待室",
+    "present_people": ["许澄", "陆闻"],
+    "known_actions": ["陆闻把日记纸交给许澄", "陆闻把两只手放在桌沿", "陆闻等待许澄读完第一页后先问一句话"],
+    "unknowns": ["门外响动来自谁", "纸背面写了什么", "日记中哪些事件真的发生过"],
+    "evidence": "现在纸到了你手里。接待室的桌面很空，我把两只手放在桌沿，等你翻过第一页"
+  },
+  "people": [
+    {"name": "许澄", "age": 32, "identity": "当前场景中的技师", "scene_ids": ["live"]},
+    {"name": "陆闻", "age": 29, "identity": "当前场景中的顾客、日记叙述者", "scene_ids": ["live", "sister", "volleyball", "clinic", "store", "metro"]},
+    {"name": "陆遥", "age": 34, "identity": "陆闻的姐姐；沈乔的闺蜜", "scene_ids": ["sister", "metro_phone_a"]},
+    {"name": "沈乔", "age": 33, "identity": "陆遥的闺蜜；比陆遥小一岁", "scene_ids": ["sister", "metro_phone_a", "later_call"]},
+    {"name": "唐宁", "age": 31, "identity": "成年业余女排队长", "scene_ids": ["volleyball", "imagined_montage"]},
+    {"name": "蒋越", "age": 28, "identity": "成年业余女排队员；负责收球", "scene_ids": ["volleyball"]},
+    {"name": "周岚", "age": 38, "identity": "成年夜校校医；提供健康咨询", "scene_ids": ["clinic", "imagined_montage"]},
+    {"name": "林见", "age": 30, "identity": "店员；林栀的姐姐；自称偏向主导流程", "scene_ids": ["store_left", "imagined_montage"]},
+    {"name": "林栀", "age": 26, "identity": "林见的妹妹；偏向按商定步骤回应", "scene_ids": ["store_right"]},
+    {"name": "何冉", "age": 35, "identity": "佩戴办公室工牌的职员；与陆闻在聚会上见过", "scene_ids": ["metro"]},
+    {"name": "叶舒", "age": 32, "identity": "何冉的同事", "scene_ids": ["metro"]},
+    {"name": "顾青", "age": 29, "identity": "陆闻的大学同学；页边批注的署名不确定", "scene_ids": ["margin_note"]}
+  ],
+  "segments": [
+    {"id": "live", "scope": "current", "mode": "asserted_present", "people": ["许澄", "陆闻"], "evidence": "现在纸到了你手里。接待室的桌面很空"},
+    {"id": "sister", "scope": "reference", "mode": "mixed_real_quote_and_imagined_visit", "people": ["陆闻", "陆遥", "沈乔"], "evidence": "那是确实发生过的一句话，至于她们后来有没有在同一个傍晚来过我的公寓，我已经说不准了"},
+    {"id": "volleyball", "scope": "reference", "mode": "diary_retelling_with_imagery", "people": ["陆闻", "唐宁", "蒋越"], "evidence": "我把她们也写进了同一页"},
+    {"id": "clinic", "scope": "reference", "mode": "real_visit_with_fictional_extension", "people": ["陆闻", "周岚"], "evidence": "真实的记录只到她在表格里写下“待确认”为止"},
+    {"id": "store_left", "scope": "reference", "mode": "diary_retelling", "people": ["陆闻", "林见"], "evidence": "林见带我进左边的会谈室，三张卡一字摆开"},
+    {"id": "store_right", "scope": "reference", "mode": "diary_retelling", "people": ["陆闻", "林栀"], "evidence": "等我敲了隔壁的门，林栀才让我进来"},
+    {"id": "metro", "scope": "reference", "mode": "diary_retelling_with_conflicting_phone_outcome", "people": ["陆闻", "何冉", "叶舒"], "evidence": "地铁上我捏着信封，旁边一位穿办公室工牌的女人问我是不是陆闻"},
+    {"id": "metro_phone_a", "scope": "alternative", "mode": "unresolved", "people": ["陆闻", "陆遥", "沈乔"], "evidence": "陆遥接了，沈乔就在她旁边"},
+    {"id": "metro_phone_b", "scope": "alternative", "mode": "unresolved", "people": ["陆闻"], "evidence": "号码没有拨出去"},
+    {"id": "imagined_montage", "scope": "reference", "mode": "explicit_imagination", "people": ["林见", "唐宁", "周岚"], "evidence": "她们没有相遇，是我让她们在纸上相遇"},
+    {"id": "margin_note", "scope": "reference", "mode": "uncertain_attribution_then_discarded_scene", "people": ["顾青"], "evidence": "我连那是不是他的笔迹都不确定"},
+    {"id": "later_call", "scope": "reference", "mode": "asserted_call", "people": ["陆闻", "沈乔"], "evidence": "沈乔后来真给我打过一次电话"}
+  ],
+  "event_links": [
+    {"who": ["陆遥"], "event": "在公寓想象中走到窗边，等陆闻开口", "scene_id": "sister"},
+    {"who": ["沈乔"], "event": "真实说过陆闻不是来受审的；公寓想象中请他念便条第一行", "scene_id": "sister"},
+    {"who": ["唐宁"], "event": "在排球片段中请陆闻回到发球线，先看脚再看手", "scene_id": "volleyball"},
+    {"who": ["蒋越"], "event": "在排球片段中收球并翻动计分板", "scene_id": "volleyball"},
+    {"who": ["周岚"], "event": "在夜校校医室询问睡眠问题的具体表现，记录待确认", "scene_id": "clinic"},
+    {"who": ["林见"], "event": "在左边会谈室请陆闻用三张卡区分话题", "scene_id": "store_left"},
+    {"who": ["林栀"], "event": "在右边会谈室让陆闻按已写顺序读卡，改口时暂停计时", "scene_id": "store_right"},
+    {"who": ["何冉"], "event": "在地铁上问陆闻敢不敢给姐姐打电话", "scene_id": "metro"},
+    {"who": ["叶舒"], "event": "在地铁上看线路图，先下车", "scene_id": "metro"},
+    {"who": ["沈乔"], "event": "后来给陆闻打电话，说写不下去就先留白", "scene_id": "later_call"}
+  ],
+  "preferences_inferred_from_narrative": ["被关注时的紧张感", "愿意把模糊说法变具体", "重视确认和停下来的机会"],
+  "uncertainties": [
+    "公寓拜访是否真实发生不确定，窗帘细节与窗户不能打开冲突",
+    "训练场景有日记加工，不能把唐宁和周岚放在同一地点",
+    "校医室真实记录只到待确认，后续追问和与排球场景的拼接是想象",
+    "两间会谈室门的开关状态不记得，不能推断林栀听到了左边的对话",
+    "地铁通话接通与号码未拨出是互斥叙述，不可选一个当事实",
+    "顾青页边批注的笔迹不确定，店铺走廊出场已被划掉"
+  ],
+  "must_not_infer": ["日记人物已来到接待室", "沈乔是陆闻的姐姐", "周岚属于排球队", "林见上过那节地铁", "叶舒听到了何冉的问话", "顾青出现在店铺走廊", "门外响动来自日记中的某个人"],
+  "expected_first_response": "许澄只回应纸已交到手中的当前场景，先问陆闻想从哪一页或哪件事谈起；不重述整份日记，不让参考人物在接待室出现。"
+}
