@@ -47,6 +47,6 @@ The earlier closed-set pass that captioned 36- and 30-char clips around rules-ha
 
 - Chat send: unchanged, milliseconds, no 9B.
 - Short paste under 800 characters, 「解析并预览」: rules only, under 2 s, `extract.mode = "rules_short"`.
-- Long paste of 800 characters or more, 「解析并预览」: people extract. Windows run concurrently because mlx-lm batches them; about 55 s for a 2.5k diary on the local 9B, 30–70 s typical, 90 s hard cap (75 s per window). A long-paste preview under 8 s with full cards means the model did not run.
+- Long paste of 800 characters or more, 「解析并预览」: people extract. Windows run one after another because mlx-lm decodes one request at a time (concurrent windows only queued, and the second timed out while waiting). About 75 s for a 2.5k diary on the local 9B, 75 s per window, 170 s hard cap. A long-paste preview under 8 s with full cards means the model did not run.
 - Public timeout: `deploy/nginx-kiln.plainlist.space.conf` has `location = /context/presets/preview` with `proxy_read_timeout 180s`. The live vhost is `/www/server/panel/vhost/nginx/kiln.plainlist.space.conf` on the VPS; without that block the `/context` prefix uses nginx's default 60 s and a long paste dies with 504. Studio shows 504 as 模型没有分析，请重试。没有使用规则名册。 Localhost-only workaround: open Studio on `http://127.0.0.1:8787`.
 - 9B error, Hub error, busy chat, or timeout on every window: empty cards, `model_ran = false`, no rules roster.

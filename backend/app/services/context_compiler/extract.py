@@ -40,9 +40,10 @@ WINDOW_MAX = 1800
 WINDOW_MIN = 1200
 WINDOW_OVERLAP = 200
 LIVE_LOCK_MAX = 200
-# Concurrent windows share the GPU; a 1.4k window with ~550 output tokens needs ~55s.
+# mlx-lm runs with decode concurrency 1, so windows queue; each gets its own clock.
+# Total stays under the 180 s nginx read timeout on /context/presets/preview.
 WINDOW_TIMEOUT_S = 75.0
-TOTAL_CAP_S = 90.0
+TOTAL_CAP_S = 170.0
 MAX_TOKENS = 1200
 MAX_ROWS = 16
 
@@ -182,25 +183,27 @@ async def run_stage_a(
     window_timeout_s: float = WINDOW_TIMEOUT_S,
     total_cap_s: float = TOTAL_CAP_S,
 ) -> StageA:
-    """One 9B extract per reference window.
+    """One 9B extract per reference window, in order.
 
-    Windows run concurrently: MLX batches them, so the wall time is about one
-    long window (~55s for a 2.5k diary) instead of the sum (~95s).
+    The local server decodes one request at a time, so concurrent windows only
+    queue and the later ones time out while waiting. Sequential windows each get
+    a full per-window timeout inside the total cap.
     """
     lock = live_lock(live)
     windows = reference_windows(reference) or ([lock] if lock else [])
     result = StageA(windows=windows)
     started = time.monotonic()
-    timeout = min(window_timeout_s, total_cap_s)
 
-    async def one(index: int, window: str) -> Any:
+    for index, window in enumerate(windows):
+        remaining = total_cap_s - (time.monotonic() - started)
+        if remaining <= 1.0:
+            result.errors.append(f"window {index + 1}: total cap {total_cap_s:.0f}s reached")
+            continue
         request = extract_request(lock, window, index + 1, len(windows))
-        return await asyncio.wait_for(complete(request), timeout=timeout)
-
-    answers = await asyncio.gather(*(one(i, w) for i, w in enumerate(windows)), return_exceptions=True)
-    for index, answer in enumerate(answers):
-        if isinstance(answer, BaseException):  # timeout, Hub error, connection refused
-            result.errors.append(f"window {index + 1}: {type(answer).__name__}: {str(answer)[:160]}")
+        try:
+            answer = await asyncio.wait_for(complete(request), timeout=min(window_timeout_s, remaining))
+        except Exception as exc:  # timeout, Hub error, connection refused
+            result.errors.append(f"window {index + 1}: {type(exc).__name__}: {str(exc)[:160]}")
             continue
         people = parse_people(getattr(answer, "content", None) or str(answer))
         if people is None:

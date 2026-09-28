@@ -39,7 +39,6 @@ PLANTED_IDENTITY_KW = {
     "阮疏": ("同桌", "高中"),
 }
 UNIQUE_PHRASE = "橙花披肩在祁律肩上"
-JUNK = ("湿透", "方先")
 
 
 def _name_set(draft: dict) -> set[str]:

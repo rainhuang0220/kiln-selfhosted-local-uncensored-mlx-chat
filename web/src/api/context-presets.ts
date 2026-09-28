@@ -155,7 +155,7 @@ function extractMeta(raw: unknown): PresetExtractMeta | null {
 }
 
 export async function previewContextPreset(text: string): Promise<ContextPresetPreview> {
-  // 「解析并预览」 only: long pastes need the 9B people extract (server cap 90s); no rules roster.
+  // 「解析并预览」 only: long pastes need the 9B people extract (server cap 170s); no rules roster.
   const response = await apiFetch("/context/presets/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
