@@ -9,9 +9,12 @@ from typing import Any, Callable
 
 from app.services.preset_structure import normalize_timeline
 
+from .alias import FOLDABLE, rules_alias_map
+
 
 _UNDER18 = re.compile(
-    r"(?:未满十八|未成年|儿童|\d{1,2}岁|小学[一二三四五六1-6]年级|初[一二三123]|高[一二三123])"
+    r"(?:未满十八|未成年|儿童|小学[一二三四五六1-6]年级|初[一二三123]|高[一二三123]"
+    r"|(?<![\d一二三四五六七八九十两小大差长])(?:\d|1[0-7]|[一二三四五六七八九]|十[一二三四五六七]?)岁)"
 )
 _SEXUAL = re.compile(
     r"(?:上床|做爱|性交|性爱|发生关系|性暗示|抚摸私处|亲吻身体)"
@@ -68,15 +71,40 @@ def _parse_who_decision(decision: str, known: list[str]) -> list[str] | None:
     return None
 
 
-def _pick_who(event: dict[str, Any], known: list[str], decision: str | None) -> list[str] | None:
+def alias_map_for(source: str, draft: dict[str, Any], known: list[str]) -> dict[str, str]:
+    """alias → known proper name: explicit apposition first, then stored resolver output."""
+    ir = draft.get("context_ir") if isinstance(draft.get("context_ir"), dict) else {}
+    stored = draft.get("aliases") if isinstance(draft.get("aliases"), dict) else ir.get("aliases")
+    known_set = set(known)
+    out = {alias: name for alias, name in rules_alias_map(source, known).items() if name in known_set}
+    for alias, name in (stored or {}).items():
+        if alias in FOLDABLE and name in known_set:
+            out.setdefault(str(alias), str(name))
+    return out
+
+
+def _first_mention(evidence: str, name: str, aliases: dict[str, str]) -> int:
+    """Earliest position of the name or one of its aliases; -1 when absent."""
+    spots = [evidence.find(name)] + [evidence.find(a) for a, owner in aliases.items() if owner == name]
+    spots = [at for at in spots if at >= 0]
+    return min(spots) if spots else -1
+
+
+def _pick_who(
+    event: dict[str, Any],
+    known: list[str],
+    decision: str | None,
+    aliases: dict[str, str] | None = None,
+) -> list[str] | None:
     """Closed set: every known name in evidence (max 4) or None to DROP."""
     if decision:
         return _parse_who_decision(decision, known)
+    aliases = aliases or {}
     who = [name for name in (event.get("who") or []) if name in known]
     evidence = _clean(event.get("evidence") or event.get("summary"), 400)
-    mentioned = [name for name in known if name and name in evidence]
+    mentioned = [name for name in known if name and _first_mention(evidence, name, aliases) >= 0]
     # Stable order = first appearance in the evidence clip.
-    mentioned.sort(key=lambda name: evidence.find(name))
+    mentioned.sort(key=lambda name: _first_mention(evidence, name, aliases))
     if mentioned:
         # Keep the full co-actor set from evidence (shared beats), not mentioned[0] only.
         return mentioned[:4]
@@ -162,6 +190,7 @@ def bind_timeline_events(
     """
     body = dict(draft)
     known = _known_names(body)
+    aliases = alias_map_for(source, body, known)
     under18 = _avatar_is_under18(source, body)
     decisions = decisions or {}
     bound: list[dict[str, Any]] = []
@@ -169,18 +198,21 @@ def bind_timeline_events(
         evidence = _clean(raw.get("evidence") or raw.get("summary"), 400)
         if under18 and _is_sexual_event(evidence):
             continue
-        who = _pick_who(raw, known, decisions.get(str(raw.get("id") or "")))
+        who = _pick_who(raw, known, decisions.get(str(raw.get("id") or "")), aliases)
         if not who:
             continue
         # Reject misalignment: drop names absent from evidence when others are present.
         if evidence:
-            in_evidence = [name for name in who if name in evidence]
+            in_evidence = [name for name in who if _first_mention(evidence, name, aliases) >= 0]
             if in_evidence:
                 who = in_evidence
             elif len(who) == 1:
-                others = [name for name in known if name in evidence and name != who[0]]
+                others = [
+                    name for name in known
+                    if name != who[0] and _first_mention(evidence, name, aliases) >= 0
+                ]
                 if others:
-                    others.sort(key=lambda name: evidence.find(name))
+                    others.sort(key=lambda name: _first_mention(evidence, name, aliases))
                     who = others[:4]
         item = dict(raw)
         item["who"] = who

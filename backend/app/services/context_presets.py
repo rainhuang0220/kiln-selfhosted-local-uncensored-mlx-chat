@@ -27,6 +27,13 @@ from app.services.context_compiler import (
     refine_ambiguous_segments,
     route_context,
 )
+from app.services.context_compiler.alias import (
+    build_resolve_prompt,
+    is_alias_or_role,
+    parse_resolution,
+    rules_alias_map,
+)
+from app.services.context_compiler.binder import _avatar_is_under18
 
 _ROLE_NAME = re.compile(
     r"(?:技师|客人|店主|老板|老师|医生|护士|教练|同事|朋友|邻居|上司|室友)"
@@ -64,6 +71,14 @@ _STOP_PERSON = frozenset(
         "地铁", "天色", "高中", "同桌", "校门", "夜跑", "认识", "天气", "感官", "计时器", "咨询",
     }
 )
+_SURNAMES = frozenset(
+    "王李张刘陈杨黄赵吴周徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖田董袁潘蒋蔡余杜叶程"
+    "苏魏吕丁任沈姚卢姜崔钟谭陆汪范金石廖贾夏韦付方白邹孟熊秦邱江尹薛闫段雷侯龙史陶黎贺顾毛郝"
+    "龚邵万钱严覃武戴莫孔汤温康施文牛樊葛邢安齐易乔伍庞颜倪庄聂章鲁岳翟殷詹申欧耿兰焦俞"
+    "左柳甘祝包宁尚符舒阮柯纪梅童凌毕单季裴霍涂苗谷盛曲翁冉骆蓝游辛靳管柴蒙鲍华喻祁蒲房滕"
+    "屈饶牟艾尤阳穆农司卓古吉缪简项芦麦褚娄窦戚岑景党宫费卜冷晏席卫米柏宗瞿桂佟臧"
+    "闵苟邬卞姬师仇栾隋商刁沙荣巫寇桑郎甄丛仲虞敖巩佘池查麻苑迟邝楚"
+)
 _JUNK_PERSON = frozenset({
     "湿透", "方先", "钥匙放", "同时", "可能只", "可能", "只是", "因此", "于是", "如果",
     "这样", "所有", "一切", "外面", "里面", "后面", "前面", "旁边", "对面",
@@ -95,6 +110,8 @@ def _join_or_empty(items: list[str]) -> str:
 def _looks_like_person_name(cand: str) -> bool:
     name = (cand or "").strip()
     if not name or name in _STOP_PERSON or name in _JUNK_PERSON or name in _ADJECTIVE_OR_VERB:
+        return False
+    if is_alias_or_role(name) or name[0] in "那这每某":
         return False
     if name.startswith("阿") and len(name) == 2 and "\u4e00" <= name[1] <= "\u9fff":
         return True
@@ -318,6 +335,8 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     counts: dict[str, int] = {}
     anchored: set[str] = set()
     explicit: set[str] = set()
+    # Singletons allowed: identity anchor, or surname-led action anchor.
+    strong: set[str] = set()
     for m in _PERSON_HIT.finditer(text):
         cand = m.group(1)
         if not _looks_like_person_name(cand):
@@ -334,6 +353,8 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         if _looks_like_person_name(cand):
             anchored.add(cand)
             counts[cand] = counts.get(cand, 0) + 1
+            if cand[0] in _SURNAMES and text[m.end(1):m.end(1) + 1] in {"说", "问"}:
+                strong.add(cand)
     for m in _A_NICK.finditer(text):
         cand = m.group(1)
         if _looks_like_person_name(cand):
@@ -346,6 +367,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
     # 「褚衡是顾遥的表哥」— bare 是 + kinship/role, not 不是.
     for m in re.finditer(
@@ -356,6 +378,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
     # 「我姐姐是吴玉蕊」/「然后是惠若琪」— name after 是.
     for m in re.finditer(
@@ -365,12 +388,14 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
     # 「吴玉蕊，20岁」age appositive.
     for m in re.finditer(rf"([{_CJK}]{{2,3}})[，,]\s*\d{{1,2}}岁", text):
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
     # Narrative introductions often use 「姐姐陆遥三十四岁」 or
     # 「大学同学顾青和我同岁」 instead of a comma-delimited roster.
@@ -404,6 +429,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
             tail,
         ):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), text.count(cand))
     for m in re.finditer(
         rf"(?:姐姐|妹妹|哥哥|弟弟|同事|朋友|邻居|老师|记者|助理|工程师|策展人|管理员)(?:名)?叫([{_CJK}]{{2,3}})",
@@ -412,6 +438,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
+            strong.add(cand)
             counts[cand] = max(counts.get(cand, 0), text.count(cand))
     # Mid-clause «顾遥那天» / «林夏说». 「…那天」 alone is weak (离职那天).
     for m in re.finditer(
@@ -424,12 +451,14 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         counts[cand] = counts.get(cand, 0) + 1
         if suffix != "那天":
             anchored.add(cand)
+            if suffix in {"说", "问"} and cand[0] in _SURNAMES:
+                strong.add(cand)
     ordered = sorted(counts.keys(), key=lambda n: (-counts[n], -len(n), n))
     kept: list[str] = []
     for cand in ordered:
         if counts[cand] < 2 and cand not in anchored:
             continue
-        if text.count(cand) < 2 and cand not in explicit:
+        if text.count(cand) < 2 and cand not in explicit and cand not in strong:
             continue
         if any(cand != other and (cand in other or other in cand) for other in kept):
             continue
@@ -437,7 +466,7 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for name in kept:
         identity = _identity_near(text, name)
-        if identity == "人物" and text.count(name) < 3 and name not in explicit:
+        if identity == "人物" and text.count(name) < 3 and name not in explicit and name not in strong:
             continue
         rows.append({
             "name": name,
@@ -522,9 +551,110 @@ def preview_preset(text: str) -> dict[str, Any]:
     return draft
 
 
+ALIAS_RESOLVE_MIN_CHARS = 800
+
+
+def _uncovered_clips(corpus: str, known: set[str], cap: int = 3) -> list[str]:
+    """Paragraphs with a name-like anchor but no harvested name (possible misses)."""
+    out = []
+    for paragraph in re.split(r"\n\s*\n", corpus or ""):
+        if not paragraph.strip() or any(name in paragraph for name in known):
+            continue
+        if any(_looks_like_person_name(hit.group(1)) for hit in _NAME_ANCHOR.finditer(paragraph)):
+            out.append(re.sub(r"\s+", " ", paragraph).strip()[:140])
+        if len(out) >= cap:
+            break
+    return out
+
+
+def apply_alias_resolution(source: str, draft: dict[str, Any], resolution: dict[str, Any]) -> dict[str, Any]:
+    """Add verified missed names, drop alias rows, store alias→name, rebind events."""
+    out = copy.deepcopy(draft)
+    split = split_style_corpus(source)
+    corpus = split.corpus or source
+    me = out.get("me") if isinstance(out.get("me"), dict) else {}
+    avatar = str(me.get("identity") or "")
+    rows = [
+        row for row in (out.get("characters") or [])
+        if isinstance(row, dict) and row.get("name") and not is_alias_or_role(str(row["name"]))
+    ]
+    have = {row["name"] for row in rows}
+    for name in resolution.get("people") or []:
+        if name in have or len(rows) >= 16:
+            continue
+        # The user avatar is 我, not a character row.
+        if name in avatar:
+            continue
+        rows.append({"name": name, "identity": _identity_near(corpus, name), "one_event": _one_event_near(corpus, name)})
+        have.add(name)
+    for row in rows:
+        name = row["name"]
+        model_id = str((resolution.get("identities") or {}).get(name) or "").strip()[:40]
+        model_id = re.sub(r"的(?:那个)?人$", "", model_id)
+        current = str(row.get("identity") or "")
+        if not model_id or _is_generic_identity(name, model_id) or is_alias_or_role(model_id):
+            continue
+        if (_is_generic_identity(name, current) or is_alias_or_role(current)) and _grounded_near_mentions(corpus, name, model_id):
+            row["identity"] = model_id
+    rows.sort(key=lambda item: source.find(item["name"]) if item["name"] in source else len(source))
+    out["characters"] = rows
+    aliases = {alias: name for alias, name in (resolution.get("aliases") or {}).items() if name in have}
+    out["aliases"] = aliases
+    names = [row["name"] for row in rows]
+    out["timeline"] = extract_timeline(source, split.corpus, names)
+    out = bind_timeline_events(source, out)
+    out["context_ir"] = compile_context(source, out)
+    out["current_scene"] = out["context_ir"]["current_scene"]
+    return out
+
+
+async def resolve_preview_aliases(
+    source: str,
+    draft: dict[str, Any],
+    provider: ChatProvider | None,
+    *,
+    complete: Any = None,
+    timeout_s: float = 45.0,
+) -> dict[str, Any]:
+    """Studio long-paste only: one closed-set 9B call mapping aliases to candidate names."""
+    split = split_style_corpus(source)
+    names = [
+        str(row.get("name") or "").strip()
+        for row in (draft.get("characters") or [])
+        if isinstance(row, dict) and str(row.get("name") or "").strip()
+    ][:16]
+    rules_map = rules_alias_map(source, names)
+    fallback = {"people": [], "aliases": rules_map}
+    runner = complete or (provider.complete if provider is not None else None)
+    # Minors in sexual context never reach the model; rules drop them.
+    if runner is None or _avatar_is_under18(source, draft):
+        return apply_alias_resolution(source, draft, fallback)
+    system, user = build_resolve_prompt(
+        source,
+        live_line=_live_scene_line(split.live),
+        names=names,
+        extra_clips=_uncovered_clips(split.corpus, set(names)),
+    )
+    request = ChatRequest(
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        temperature=0.0,
+        top_p=0.8,
+        top_k=20,
+        max_tokens=700,
+        enable_thinking=False,
+    )
+    result = await asyncio.wait_for(runner(request), timeout=timeout_s)
+    text = getattr(result, "content", None) or str(result)
+    resolution = parse_resolution(
+        text, source, candidates=names, name_ok=_looks_like_person_name, rules_map=rules_map,
+    )
+    return apply_alias_resolution(source, draft, resolution)
+
+
 def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:
     """SPA-facing draft: named people/events only. No IR fields or review homework."""
     body = normalize_payload(draft)
+    body["characters"] = [row for row in body["characters"] if not is_alias_or_role(row.get("name") or "")]
     known = {item["name"] for item in body["characters"] if item.get("name")}
     timeline = []
     for item in body.get("timeline") or []:
@@ -1051,6 +1181,21 @@ def _grounded_person_field(source: str, name: str, value: str) -> bool:
             return True
         supported = sum(pair in local for pair in pairs)
         if supported >= max(1, (len(pairs) * 2 + 2) // 3):
+            return True
+    return False
+
+
+def _grounded_near_mentions(source: str, name: str, value: str, *, radius: int = 80) -> bool:
+    """Resolver identity: supported within ±radius of one of this person's mentions."""
+    compact = re.sub(r"\s+|[，,。；;：:（）()]", "", value or "")
+    if len(compact) < 2 or not source or not name or name in compact:
+        return False
+    pairs = [compact[i:i + 2] for i in range(len(compact) - 1)]
+    for match in re.finditer(re.escape(name), source):
+        window = source[max(0, match.start() - radius):match.end() + radius]
+        if compact in window:
+            return True
+        if sum(pair in window for pair in pairs) >= max(1, (len(pairs) * 2 + 2) // 3):
             return True
     return False
 

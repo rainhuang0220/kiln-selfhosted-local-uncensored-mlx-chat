@@ -7,6 +7,7 @@ import logging
 import re
 import sqlite3
 import subprocess
+import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
@@ -806,33 +807,48 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.post("/context/presets/preview")
     async def preview_context_preset(body: ContextPresetPreviewBody):
-        from app.services.context_presets import (
-            deep_preview_preset,
-            mark_pending_identities,
-            preview_preset,
-        )
+        from app.services import context_presets as presets
+        from app.services.context_presets import mark_pending_identities, preview_preset
 
         try:
             draft = preview_preset(body.text)
-            if body.deep:
+            # Short pastes stay rules-only; long pastes get one alias resolve
+            # (names + identities). The older clipped fill runs only when its
+            # full 50s budget still fits under the 60s hard cap.
+            if body.deep and len(body.text) >= presets.ALIAS_RESOLVE_MIN_CHARS:
                 provider = app.state.provider
                 notes = draft.setdefault("uncertain", [])
                 if getattr(app.state.chat, "_busy", set()):
                     notes.append("模型正在生成；已保留规则预览，请稍后重试深度分析。")
-                    draft = mark_pending_identities(draft)
+                    draft = mark_pending_identities(presets.apply_alias_resolution(
+                        body.text, draft, {"people": [], "aliases": {}},
+                    ))
                 elif provider is not None:
+                    started = time.monotonic()
                     try:
-                        draft = await asyncio.wait_for(
-                            deep_preview_preset(body.text, draft, provider),
-                            timeout=50,
+                        draft = await presets.resolve_preview_aliases(
+                            body.text, draft, provider, timeout_s=45,
                         )
-                        draft.setdefault("uncertain", [])
                     except Exception:
-                        logger.exception("local context analysis failed")
+                        logger.exception("local alias resolve failed")
+                        draft = presets.apply_alias_resolution(body.text, draft, {"people": [], "aliases": {}})
+                        draft.setdefault("uncertain", []).append("本机人名消解暂不可用；已保留规则预览。")
+                    remaining = 60 - (time.monotonic() - started)
+                    if remaining < 53:
                         draft = mark_pending_identities(draft)
-                        draft.setdefault("uncertain", []).append(
-                            "本机深度分析暂不可用；已保留规则预览。"
-                        )
+                    else:
+                        try:
+                            draft = await asyncio.wait_for(
+                                presets.deep_preview_preset(body.text, draft, provider),
+                                timeout=min(50, remaining - 3),
+                            )
+                            draft.setdefault("uncertain", [])
+                        except Exception:
+                            logger.exception("local context analysis failed")
+                            draft = mark_pending_identities(draft)
+                            draft.setdefault("uncertain", []).append(
+                                "本机深度分析暂不可用；已保留规则预览。"
+                            )
             from app.services.context_presets import public_studio_payload
 
             return {"draft": public_studio_payload(draft)}

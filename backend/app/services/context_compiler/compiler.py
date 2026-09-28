@@ -6,6 +6,7 @@ import hashlib
 import re
 from typing import Any
 
+from .binder import alias_map_for
 from .segmenter import TYPES, segment_document
 
 
@@ -154,6 +155,7 @@ def compile_context(source: str, draft: dict[str, Any]) -> dict[str, Any]:
         "persona": {"role": role, "rules": []},
         "user_avatar": {"identity": avatar, "real_background": _clean(me.get("real_background"), 600)},
         "current_scene": scene,
+        "aliases": alias_map_for(source, draft, [name for name in names if name]),
         "entities": entities,
         "relations": relations,
         "events": events,
