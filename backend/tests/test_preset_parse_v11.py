@@ -133,6 +133,28 @@ async def test_preview_api_deep_flag_calls_enrich_with_timeout(client):
 
 
 @pytest.mark.asyncio
+async def test_preview_api_deep_timeout_keeps_rules_rows(client):
+    from app.services import context_presets as presets
+
+    async def slow_deep(source, draft, provider):
+        await asyncio.sleep(30)
+        return draft
+
+    with patch.object(presets, "deep_preview_preset", new=AsyncMock(side_effect=slow_deep)):
+        # Shrink wait_for so the unit test does not sit 20s.
+        with patch("app.main.asyncio.wait_for", side_effect=TimeoutError):
+            response = client.post(
+                "/context/presets/preview",
+                json={"text": FIXTURE, "deep": True},
+            )
+    assert response.status_code == 200
+    draft = response.json()["draft"]
+    assert len(draft["characters"]) >= 8
+    assert "顾客" in draft["me"]["identity"]
+    assert any("规则预览" in note for note in draft.get("uncertain") or [])
+
+
+@pytest.mark.asyncio
 async def test_chat_send_still_skips_provider_extract(chat_service, fake_provider):
     extract_calls: list[int] = []
 

@@ -812,14 +812,21 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             draft = preview_preset(body.text)
             if body.deep:
                 provider = app.state.provider
+                notes = draft.setdefault("uncertain", [])
                 if getattr(app.state.chat, "_busy", set()):
-                    draft["uncertain"].append("模型正在生成；已保留规则预览，请稍后重试深度分析。")
+                    notes.append("模型正在生成；已保留规则预览，请稍后重试深度分析。")
                 elif provider is not None:
                     try:
-                        draft = await asyncio.wait_for(deep_preview_preset(body.text, draft, provider), timeout=20)
+                        draft = await asyncio.wait_for(
+                            deep_preview_preset(body.text, draft, provider),
+                            timeout=20,
+                        )
+                        draft.setdefault("uncertain", [])
                     except Exception:
                         logger.exception("local context analysis failed")
-                        draft["uncertain"].append("本机深度分析暂不可用；已保留规则预览。")
+                        draft.setdefault("uncertain", []).append(
+                            "本机深度分析暂不可用；已保留规则预览。"
+                        )
             return {"draft": draft}
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
