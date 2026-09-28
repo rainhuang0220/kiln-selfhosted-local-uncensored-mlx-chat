@@ -810,6 +810,21 @@ def beat_advanced(before: SceneGraph, new_text: str) -> bool:
     )
 
 
+def next_beat_hint(prose: str, graph: SceneGraph | None = None) -> str:
+    """Director lines for an EOS-suppressed Continue hop: move the scene, never re-ask."""
+    lines = ["接着上一段往下写新的一拍：换一个动作推进——位置、接触或衣着的变化，或一句推动关系的对白；写出触感、呼吸和声音的变化。"]
+    if graph is not None:
+        after = graph.copy().merge(prose, role="assistant")
+        verb = after.beat.last_physical_verb
+        if verb:
+            lines.append(f"上一拍的动作是「{verb}」，这一拍换别的动作。")
+    tail = prose[-600:]
+    if "？" in tail or "?" in tail:
+        lines.append("对方没有回答就当默许：不要再提问，不要给选择，直接做下一个动作。")
+    lines.append("不要重复上面已经写过的句子和括号动作。")
+    return "\n".join(lines)
+
+
 def describe_repair(atoms: Iterable[str]) -> list[str]:
     """Plain-language lines for the one repair hop."""
     out: list[str] = []

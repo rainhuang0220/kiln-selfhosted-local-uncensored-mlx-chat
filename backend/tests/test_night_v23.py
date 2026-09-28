@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 FIXTURES = Path(__file__).parent / "fixtures"
 # Cycle shape from a live 9B fill hop: short questions + 括号 lines, no ≥16-char sentence back-to-back.
 _OPEN = "（轻轻拉上门帘，把热毛巾推到你面前）\n\n晚上好，先润润嗓子，毛巾也是温热的，待会儿擦擦脸。\n\n"
@@ -129,3 +131,34 @@ def test_grounded_contract_allows_present_beat_senses_and_forbids_menus():
     assert "未给出的光线、气味、衣着" not in GROUNDED_CONTEXT_SYSTEM
     assert "不要列选项" in GROUNDED_CONTEXT_SYSTEM
     assert "请用户选择先看哪里" not in GROUNDED_CONTEXT_SYSTEM
+
+
+def test_next_beat_hint_moves_scene_and_forbids_reasking():
+    from app.services.scene_graph import next_beat_hint
+
+    asked = next_beat_hint("（指尖搭在你手腕上）\n\n客人，是想要个安静的夜，还是让我陪你说说话？")
+    assert "不要再提问" in asked
+    assert "不要重复" in asked
+    assert "客人" not in asked
+    calm = next_beat_hint("（她把毛巾展开，搭在你肩上。）")
+    assert "不要再提问" not in calm
+
+
+@pytest.mark.asyncio
+async def test_fill_hop_fence_carries_next_beat(require_chat_template, chat_service, fake_provider):
+    events = [e async for e in chat_service.chat(
+        message="你好",
+        conversation_id=None,
+        stream=True,
+        profile="immersive",
+        auto_continue=True,
+        max_tokens=64,
+    )]
+    assert not [e for e in events if e.get("event") == "error"]
+    calls = fake_provider.calls
+    if len(calls) < 2:
+        pytest.skip("fake provider reached the floor in one hop")
+    first = "\n".join(m.get("content") or "" for m in calls[0].messages)
+    later = "\n".join(m.get("content") or "" for m in calls[1].messages)
+    assert "<next_beat>" not in first
+    assert "<next_beat>" in later

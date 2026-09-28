@@ -10,7 +10,8 @@
 |---|---|---|---|---|
 | 1 | 8d4821d baseline | 4 | 2 1 0 0 1 0 | G4 loop guard + rep 1.08 floor |
 | 2 | a68b0da | 4 (+hard fail: MLX died) | 2 1 0 0 1 0 | token-id continue-prompt dedupe (MLX crash); revert rep floor |
-| 3 | 6f12e6a | 7 | 2 1 0 1 1 2 | sync #1 to live; next G2/G3 style digest |
+| 3 | 6f12e6a | 7 | 2 1 0 1 1 2 | sync #1 to live (120145f); style digest + grounded senses (68e1b0f) |
+| 4 | 68e1b0f | 10 | 2 2 2 1 1 2 | next_beat fence on fill hops |
 
 ## Next
-Cycle 4: nameless style digest on the IR default hop (router) + grounded contract sensory clause (literary_system).
+Cycle 5: measure next_beat. Test env: /tmp/qwen3.8-27b symlink makes the full suite run from the /tmp worktree (609 pass).

@@ -76,6 +76,7 @@ from app.services.scene_graph import (
     beat_advanced,
     describe_repair,
     graph_owned_pin,
+    next_beat_hint,
     violation_start,
 )
 from app.services.repetition import hard_self_loop, repeated_sentence_start, tail_window_loop
@@ -642,6 +643,7 @@ class ChatService:
         min_recent_turns: int | None = None,
         keep_pins: bool = False,
         repair: list[str] | None = None,
+        beat_hint: str | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
@@ -718,6 +720,7 @@ class ChatService:
                 mem_fence=mem_fence,
                 graph=graph,
                 repair=repair,
+                beat_hint=beat_hint,
                 style=style,
                 offstage=offstage,
             )
@@ -1013,6 +1016,7 @@ class ChatService:
         mem_fence: str | None,
         graph: SceneGraph | None = None,
         repair: list[str] | None = None,
+        beat_hint: str | None = None,
         style: StyleBank | None = None,
         offstage: set[str] | None = None,
     ) -> tuple[str | None, list[str], Any, list[dict[str, Any]]]:
@@ -1155,6 +1159,8 @@ class ChatService:
         if lines:
             fence += "\n\n<repair>\n上一段漏掉或写错了，接着往下写时补上：\n"
             fence += "\n".join(f"- {line}" for line in lines) + "\n</repair>"
+        if beat_hint:
+            fence += f"\n\n<next_beat>\n{beat_hint}\n</next_beat>"
         slot_pins = graph.repair_atoms() if graph is not None else []
         pins = [p for p in [*keep_pins, *slot_pins] if not mentions(p, offstage or ())]
         return fence, pins, scene, lore_hits
@@ -2040,6 +2046,14 @@ class ChatService:
                 else:
                     echo = EchoSuppressor("")
                 prior_state, prior_summary = self._load_dialogue_meta(cid)
+                beat_hint = None
+                if (
+                    immersive_turn
+                    and auto_count > 0
+                    and not pin_repair_pending
+                    and 0 < count_output_chars(content_buf or "") < min_output_chars
+                ):
+                    beat_hint = next_beat_hint(content_buf or "", turn_graph)
                 sent, snapshot_meta = self._build_payload(
                     history,
                     max_tokens=max_tokens,
@@ -2054,6 +2068,7 @@ class ChatService:
                     profile_name=preset.get("profile"),
                     keep_pins=bool(preset.get("keep_pins")),
                     repair=repair_slots if pin_repair_pending else None,
+                    beat_hint=beat_hint,
                 )
                 stream_filter.set_names(snapshot_meta.get("offstage_names") or ())
                 occupancy = snapshot_meta["occupancy"]
