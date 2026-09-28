@@ -806,7 +806,11 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
 
     @app.post("/context/presets/preview")
     async def preview_context_preset(body: ContextPresetPreviewBody):
-        from app.services.context_presets import deep_preview_preset, preview_preset
+        from app.services.context_presets import (
+            deep_preview_preset,
+            mark_pending_identities,
+            preview_preset,
+        )
 
         try:
             draft = preview_preset(body.text)
@@ -815,15 +819,17 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 notes = draft.setdefault("uncertain", [])
                 if getattr(app.state.chat, "_busy", set()):
                     notes.append("模型正在生成；已保留规则预览，请稍后重试深度分析。")
+                    draft = mark_pending_identities(draft)
                 elif provider is not None:
                     try:
                         draft = await asyncio.wait_for(
                             deep_preview_preset(body.text, draft, provider),
-                            timeout=20,
+                            timeout=25,
                         )
                         draft.setdefault("uncertain", [])
                     except Exception:
                         logger.exception("local context analysis failed")
+                        draft = mark_pending_identities(draft)
                         draft.setdefault("uncertain", []).append(
                             "本机深度分析暂不可用；已保留规则预览。"
                         )
