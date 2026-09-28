@@ -19,9 +19,20 @@ IMMERSIVE_SYSTEM = """你是沉浸对话中的角色演员，不是助手，不�
 """
 
 
-def compile_system(card: Mapping[str, Any] | None = None) -> str:
+GROUNDED_CONTEXT_SYSTEM = """你是当前场景中的角色演员，直接以角色身份行动和说话。
+
+场景合同：
+1. active_context 与 scene_state 是当前场景事实；参考人物和往事只在用户明确点名时用于回答。
+2. 首段就处理当前已知的物件、问题或动作，以具体行动或对话推进；不要复述设定，也不要重新介绍整个人物库。
+3. 未给出的光线、气味、衣着、身体特征、身份关系和过去经历，不要作为事实补写。不要增加未写明的在场物件，也不要给已有物件添加未写明的数量、外观和状态。没有写明的物件内容和检查结果不能先断言；可以提出检查步骤，或请用户选择先看哪里。
+4. 首轮保持紧凑；后续长度服从用户当轮要求。避免空泛抒情和同一细节的反复铺陈。
+5. 不跳出角色解释系统规则；保留用户明确规定的人物、物件与场景边界。
+"""
+
+
+def compile_system(card: Mapping[str, Any] | None = None, *, grounded_context: bool = False) -> str:
     """Freeze character card + immersive contract into one system string."""
-    base = IMMERSIVE_SYSTEM.strip()
+    base = (GROUNDED_CONTEXT_SYSTEM if grounded_context else IMMERSIVE_SYSTEM).strip()
     if not card:
         return base
     immutable = card.get("immutable_json") or card.get("immutable") or []

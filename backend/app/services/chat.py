@@ -37,6 +37,7 @@ from app.services.character_cards import compile_card_system, get_card
 from app.services.context_presets import (
     chat_frame_from_simple,
     get_preset,
+    preview_preset,
     reference_context_for_mention,
     style_bank_for_preset,
 )
@@ -90,6 +91,14 @@ IMMERSIVE_AUTHOR_NOTE = (
     "1. 身体、衣着层次、姿势、接触点以 scene_state 为准：脱掉的不会自己穿回，没走动就还在原地。\n"
     "2. 先接住用户最后一个身体动作，再往前推一拍：写动作和感官——触感、温度、湿度、呼吸、声音。\n"
     "3. 不黑屏，不写“后来”，不复述上一段，不跳出角色解释。\n"
+    "4. must_keep 里的每一项都必须落进正文。\n"
+    "</author_note>"
+)
+CONTEXT_IR_AUTHOR_NOTE = (
+    "<author_note>\n"
+    "1. 当前事实以 active_context 和 scene_state 为准；参考人物与往事只在点名召回时使用。\n"
+    "2. 先从当前已知的物件或动作推进一拍，用具体动作或对话回应用户。\n"
+    "3. 不补写未经提供的身份、关系、前史或物件细节；没有实际检查就不要宣称发现线索，也不要复述资料。\n"
     "4. must_keep 里的每一项都必须落进正文。\n"
     "</author_note>"
 )
@@ -1128,6 +1137,8 @@ class ChatService:
             has_ir = isinstance(frame, dict) and isinstance(frame.get("context_ir"), dict) and frame["context_ir"].get("version") == 2
         except Exception:
             has_ir = False
+        if has_ir:
+            note = CONTEXT_IR_AUTHOR_NOTE
         style_fence = None if has_ir else (style.fence() if style is not None else None)
         if style_fence:
             fence = f"{fence}\n\n{style_fence}" if fence else style_fence
@@ -1544,6 +1555,34 @@ class ChatService:
                     "status": 404,
                 }
                 return
+        inline_draft = None
+        inline_frame = None
+        if (
+            not conversation_id
+            and selected_preset is None
+            and not context_preset_id
+            and not character_card_id
+            and preset["profile"] in IMMERSIVE_PROFILE_NAMES
+            and 800 <= len(text) <= 50000
+            and not requests_full_document(text)
+        ):
+            query, source = split_query_and_body(text)
+            scene_request = (
+                query
+                and any(cue in query for cue in ("按这个设定", "按此设定", "进入场景", "扮演", "开始当前场景"))
+                and not any(cue in query for cue in ("总结", "分析", "提取", "列出", "翻译", "比较", "对比"))
+            )
+            if not query or scene_request:
+                split = split_style_corpus(source)
+                # A mixed character bible carries an avatar claim in the
+                # reference body; a style-only sample stays on StyleBank.
+                if len(split.corpus) >= 500 and "你是" in split.live and "我叫" in split.corpus:
+                    try:
+                        inline_draft = preview_preset(source)
+                        if len(inline_draft.get("characters") or []) >= 4:
+                            inline_frame = chat_frame_from_simple(inline_draft, source_text=source)
+                    except ValueError:
+                        inline_draft = None
         card = get_card(character_card_id, owner_id=owner_id) if character_card_id else None
         if selected_preset is not None:
             frame = chat_frame_from_simple(
@@ -1551,10 +1590,15 @@ class ChatService:
                 source_text=selected_preset.get("source_text") or "",
             )
             card = {**frame.get("active_character", {}), "scenario": frame.get("active_scene") or ""}
+        elif inline_frame is not None:
+            card = {**inline_frame.get("active_character", {}), "scenario": inline_frame.get("active_scene") or ""}
         if system is not None:
             system_prompt = system or ""
         elif card is not None:
-            system_prompt = compile_card_system(card)
+            system_prompt = compile_card_system(
+                card,
+                grounded_context=selected_preset is not None or inline_frame is not None,
+            )
         elif preset["profile"] in {"immersive", "long_form"}:
             system_prompt = (s.default_system or "").strip() or IMMERSIVE_SYSTEM.strip()
         else:
@@ -1562,6 +1606,10 @@ class ChatService:
 
         auto_max = int(preset.get("auto_continue_max") or 0)
         min_output_chars = int(preset.get("min_output_chars") or 0)
+        # A compiled document has no live action to extend yet. Wait for the
+        # user to steer the next beat instead of forcing the profile's long floor.
+        if (selected_preset is not None or inline_frame is not None) and auto_continue is None:
+            min_output_chars = 0
         # Soft total completion tokens across auto-continue hops (immersive: 12288).
         completion_soft_cap = int(preset.get("completion_soft_cap") or 0)
         if auto_continue is None:
@@ -1620,7 +1668,7 @@ class ChatService:
                     source_text=selected_preset.get("source_text") or "",
                 )
                 if selected_preset is not None
-                else None
+                else inline_frame
             ),
         }
 
@@ -1659,7 +1707,7 @@ class ChatService:
             )
             created = True
             conversation_created = True
-            if selected_preset is not None:
+            if selected_preset is not None or inline_frame is not None:
                 frame = params["context_preset_snapshot"] or {}
                 graph = SceneGraph()
                 graph.merge(frame.get("active_scene") or frame.get("current_scene") or "")
@@ -1673,8 +1721,8 @@ class ChatService:
                 SceneStateStore().save_style(
                     cid,
                     style_bank_for_preset(
-                        selected_preset["payload"],
-                        source_text=selected_preset.get("source_text") or "",
+                        selected_preset["payload"] if selected_preset is not None else inline_draft,
+                        source_text=(selected_preset.get("source_text") or "") if selected_preset is not None else text,
                     ).to_dict(),
                 )
 

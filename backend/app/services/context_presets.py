@@ -137,6 +137,20 @@ def _live_scene_line(live: str) -> str:
     return para[:160].strip()
 
 
+def _explicit_tail_scene(source: str, reference_names: list[str]) -> str:
+    """Honor a short, explicit return to the present after a long bible."""
+    tail = (source or "")[-450:]
+    candidates = re.finditer(r"(?:^|[。！？\n])\s*((?:当前场景\s*[:：]\s*|此刻|现在回到)[^。！？\n]{8,160})", tail)
+    for match in reversed(list(candidates)):
+        scene = re.split(r"[；;](?=上面|以上|这些|背景|参考)", match.group(1), maxsplit=1)[0].strip()
+        if scene.startswith("此刻") and not any(cue in scene for cue in ("只有你和我", "只有我和你", "我们现在")):
+            continue
+        if any(name and name in scene for name in reference_names):
+            continue
+        return scene
+    return ""
+
+
 def _live_user_identity(live: str) -> str:
     """Prefer 「我是…」 in the live head; never scan the corpus."""
     text = (live or "").strip()
@@ -162,6 +176,16 @@ def _identity_near(corpus: str, name: str) -> str:
             clause = hit.group(1).strip().rstrip("的")
             if 1 <= len(clause) <= 24 and name not in clause:
                 return clause[:40]
+        before = corpus[max(0, m.start() - 12):m.start()]
+        named_role = re.search(
+            r"(姐姐|妹妹|哥哥|弟弟|同事|朋友|邻居|老师|记者|助理|工程师|策展人|管理员)(?:名)?叫$",
+            before,
+        )
+        if named_role:
+            return named_role.group(1)
+        aged_role = re.match(r"[，,]\s*\d{1,2}岁[，,]\s*([^，。；;\n]{2,24})", tail)
+        if aged_role and re.search(r"负责|担任|管理|经营|老师|记者|助理|工程师|策展", aged_role.group(1)):
+            return aged_role.group(1)
     return "人物"
 
 
@@ -339,6 +363,26 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
         if _looks_like_person_name(cand):
             anchored.add(cand)
             counts[cand] = max(counts.get(cand, 0), 1)
+    # Dense prose often introduces a person after a connective rather than a
+    # sentence boundary, then uses bare mentions later. Count those mentions
+    # only after an explicit naming/identity construction has established a name.
+    for m in re.finditer(rf"([{_CJK}]{{2,3}})是", text):
+        cand = m.group(1)
+        tail = text[m.end():m.end() + 28]
+        if _looks_like_person_name(cand) and re.search(
+            r"记者|助理|工程师|策展人|管理员|老师|同事|朋友|邻居|室友|店主|店员|经理|负责人",
+            tail,
+        ):
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), text.count(cand))
+    for m in re.finditer(
+        rf"(?:姐姐|妹妹|哥哥|弟弟|同事|朋友|邻居|老师|记者|助理|工程师|策展人|管理员)(?:名)?叫([{_CJK}]{{2,3}})",
+        text,
+    ):
+        cand = m.group(1)
+        if _looks_like_person_name(cand):
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), text.count(cand))
     # Mid-clause «顾遥那天» / «林夏说». 「…那天」 alone is weak (离职那天).
     for m in re.finditer(
         rf"([{_CJK}]{{2,3}})(说|问|看|叫|的手|那天)",
@@ -422,6 +466,9 @@ def preview_preset(text: str) -> dict[str, Any]:
             })
 
     names = [item["name"] for item in characters[:16]]
+    tail_scene = _explicit_tail_scene(source, names)
+    if tail_scene:
+        current_scene = tail_scene
     draft = {
         "current_scene": current_scene,
         "me": {
@@ -956,6 +1003,26 @@ def _parse_model_json(model_text: str) -> dict[str, Any] | None:
     return analyzed if isinstance(analyzed, dict) else None
 
 
+def _grounded_person_field(source: str, name: str, value: str) -> bool:
+    """A model fill must be supported near this person's actual mentions."""
+    compact = re.sub(r"\s+|[，,。；;：:（）()]", "", value or "")
+    if len(compact) < 2 or not source or not name:
+        return False
+    pairs = [compact[i:i + 2] for i in range(len(compact) - 1)]
+    for match in re.finditer(re.escape(name), source):
+        # A wide first-mention clip can include the next person's biography.
+        # Validate only the clause that starts at this person's own mention.
+        stop = re.search(r"[。！？!?；;\n]", source[match.end():match.end() + 160])
+        end = match.end() + (stop.start() if stop else 160)
+        local = source[match.start():end]
+        if compact in re.sub(r"\s+|[，,。；;：:（）()]", "", local):
+            return True
+        supported = sum(pair in local for pair in pairs)
+        if supported >= max(1, (len(pairs) * 2 + 2) // 3):
+            return True
+    return False
+
+
 def merge_people_extract(source: str, draft: dict[str, Any], model_text: str) -> dict[str, Any]:
     """Merge Studio JSON people extract into the simple draft. Names must appear verbatim."""
     analyzed = _parse_model_json(model_text)
@@ -1007,12 +1074,12 @@ def merge_people_extract(source: str, draft: dict[str, Any], model_text: str) ->
             model_id = _clean_text(raw.get("identity"), 40)
             prev = by_name.get(name) or {"name": name, "identity": "待补", "one_event": None}
             prev_id = str(prev.get("identity") or "")
-            if model_id and not _is_generic_identity(name, model_id):
+            if model_id and not _is_generic_identity(name, model_id) and _grounded_person_field(corpus or blob, name, model_id):
                 prev["identity"] = model_id
             elif _is_generic_identity(name, prev_id):
                 prev["identity"] = "待补"
             event = _clean_text(raw.get("one_event"), 40) or None
-            if event:
+            if event and _grounded_person_field(corpus or blob, name, event):
                 prev["one_event"] = event[:40]
             by_name[name] = prev
         # Preserve rules order, then append new verified names.

@@ -111,14 +111,14 @@ async def test_h3_fill_merge_uses_clipped_identity():
     model_json = json.dumps(
         {
             "characters": [
-                {"name": "顾遥", "identity": "林晚的旧友", "one_event": "江边递披肩"},
+                {"name": "顾遥", "identity": "前公司的同事", "one_event": "把钥匙放在桌上"},
             ]
         },
         ensure_ascii=False,
     )
     merged = merge_people_extract(FIXTURE, draft, model_json)
     gu = next(c for c in merged["characters"] if c["name"] == "顾遥")
-    assert "旧友" in gu["identity"] or "披肩" in (gu.get("one_event") or "")
+    assert "同事" in gu["identity"] or "钥匙" in (gu.get("one_event") or "")
     assert gu["identity"] != "顾遥"
 
 

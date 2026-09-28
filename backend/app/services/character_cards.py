@@ -143,5 +143,5 @@ def patch_card(
     return save_card(existing, owner_id=owner_id, card_id=card_id)
 
 
-def compile_card_system(card: dict[str, Any] | None) -> str:
-    return compile_system(card)
+def compile_card_system(card: dict[str, Any] | None, *, grounded_context: bool = False) -> str:
+    return compile_system(card, grounded_context=grounded_context)
