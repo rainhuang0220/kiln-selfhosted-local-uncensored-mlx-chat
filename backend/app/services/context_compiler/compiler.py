@@ -131,12 +131,17 @@ def compile_context(source: str, draft: dict[str, Any]) -> dict[str, Any]:
         and item["type"] != "USER_AVATAR"
         and re.match(r"^我(?:是|叫|扮演)", item["text"])
     ]
-    scene = _clean(draft.get("current_scene"), 1600)
+    scene = _clean(draft.get("current_scene"), 160)
     # The reference-introduction sentence is metadata, never a live scene.
-    scene = re.split(r"以下(?:内容|是)|幻想参考|信息背景和性癖参考", scene, maxsplit=1)[0].strip()
+    scene = re.split(r"以下(?:内容|是)|幻想参考|信息背景和性癖参考|仅作为参考", scene, maxsplit=1)[0].strip()
     if scene in {"测试长文本", "长文本"} or (len(scene) <= 12 and "你" not in scene and "店" not in scene):
         role_line = next((item["text"] for item in segments if item["type"] == "ROLE_DEFINITION"), "")
         scene = _clean(role_line, 160) or scene
+    # Prefer a labeled parlor line already extracted by the live splitter.
+    labeled = re.search(r"当前场景\s*[:：]\s*(.+)", scene)
+    if labeled:
+        scene = _clean(labeled.group(1), 160)
+    scene = _clean(scene, 160)
     # Prefer the first USER_AVATAR segment when the studio me.identity slot is empty.
     if not avatar:
         av = next((item for item in segments if item["type"] == "USER_AVATAR"), None)

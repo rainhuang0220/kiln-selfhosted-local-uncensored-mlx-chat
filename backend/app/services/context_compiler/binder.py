@@ -45,38 +45,61 @@ def _is_sexual_event(text: str) -> bool:
     return bool(_SEXUAL.search(text or ""))
 
 
-def _pick_who(event: dict[str, Any], known: list[str], decision: str | None) -> list[str] | None:
-    """Closed set: known name(s) or None to DROP."""
-    if decision:
-        token = decision.strip()
-        if token == _DROP:
-            return None
-        if token in known:
-            return [token]
+def _parse_who_decision(decision: str, known: list[str]) -> list[str] | None:
+    """Accept a single name, comma/space list, JSON list, or DROP."""
+    token = (decision or "").strip()
+    if not token or token == _DROP:
         return None
+    known_set = set(known)
+    if token in known_set:
+        return [token]
+    if token.startswith("["):
+        try:
+            raw = json.loads(token)
+        except json.JSONDecodeError:
+            raw = None
+        if isinstance(raw, list):
+            names = [str(item).strip() for item in raw if str(item).strip() in known_set]
+            return names[:4] or None
+    parts = [p.strip() for p in re.split(r"[,，、/\s]+", token) if p.strip()]
+    names = [p for p in parts if p in known_set]
+    if names:
+        return names[:4]
+    return None
+
+
+def _pick_who(event: dict[str, Any], known: list[str], decision: str | None) -> list[str] | None:
+    """Closed set: every known name in evidence (max 4) or None to DROP."""
+    if decision:
+        return _parse_who_decision(decision, known)
     who = [name for name in (event.get("who") or []) if name in known]
-    if who:
-        return who[:3]
     evidence = _clean(event.get("evidence") or event.get("summary"), 400)
     mentioned = [name for name in known if name and name in evidence]
+    # Stable order = first appearance in the evidence clip.
+    mentioned.sort(key=lambda name: evidence.find(name))
     if mentioned:
-        # Prefer the earliest name in the clip so paragraph bleed does not steal the subject.
-        mentioned.sort(key=lambda name: evidence.find(name))
-        return [mentioned[0]]
+        # Keep the full co-actor set from evidence (shared beats), not mentioned[0] only.
+        return mentioned[:4]
+    if who:
+        who_sorted = sorted(who, key=lambda name: evidence.find(name) if name in evidence else 10**9)
+        return who_sorted[:4]
     for name in event.get("suggested_who") or []:
         if name in known:
             return [name]
     return None
 
 
+def _who_set(event: dict[str, Any]) -> frozenset[str]:
+    return frozenset(event.get("who") or [])
+
+
 def _merge_consecutive(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Same primary who in a row becomes one beat; first span is evidence."""
+    """Merge only when the who-set is equal; different co-actor sets stay separate rows."""
     if not events:
         return []
     merged: list[dict[str, Any]] = []
     for event in events:
-        primary = (event.get("who") or [""])[0]
-        if merged and (merged[-1].get("who") or [""])[0] == primary:
+        if merged and _who_set(merged[-1]) == _who_set(event) and _who_set(event):
             prev = merged[-1]
             note = _clean(event.get("summary"), 80)
             if note and note not in (prev.get("summary") or ""):
@@ -93,7 +116,6 @@ def _merge_consecutive(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         item["needs_review"] = False
         item["suggested_who"] = []
     return merged
-
 
 def _rewrite_character_notes(draft: dict[str, Any], events: list[dict[str, Any]]) -> None:
     """Fill empty one_event from the first bound beat for that person."""
@@ -150,11 +172,16 @@ def bind_timeline_events(
         who = _pick_who(raw, known, decisions.get(str(raw.get("id") or "")))
         if not who:
             continue
-        # Reject misalignment: sole who not in evidence while another known name is.
-        if len(who) == 1 and who[0] not in evidence:
-            others = [name for name in known if name in evidence and name != who[0]]
-            if others:
-                who = [others[0]]
+        # Reject misalignment: drop names absent from evidence when others are present.
+        if evidence:
+            in_evidence = [name for name in who if name in evidence]
+            if in_evidence:
+                who = in_evidence
+            elif len(who) == 1:
+                others = [name for name in known if name in evidence and name != who[0]]
+                if others:
+                    others.sort(key=lambda name: evidence.find(name))
+                    who = others[:4]
         item = dict(raw)
         item["who"] = who
         item["suggested_who"] = []
@@ -184,8 +211,22 @@ def parse_binder_decisions(model_text: str, known: list[str], event_ids: list[st
         eid = str(raw.get("id") or "")
         if eid not in event_ids:
             continue
-        answer = _clean(raw.get("who"), 40)
-        if answer == _DROP or answer in known_set:
+        who_raw = raw.get("who")
+        if isinstance(who_raw, list):
+            names = [str(item).strip() for item in who_raw if str(item).strip() in known_set]
+            if names:
+                out[eid] = "、".join(names[:4])
+            else:
+                out[eid] = _DROP
+            continue
+        answer = _clean(who_raw, 80)
+        if answer == _DROP:
+            out[eid] = _DROP
+            continue
+        parsed = _parse_who_decision(answer, known)
+        if parsed:
+            out[eid] = "、".join(parsed)
+        elif answer in known_set:
             out[eid] = answer
     return out
 
@@ -201,15 +242,15 @@ def build_binder_prompt(
     live = _clean((draft.get("current_scene") or "")[:120], 120)
     shots = load_gold_shots(4)
     system = (
-        "你是事件主语判定器。只根据摘录选择主语。"
-        "选项只能是已给出的人名之一，或 DROP。"
-        "只输出 JSON：{\"decisions\":[{\"id\":\"\",\"who\":\"人名或DROP\"}]}。"
-        "不要解释，不要编造新人名。"
+        "你是同场人物判定器。只根据摘录选择和「我」同场的人。"
+        "选项可以是已知人名的任意子集（逗号分隔或 JSON 列表），或 DROP。"
+        "只输出 JSON：{\"decisions\":[{\"id\":\"\",\"who\":\"人名或人名列表或DROP\"}]}。"
+        "不要解释，不要编造新人名。不要把不同场次的人合并。"
     )
     lines = [
         f"<live>{live}</live>",
         "已知人名：" + "、".join(known),
-        "问题：这段事的主语是谁？",
+        "问题：这段里和「我」同场的人是谁？",
     ]
     if shots:
         lines.append("示例：")
@@ -219,7 +260,7 @@ def build_binder_prompt(
     for item in clips:
         clip = _clean(item.get("evidence") or item.get("summary"), 400)
         lines.append(f"{item.get('id')} :: {clip}")
-    lines.append("选项：" + "、".join([*known, _DROP]))
+    lines.append("选项：已知人名的任意子集，或 " + _DROP)
     return system, "\n".join(lines)
 
 

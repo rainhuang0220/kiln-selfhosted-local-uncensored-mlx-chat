@@ -108,9 +108,27 @@ async def test_selected_preset_freezes_active_frame_and_seeds_offstage_bank(chat
     cid = next(event for event in events if event.get("event") == "meta")["data"]["conversation_id"]
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[0].messages)
     assert "包间" in sent and "我是来店里的客人林夏" in sent
-    assert "我在上海工作" in sent and "短句慢节奏" in sent
+    # V16: preference hint packs on default hop; confirmed_background is asked-only.
+    assert "短句慢节奏" in sent
+    assert "confirmed_background" not in sent
     assert all(name not in sent for name in OFFSTAGE)
     assert SceneStateStore().get(cid).style.get("names")
+    # Asked hop may surface 现实设定.
+    bg_events = [
+        event
+        async for event in chat_service.chat(
+            message="我的现实背景是什么？",
+            conversation_id=cid,
+            stream=True,
+            profile="immersive",
+            auto_continue=False,
+            max_tokens=128,
+            owner_id="owner-a",
+        )
+    ]
+    assert not [event for event in bg_events if event.get("event") == "error"]
+    bg_sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
+    assert "我在上海工作" in bg_sent
     changed = dict(draft)
     changed["current_scene"] = "旧书店"
     save_preset("改变后", changed, SOURCE, owner_id="owner-a", preset_id=saved["id"])
@@ -130,7 +148,7 @@ async def test_selected_preset_freezes_active_frame_and_seeds_offstage_bank(chat
         stored = chat_service._conversation_settings(cid)["context_preset_snapshot"]
         assert "包间" in stored["active_scene"] and "旧书店" not in stored["active_scene"]
         sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-        assert "我是来店里的客人林夏" in sent and "我在上海工作" in sent
+        assert "我是来店里的客人林夏" in sent
         assert "旧书店" not in sent
 
 
@@ -139,13 +157,15 @@ async def test_active_cast_and_named_reference_are_retrieved_with_scope(chat_ser
 
     draft = preview_preset(SOURCE)
     draft["characters"].append({"name": "阿岚", "identity": "同事", "one_event": "站在柜台边"})
-    # Bind 阿岚 + primary as active; others remain library/reference.
+    # Bind 阿岚 + primary as active; plant 阿岚 in the live scene so L0 may name them.
+    draft["current_scene"] = (draft.get("current_scene") or "") + "阿岚站在柜台边。"
     saved = save_preset("多人场景", draft, SOURCE, owner_id="owner-a")
     # Mark 阿岚 active via ids from saved payload
     payload = saved["payload"]
     al_id = next(c["id"] for c in payload["characters"] if c["name"] == "阿岚")
     primary_id = payload["characters"][0]["id"]
     payload["active_character_ids"] = [primary_id, al_id]
+    payload["current_scene"] = (payload.get("current_scene") or "") + ("阿岚站在柜台边。" if "阿岚" not in (payload.get("current_scene") or "") else "")
     for c in payload["characters"]:
         if c["name"] == "顾遥":
             c["identity"] = "旧友"

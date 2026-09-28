@@ -1121,7 +1121,14 @@ class ChatService:
             budget_chars=1200,
         )
         note = IMMERSIVE_AUTHOR_NOTE
-        style_fence = style.fence() if style is not None else None
+        # When Context IR is bound, route_context owns preferences — never dump StyleBank corpus.
+        has_ir = False
+        try:
+            frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
+            has_ir = isinstance(frame, dict) and isinstance(frame.get("context_ir"), dict) and frame["context_ir"].get("version") == 2
+        except Exception:
+            has_ir = False
+        style_fence = None if has_ir else (style.fence() if style is not None else None)
         if style_fence:
             fence = f"{fence}\n\n{style_fence}" if fence else style_fence
             note = note.replace("</author_note>", f"{STYLE_AUTHOR_LINE}</author_note>")

@@ -112,6 +112,13 @@ def _live_scene_line(live: str) -> str:
     text = (live or "").strip()
     if not text:
         return ""
+    # Prefer an explicit 当前场景： label when the owner planted one.
+    labeled = re.search(r"当前场景\s*[:：]\s*(.+)", text)
+    if labeled:
+        scene = labeled.group(1).strip()
+        parts = re.split(r"(?<=[。！？])", scene)
+        scene = "".join(parts[:3]).strip() if parts else scene
+        return scene[:160].strip()
     # Skip bare document titles (e.g. 「测试长文本」) before the shop role line.
     paragraphs = [p.strip() for p in re.split(r"\n+", text) if p.strip()]
     for para in paragraphs:
@@ -848,14 +855,26 @@ def style_bank_for_preset(payload: dict[str, Any], *, source_text: str = "") -> 
         if p.get("name") and p.get("name") not in active_names
     ]
     ir = frame.get("context_ir") or {}
-    bank = StyleBank.from_dict({
-        "names": names,
-        "events": [],
-        "register": [],
-        "techniques": [],
-        "background_facts": [] if ir else frame.get("background_facts") or [],
-        "preferences": [] if ir else frame.get("preferences") or [],
-    })
+    # IR present: keep offstage names for scrub; empty digest so fence() is None.
+    # route_context owns the one preference hint and live parlor lock.
+    if ir.get("version") == 2:
+        bank = StyleBank.from_dict({
+            "names": names,
+            "events": [],
+            "register": [],
+            "techniques": [],
+            "background_facts": [],
+            "preferences": [],
+        })
+    else:
+        bank = StyleBank.from_dict({
+            "names": names,
+            "events": [],
+            "register": [],
+            "techniques": [],
+            "background_facts": frame.get("background_facts") or [],
+            "preferences": frame.get("preferences") or [],
+        })
     bank.scrub()
     bank.digest = bank.render_digest()
     return bank

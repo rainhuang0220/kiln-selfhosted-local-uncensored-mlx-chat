@@ -26,4 +26,7 @@ Explicit user preferences that may guide style or interaction. Its entries are n
 The typed, editable representation of document segments, persona, avatar, people, relations, events, and preferences before any generation prompt is assembled. It stays server-side. The Studio public draft only shows current scene, me, characters, and binder-attached events — never segment types, spans, or review badges.
 
 **Event binder**:
-Closed-set decision that attaches each harvested event to a known character name, merges consecutive same-who sentences into one beat, and drops orphans (and under-18 + sexual clips) instead of asking the user to resolve them.
+Closed-set decision that attaches each harvested event to known character names (every co-actor in the evidence clip, up to four), merges consecutive beats only when the who-set is equal, and drops orphans (and under-18 + sexual clips) instead of asking the user to resolve them.
+
+**Attention layers**:
+Packed prompt layers for a generation turn. L0 is the short live parlor lock (role, avatar, current scene). L1 is asked-only background. L2 is at most one short preference hint plus named recall events. L3 is never packed (raw source, document meta, off-stage cast).
