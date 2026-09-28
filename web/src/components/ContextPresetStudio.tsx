@@ -8,7 +8,13 @@ import {
   saveContextPreset,
 } from "../api/context-presets";
 import { useChatStore } from "../stores/chat-store";
-import type { ContextPresetPayload, ContextPresetRecord, SimpleCharacter } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, ContextSegmentType, SimpleCharacter } from "../types/context-preset";
+
+const SEGMENT_LABELS: Record<ContextSegmentType, string> = {
+  ROLE_DEFINITION: "助手角色", USER_AVATAR: "用户身份", USER_BACKGROUND: "现实背景",
+  USER_PREFERENCE: "偏好与风格", CURRENT_SCENE: "当前场景", ENTITY_DEFINITION: "人物定义",
+  ENTITY_ATTRIBUTE: "人物特征", WORLD_EVENT: "历史事件", DOCUMENT_META: "文档说明", UNKNOWN: "待确认",
+};
 
 function displaySlot(value: string): string {
   return value?.trim() ? value : "暂无";
@@ -38,6 +44,13 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
     if (to < 0 || to >= next.length) return;
     [next[index], next[to]] = [next[to], next[index]];
     patch({ timeline: next.map((item, at) => ({ ...item, order: at + 1 })) });
+  };
+  const patchSegment = (index: number, type: ContextSegmentType) => {
+    if (!payload.context_ir) return;
+    patch({ context_ir: {
+      ...payload.context_ir,
+      segments: payload.context_ir.segments.map((item, at) => at === index ? { ...item, type, needs_review: type === "UNKNOWN" } : item),
+    } });
   };
 
   return (
@@ -77,6 +90,27 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
           </label>
         </div>
       </section>
+
+      {payload.context_ir?.version === 2 ? <details className="preset-section preset-segments">
+        <summary>文档分区 · {payload.context_ir.segments.length} 段 · {payload.context_ir.segments.filter((item) => item.needs_review).length} 段待确认 · {payload.context_ir.conflicts?.length || 0} 处冲突</summary>
+        <p>先核对每段属于角色、偏好、人物还是历史。参考段不能升级为当前角色或场景。</p>
+        {(payload.context_ir.conflicts || []).map((conflict) => <p className="preset-conflict" key={conflict.source_span.start}>身份冲突：参考段「{conflict.evidence}」未覆盖开头的当前用户身份。</p>)}
+        <div className="preset-rows">
+          {payload.context_ir.segments.map((segment, index) => (
+            <div className="preset-person-row preset-segment-row" key={segment.id}>
+              <label className="preset-field">
+                <span>原文 {segment.source_span.start}–{segment.source_span.end} · {segment.scope === "live" ? "当前" : "参考"}</span>
+                <select value={segment.type} onChange={(event) => patchSegment(index, event.target.value as ContextSegmentType)}>
+                  {(Object.keys(SEGMENT_LABELS) as ContextSegmentType[])
+                    .filter((type) => segment.scope === "live" || !["ROLE_DEFINITION", "USER_AVATAR", "CURRENT_SCENE"].includes(type))
+                    .map((type) => <option value={type} key={type}>{SEGMENT_LABELS[type]}</option>)}
+                </select>
+              </label>
+              <p className="preset-segment-text">{segment.text}</p>
+            </div>
+          ))}
+        </div>
+      </details> : null}
 
       <section className="preset-section" aria-labelledby="preset-people-title">
         <div className="preset-section-head preset-subhead-row">

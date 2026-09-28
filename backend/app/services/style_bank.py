@@ -37,7 +37,10 @@ _MARKER = re.compile(r"(?:风格|文风)参考|仅供参考")
 # Natural markers include the owner line 「以下内容是我的信息背景和性癖参考，
 # 或者幻想参考。」 plus bare heads 信息背景 / 性癖参考 / 幻想参考 / 以下内容是,
 # with or without a following （…） / (...).
+# Marker must start at a clause boundary. Mid-sentence 「括号里的内容我的性癖参考」
+# is an inline preference cue, not a free-reference cut (see Context Compiler V2).
 _FREE_REFERENCE = re.compile(
+    r"(?:^|(?<=\n)|(?<=[。！？]))\s*"
     r"(?:"
     r"(?:以下|下面|接下来)[^\n。！？:：]{0,100}(?:参考|素材)"
     r"|"
@@ -48,6 +51,12 @@ _FREE_REFERENCE = re.compile(
     r"(?:[（(][^）\n]{0,80}[）)])?"
     r"[^\n。！？:：]{0,40}[。！？:：]?"
 )
+# Owner inline: 「括号里的内容…性癖参考…禁止照搬（…）」 — paren may be unclosed / nested.
+_INLINE_PREF_HEAD = re.compile(
+    r"括号里的内容[^。！？\n]{0,100}?(?:性癖|幻想|风格)?参考[^。！？\n]{0,100}?禁止照搬"
+)
+_AVATAR_OR_BLANK = re.compile(r"(?:\n\s*\n+\s*|(?=我叫)|(?=我是你的)|(?=我是顾客)|(?=现实背景))")
+
 _OFFSTAGE_CUE = re.compile(r"背景|幻想|风格|文风|素材|资料|人设|性癖|性瘾|参考|以下内容是")
 _RETURN_TO_SCENE = re.compile(
     r"(?:^|\n|(?<=[。！？]))\s*(?:请)?(?:回到|返回|切回|现在回到|当前场景|本场|你是|我们现在)",
@@ -172,16 +181,44 @@ def _split_free_reference(text: str) -> StyleSplit | None:
     return None
 
 
+def peel_inline_preference(text: str) -> tuple[str, str, str] | None:
+    """Return (live_before, preference_body, remainder_after) for owner inline paren prefs."""
+    source = text or ""
+    head = _INLINE_PREF_HEAD.search(source)
+    if not head:
+        return None
+    after = source[head.end() :]
+    after = after.lstrip(" \t\r\n（(")
+    cut = _AVATAR_OR_BLANK.search(after)
+    if cut:
+        pref = after[: cut.start()].strip(" \t\r\n）)")
+        remainder = after[cut.end() :].lstrip() if cut.group(0).startswith("\n") else after[cut.start() :]
+    else:
+        pref = after.strip(" \t\r\n）)")
+        remainder = ""
+    live = source[: head.start()].rstrip("，,；; \t")
+    if not pref:
+        return None
+    return (live.strip(), pref, remainder.strip())
+
+
 def split_style_corpus(text: str) -> StyleSplit:
     """Split explicit offstage reference material from a live user turn."""
-    live, corpora, markers = text or "", [], []
+    source = text or ""
+    peeled = peel_inline_preference(source)
+    if peeled is not None:
+        live_head, _pref, remainder = peeled
+        if remainder.strip():
+            live = re.sub(r"\n{3,}", "\n\n", live_head).strip().rstrip("，,；;：:")
+            return StyleSplit(live=live, corpus=remainder, marker="括号里的内容…禁止照搬")
+    live, corpora, markers = source, [], []
     for _ in range(3):
         split = _split_once(live) or _split_free_reference(live)
         if split is None:
             break
         live, corpora, markers = split.live, [*corpora, split.corpus], [*markers, split.marker]
     if not corpora:
-        return StyleSplit(live=text or "", corpus="")
+        return StyleSplit(live=source, corpus="")
     live = re.sub(r"\n{3,}", "\n\n", live).strip().rstrip("，,；;：:")
     return StyleSplit(live=live, corpus="\n".join(corpora), marker=markers[0])
 

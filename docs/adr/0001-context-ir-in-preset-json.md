@@ -1,0 +1,3 @@
+# Store Context IR with its preset document
+
+The compiled Context IR is versioned and stored in the existing account-scoped preset payload, beside the original source. We considered six new normalized tables for segments, people, relations, events, and preferences. A second write model would require synchronizing every user edit and conversation snapshot across both representations; for the current document-sized, per-account workload the JSON payload is the single source of truth, while the chat router receives a frozen copy. When cross-document queries need indexes, projections can be added from this versioned IR without changing its compiler interface.

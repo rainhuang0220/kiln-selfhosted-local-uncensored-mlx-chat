@@ -40,6 +40,7 @@ from app.services.context_presets import (
     reference_context_for_mention,
     style_bank_for_preset,
 )
+from app.services.context_compiler import route_context
 from app.services.fact_extractor import (
     extract_atoms,
     extract_facts,
@@ -884,30 +885,37 @@ class ChatService:
 
         frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
         if isinstance(frame, dict):
-            active_lines = ["<active_context>", "Only this frame describes the current scene; reference people and events remain offstage."]
-            if frame.get("active_scene"):
-                active_lines.append(f"current_scene: {frame['active_scene']}")
-            if frame.get("user_persona"):
-                active_lines.append(f"user_persona: {frame['user_persona']}")
-            if frame.get("background_facts"):
-                active_lines.append("confirmed_background: " + "；".join(frame["background_facts"]))
-            if frame.get("preferences"):
-                active_lines.append("explicit_preferences: " + "；".join(frame["preferences"]))
             current_cast = [
                 item for item in frame.get("characters") or []
                 if item.get("scope") == "active" and item.get("name")
             ][:8]
-            if current_cast:
-                active_lines.append("current_cast: " + "；".join(
-                    f"{item['name']}（{item.get('role') or '在场人物'}；{item.get('notes') or '无补充'}）"
-                    for item in current_cast
-                ))
-            active_lines.append("</active_context>")
-            active_fence = "\n".join(active_lines)
-            fence = f"{active_fence}\n\n{fence}" if fence else active_fence
-            reference_fence = reference_context_for_mention(frame, last_user)
-            if reference_fence:
-                fence = f"{fence}\n\n{reference_fence}"
+            if isinstance(frame.get("context_ir"), dict) and frame["context_ir"].get("version") == 2:
+                routed = route_context(
+                    frame["context_ir"], last_user,
+                    active_names=[item["name"] for item in current_cast],
+                )
+                fence = f"{routed.fence}\n\n{fence}" if fence else routed.fence
+            else:
+                active_lines = ["<active_context>", "Only this frame describes the current scene; reference people and events remain offstage."]
+                if frame.get("active_scene"):
+                    active_lines.append(f"current_scene: {frame['active_scene']}")
+                if frame.get("user_persona"):
+                    active_lines.append(f"user_persona: {frame['user_persona']}")
+                if frame.get("background_facts"):
+                    active_lines.append("confirmed_background: " + "；".join(frame["background_facts"]))
+                if frame.get("preferences"):
+                    active_lines.append("explicit_preferences: " + "；".join(frame["preferences"]))
+                if current_cast:
+                    active_lines.append("current_cast: " + "；".join(
+                        f"{item['name']}（{item.get('role') or '在场人物'}；{item.get('notes') or '无补充'}）"
+                        for item in current_cast
+                    ))
+                active_lines.append("</active_context>")
+                active_fence = "\n".join(active_lines)
+                fence = f"{active_fence}\n\n{fence}" if fence else active_fence
+                reference_fence = reference_context_for_mention(frame, last_user)
+                if reference_fence:
+                    fence = f"{fence}\n\n{reference_fence}"
 
         if fence and last_user_idx is not None:
             # Keep fences as their own user message so they are not mistaken for user lines.

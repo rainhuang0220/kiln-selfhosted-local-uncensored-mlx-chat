@@ -6,6 +6,7 @@ StyleBank / fantasy corpora stay internal and never render in the SPA payload.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import copy
 import re
@@ -17,8 +18,9 @@ from app.db import get_conn
 from app.providers.base import ChatProvider, ChatRequest
 from app.services import character_cards as cards_mod
 from app.services.scene_graph import _CJK, _is_name
-from app.services.style_bank import StyleBank, split_reference_claims, split_style_corpus
+from app.services.style_bank import StyleBank, peel_inline_preference, split_reference_claims, split_style_corpus
 from app.services.preset_structure import extract_timeline, normalize_timeline
+from app.services.context_compiler import compile_context, refine_ambiguous_segments, route_context
 
 _ROLE_NAME = re.compile(
     r"(?:技师|客人|店主|老板|老师|医生|护士|教练|同事|朋友|邻居|上司|室友)"
@@ -40,7 +42,7 @@ _STOP_PERSON = frozenset(
     {
         "技师", "顾客", "客人", "你", "我", "她", "他", "湿透", "时候", "地方", "感觉",
         "方先", "钥匙放", "没有", "什么", "自己", "对方", "两人", "彼此", "那里", "这里",
-        "现在", "然后", "继续", "慢慢", "轻轻", "一下", "衣服", "地面", "这些", "不是",
+        "现在", "然后", "继续", "慢慢", "轻轻", "一下", "衣服", "地面", "这些", "不是", "两个人",
         "人名", "天气", "感官", "开头", "身份", "尾巴", "混在", "句子", "不能", "盖过",
         "像要", "句尾", "总留", "一口气", "一直", "不肯", "都会", "才会", "已经", "后来",
         "那天", "那晚", "那年", "第二", "春天", "夏天", "秋天", "冬天", "周末", "傍晚",
@@ -56,11 +58,15 @@ _STOP_PERSON = frozenset(
         "地铁", "天色", "高中", "同桌", "校门", "夜跑", "认识", "天气", "感官",
     }
 )
-_JUNK_PERSON = frozenset({"湿透", "方先", "钥匙放"})
+_JUNK_PERSON = frozenset({
+    "湿透", "方先", "钥匙放", "同时", "可能只", "可能", "只是", "因此", "于是", "如果",
+    "这样", "所有", "一切", "外面", "里面", "后面", "前面", "旁边", "对面",
+})
 _ADJECTIVE_OR_VERB = frozenset(
     {
         "湿透", "开始", "下雨", "挂着", "拍打", "积起", "很大", "很凉", "很低", "很直",
         "很急", "很近", "很轻", "走到", "站在", "坐在", "停下", "按下", "递过", "拉上",
+        "同时", "可能",
     }
 )
 
@@ -88,9 +94,9 @@ def _looks_like_person_name(cand: str) -> bool:
         return True
     if not (2 <= len(name) <= 3):
         return False
-    if name[-1] in "总是的了着过们上下出进回里不":
+    if name[-1] in "总是的了着过们上下出进回里不只":
         return False
-    if any(ch in name for ch in "话职杯听肯次不突"):
+    if any(ch in name for ch in "话职杯听肯次不突可"):
         return False
     return _is_name(name)
 
@@ -100,14 +106,22 @@ def _live_scene_line(live: str) -> str:
     text = (live or "").strip()
     if not text:
         return ""
-    # Keep the live paragraph (or first two sentences), not a single clause that
-    # drops shop/room detail already present before the reference marker.
-    para = text.split("\n", 1)[0].strip()
-    parts = re.split(r"(?<=[。！？])", para)
-    scene = "".join(parts[:2]).strip() if parts else para
-    if len(scene) < 8:
-        scene = para
-    return scene[:160].strip()
+    # Skip bare document titles (e.g. 「测试长文本」) before the shop role line.
+    paragraphs = [p.strip() for p in re.split(r"\n+", text) if p.strip()]
+    for para in paragraphs:
+        if re.match(r"^你(?:是|扮演)", para) or "风俗店" in para or "包间" in para or "技师" in para:
+            parts = re.split(r"(?<=[。！？])", para)
+            scene = "".join(parts[:2]).strip() if parts else para
+            return scene[:160].strip()
+        if len(para) <= 20 and not re.search(r"[。！？，,：:]", para) and not re.match(r"^我(?:是|叫)", para):
+            continue
+        parts = re.split(r"(?<=[。！？])", para)
+        scene = "".join(parts[:2]).strip() if parts else para
+        if len(scene) < 8:
+            scene = para
+        return scene[:160].strip()
+    para = paragraphs[0] if paragraphs else text
+    return para[:160].strip()
 
 
 def _live_user_identity(live: str) -> str:
@@ -290,9 +304,24 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     # 「褚衡是顾遥的表哥」— bare 是 + kinship/role, not 不是.
     for m in re.finditer(
         rf"(?<!不)([{_CJK}]{{2,3}})是(?!不)[^，。；;\n]{{0,16}}"
-        rf"(?:室友|同事|邻居|表哥|表妹|店员|店主|管理员|助教|同桌|教练|上司|前任|朋友|同学)",
+        rf"(?:室友|同事|邻居|表哥|表妹|店员|店主|管理员|助教|同桌|教练|上司|前任|朋友|同学|校医|学姐|学长|老师|队长|黑客|家教)",
         text,
     ):
+        cand = m.group(1)
+        if _looks_like_person_name(cand):
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), 1)
+    # 「我姐姐是吴玉蕊」/「然后是惠若琪」— name after 是.
+    for m in re.finditer(
+        rf"(?:姐姐|妹妹|哥哥|弟弟|老师|学姐|学长|校医|队长|然后)是([{_CJK}]{{2,3}})",
+        text,
+    ):
+        cand = m.group(1)
+        if _looks_like_person_name(cand):
+            anchored.add(cand)
+            counts[cand] = max(counts.get(cand, 0), 1)
+    # 「吴玉蕊，20岁」age appositive.
+    for m in re.finditer(rf"([{_CJK}]{{2,3}})[，,]\s*\d{{1,2}}岁", text):
         cand = m.group(1)
         if _looks_like_person_name(cand):
             anchored.add(cand)
@@ -319,6 +348,8 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for name in kept:
         identity = _identity_near(text, name)
+        if identity == "人物" and text.count(name) < 3:
+            continue
         rows.append({
             "name": name,
             "identity": identity,
@@ -341,9 +372,17 @@ def preview_preset(text: str) -> dict[str, Any]:
     head_facts, head_prefs, _ = split_reference_claims(live)
     background_facts = list(dict.fromkeys([*head_facts, *background_facts]))[:12]
     preferences = list(dict.fromkeys([*head_prefs, *preferences]))[:12]
+    peeled = peel_inline_preference(source)
+    if peeled is not None and peeled[1]:
+        preferences = list(dict.fromkeys([peeled[1], *preferences]))[:12]
 
     current_scene = _live_scene_line(live)
     user_identity = _live_user_identity(live)
+    if not user_identity:
+        # First 「我叫…」 in the bible is the user avatar when the live head has no 我是.
+        called = re.search(r"我叫([^，,。；;\n（(]{1,20})", source)
+        if called:
+            user_identity = f"我叫{called.group(1).strip()}"[:40]
 
     # Studio people rows come from corpus harvest — StyleBank stays internal.
     characters = harvest_people_from_corpus(split.corpus or reference_text)
@@ -370,7 +409,7 @@ def preview_preset(text: str) -> dict[str, Any]:
             })
 
     names = [item["name"] for item in characters[:16]]
-    return {
+    draft = {
         "current_scene": current_scene,
         "me": {
             "identity": _slot(user_identity),
@@ -381,6 +420,12 @@ def preview_preset(text: str) -> dict[str, Any]:
         "timeline": extract_timeline(source, split.corpus, names),
         "active_character_ids": [],
     }
+    draft["context_ir"] = compile_context(source, draft)
+    draft["current_scene"] = draft["context_ir"]["current_scene"]
+    if draft["context_ir"]["preferences"]:
+        draft["me"]["explicit_prefs"] = "；".join(item["content"] for item in draft["context_ir"]["preferences"])
+    draft["context_ir"]["preference_field_at_compile"] = draft["me"]["explicit_prefs"]
+    return draft
 
 
 def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") -> dict[str, Any]:
@@ -397,7 +442,7 @@ def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") ->
     # until the user binds them. If none are active, keep an unnamed scene card.
     actor = {
         "name": (primary or {}).get("name") or "",
-        "description": (primary or {}).get("identity") or "",
+        "description": (primary or {}).get("identity") or (body.get("context_ir") or {}).get("persona", {}).get("role") or "",
         "personality": "",
         "scenario": body["current_scene"],
         "speech_style": "",
@@ -425,7 +470,14 @@ def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") ->
         for row in rows if row["scope"] == "reference"
     ]
     events = []
-    if body.get("timeline"):
+    register: list[str] = []
+    techniques: list[str] = []
+    ir = body.get("context_ir") if isinstance(body.get("context_ir"), dict) else {}
+    # Context IR v2: never stuff the Event Ledger or re-mine the bible into the default frame.
+    if ir.get("version") == 2:
+        events = []
+        register, techniques = [], []
+    elif body.get("timeline"):
         events = [
             {
                 "label": f"{item['order']}·{item['when']}",
@@ -442,8 +494,6 @@ def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") ->
         events = [e.__dict__ for e in bank.events]
         register = bank.register
         techniques = bank.techniques
-    else:
-        register, techniques = [], []
     return {
         "active_scene": body["current_scene"],
         "user_persona": identity,
@@ -463,6 +513,7 @@ def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") ->
         "me": body["me"],
         "active_character_ids": body.get("active_character_ids") or [],
         "timeline": body.get("timeline") or [],
+        "context_ir": body.get("context_ir") or {},
     }
 
 
@@ -513,6 +564,7 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
             },
             "characters": characters,
             "timeline": normalize_timeline(payload.get("timeline")),
+            "context_ir": payload.get("context_ir") if isinstance(payload.get("context_ir"), dict) else {},
             "active_character_ids": ids,
         }
 
@@ -549,6 +601,7 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
         },
         "characters": characters,
         "timeline": normalize_timeline(legacy.get("timeline")),
+        "context_ir": legacy.get("context_ir") if isinstance(legacy.get("context_ir"), dict) else {},
         "active_character_ids": [],
     }
 
@@ -603,6 +656,8 @@ def save_simple_library(
     source = str(source_text or "")
     if len(source) > _MAX_SOURCE:
         raise ValueError("source too long")
+    if source:
+        body["context_ir"] = compile_context(source.strip(), body)
 
     requested_active_ids = set(body.get("active_character_ids") or [])
     card_ids: list[str] = []
@@ -633,8 +688,11 @@ def save_simple_library(
         "me": body["me"],
         "characters": characters_out,
         "timeline": body.get("timeline") or [],
+        "context_ir": body.get("context_ir") or {},
         "active_character_ids": active_ids,
     }
+    if source:
+        stored["context_ir"] = compile_context(source.strip(), stored)
     now = int(time.time() * 1000)
     conn = get_conn()
     if preset_id:
@@ -670,7 +728,7 @@ def save_simple_library(
         if source:
             split = split_style_corpus(source)
             if split.corpus:
-                SceneStateStore().save_style(conversation_id, StyleBank.from_corpus(split.corpus).to_dict())
+                SceneStateStore().save_style(conversation_id, style_bank_for_preset(stored).to_dict())
     conn.commit()
     saved = get_preset(rid, owner_id=owner_id)
     assert saved is not None
@@ -697,6 +755,7 @@ def save_preset(
 
 
 def style_bank_for_preset(payload: dict[str, Any], *, source_text: str = "") -> StyleBank:
+    """Compile only explicitly typed preferences; never mine the raw bible for style."""
     frame = chat_frame_from_simple(payload, source_text=source_text)
     refs = frame.get("references") or {}
     active_names = {str(c.get("name")) for c in frame.get("characters") or [] if c.get("scope") == "active"}
@@ -705,18 +764,15 @@ def style_bank_for_preset(payload: dict[str, Any], *, source_text: str = "") -> 
         for p in refs.get("people") or []
         if p.get("name") and p.get("name") not in active_names
     ]
+    ir = frame.get("context_ir") or {}
     bank = StyleBank.from_dict({
         "names": names,
-        "events": refs.get("events") or [],
-        "register": refs.get("register") or [],
-        "techniques": refs.get("techniques") or [],
-        "background_facts": frame.get("background_facts") or [],
-        "preferences": frame.get("preferences") or [],
+        "events": [],
+        "register": [],
+        "techniques": [],
+        "background_facts": [] if ir else frame.get("background_facts") or [],
+        "preferences": [] if ir else frame.get("preferences") or [],
     })
-    if source_text:
-        split = split_style_corpus(source_text)
-        if split.corpus:
-            bank.update(StyleBank.from_corpus(split.corpus))
     bank.scrub()
     bank.digest = bank.render_digest()
     return bank
@@ -726,6 +782,9 @@ def reference_context_for_mention(payload: dict[str, Any], live_message: str) ->
     """Recall only named account characters when the user points at them."""
     message = live_message or ""
     frame = chat_frame_from_simple(payload)
+    if frame.get("context_ir"):
+        active = [item["name"] for item in frame.get("characters") or [] if item.get("scope") == "active" and item.get("name")]
+        return route_context(frame["context_ir"], live_message, active_names=active).reference_fence
     reference_people = [
         item for item in (frame.get("characters") or [])
         if item.get("scope") == "reference" and item.get("name") and item["name"] in message
@@ -1030,4 +1089,11 @@ async def deep_preview_preset(source: str, draft: dict[str, Any], provider: Chat
     result = await provider.complete(request)
     merged = merge_people_extract(source, draft, result.content)
     # Any row still generic after a successful call stays 待补 (honest gap).
-    return mark_pending_identities(merged)
+    enriched = mark_pending_identities(merged)
+    enriched["context_ir"] = compile_context(source, enriched)
+    try:
+        enriched = await asyncio.wait_for(refine_ambiguous_segments(source, enriched, provider), timeout=12)
+    except Exception:
+        # An uncertain label remains visible for human review.
+        pass
+    return enriched

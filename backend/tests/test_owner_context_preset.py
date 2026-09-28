@@ -187,8 +187,12 @@ def test_preview_edit_event_who_save_get_keeps_names(chat_service):
     got = get_preset(saved["id"], owner_id="owner-a")
     assert got is not None
     assert next(c["one_event"] for c in got["payload"]["characters"] if c["name"] == "顾遥") == "顾遥·上海"
+    # V14: Event Ledger stays on the preset; the default chat frame must not stuff it.
+    timeline = got["payload"].get("timeline") or []
+    ir_events = ((got["payload"].get("context_ir") or {}).get("events") or [])
+    assert any(item.get("who") for item in timeline) or any(item.get("actors") for item in ir_events)
     frame = chat_frame_from_simple(got["payload"], source_text=OWNER_MESSAGE)
-    assert any(e.get("who") for e in frame["references"]["events"])
+    assert frame["references"]["events"] == []
 
 
 async def test_bound_preset_survives_three_turns_with_zero_of_ten(chat_service, fake_provider):

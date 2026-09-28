@@ -71,6 +71,16 @@ describe("context preset API", () => {
     expect(draft.timeline).toEqual([]);
   });
 
+  it("keeps editable Context IR when reopening a saved preset", () => {
+    const ir = {
+      version: 2, source_sha256: "abc", persona: { role: "茶师", rules: [] },
+      user_avatar: { identity: "顾客", real_background: "" }, current_scene: "茶室",
+      entities: [], relations: [], events: [], preferences: [], conflicts: [],
+      segments: [{ id: "seg-0", text: "偏好：慢节奏。", type: "USER_PREFERENCE", scope: "reference", importance: 0.8, source_span: { start: 0, end: 8 }, needs_review: false }],
+    };
+    expect(normalizePresetPayload({ ...payload, context_ir: ir }).context_ir).toEqual(ir);
+  });
+
   it("migrates legacy preview blobs into the simple shape", () => {
     const draft = normalizePresetPayload({
       active_scene: "旧茶室",

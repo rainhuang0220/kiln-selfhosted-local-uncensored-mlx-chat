@@ -1554,6 +1554,12 @@ body::before {
 .preset-timeline-detail[open] summary { margin-bottom: 11px; white-space: normal; }
 .preset-timeline-detail .preset-field.wide { margin-top: 9px; }
 .preset-event-evidence { margin: 9px 0 0; padding: 8px 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.55; }
+.preset-segments > summary { cursor: pointer; font: 400 18px/1.3 var(--serif); }
+.preset-segments > p { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.preset-segment-row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); align-items: start; gap: 12px; }
+.preset-segment-text { margin: 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
+.preset-conflict { border-left: 2px solid var(--accent); padding: 6px 10px; }
+@media (max-width: 680px) { .preset-segment-row { grid-template-columns: 1fr; } }
 .preset-small-icon:focus-visible, .preset-timeline-detail summary:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
 .preset-tail-fields { margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--line); }
 .preset-workspace-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 25px 16px; border-top: 1px solid var(--line); background: var(--raised); }

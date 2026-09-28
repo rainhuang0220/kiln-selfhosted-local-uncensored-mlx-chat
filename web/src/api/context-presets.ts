@@ -1,5 +1,5 @@
 import { apiFetch } from "./http";
-import type { ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
+import type { ContextIR, ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -51,6 +51,13 @@ function timelineEvent(raw: unknown, index: number): PresetTimelineEvent {
   };
 }
 
+function contextIR(raw: unknown): ContextIR | undefined {
+  const value = object(raw);
+  if (value.version !== 2 || !Array.isArray(value.segments)) return undefined;
+  // Preserve compiler-owned typed fields and validated source spans for edits.
+  return value as unknown as ContextIR;
+}
+
 export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
   const value = object(raw);
   // Migrate any leftover legacy blobs so the SPA never crashes.
@@ -84,6 +91,7 @@ export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
     me: meSlots(value.me),
     characters: Array.isArray(value.characters) ? value.characters.map(character) : [],
     timeline: Array.isArray(value.timeline) ? value.timeline.map(timelineEvent) : [],
+    context_ir: contextIR(value.context_ir),
     active_character_ids: Array.isArray(value.active_character_ids)
       ? value.active_character_ids.filter((item): item is string => typeof item === "string")
       : [],
