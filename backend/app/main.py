@@ -833,56 +833,58 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                         draft.setdefault("uncertain", []).append(
                             "本机深度分析暂不可用；已保留规则预览。"
                         )
-            return {"draft": draft}
+            from app.services.context_presets import public_studio_payload
+
+            return {"draft": public_studio_payload(draft)}
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
 
     @app.get("/context/presets")
     async def list_context_presets(request: Request):
-        from app.services.context_presets import list_presets
+        from app.services.context_presets import list_presets, studio_record
 
-        return {"object": "list", "data": list_presets(owner_id=_owner(request))}
+        return {"object": "list", "data": [studio_record(item) for item in list_presets(owner_id=_owner(request))]}
 
     @app.post("/context/presets")
     async def create_context_preset(body: ContextPresetBody, request: Request):
-        from app.services.context_presets import save_preset
+        from app.services.context_presets import save_preset, studio_record
 
         try:
-            return save_preset(
+            return studio_record(save_preset(
                 body.title,
                 body.payload,
                 body.source_text,
                 owner_id=_owner(request),
                 conversation_id=body.conversation_id,
-            )
+            ))
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
 
     @app.get("/context/presets/{preset_id}")
     async def get_context_preset(preset_id: str, request: Request):
-        from app.services.context_presets import get_preset
+        from app.services.context_presets import get_preset, studio_record
 
         preset = get_preset(preset_id, owner_id=_owner(request))
         if preset is None:
             return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
-        return preset
+        return studio_record(preset)
 
     @app.patch("/context/presets/{preset_id}")
     async def patch_context_preset(preset_id: str, body: ContextPresetPatchBody, request: Request):
-        from app.services.context_presets import get_preset, save_preset
+        from app.services.context_presets import get_preset, save_preset, studio_record
 
         current = get_preset(preset_id, owner_id=_owner(request))
         if current is None:
             return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
         try:
-            return save_preset(
+            return studio_record(save_preset(
                 body.title if body.title is not None else current["title"],
                 body.payload if body.payload is not None else current["payload"],
                 body.source_text if body.source_text is not None else current["source_text"],
                 owner_id=_owner(request),
                 preset_id=preset_id,
                 conversation_id=body.conversation_id,
-            )
+            ))
         except ValueError as exc:
             return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
 

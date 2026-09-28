@@ -8,13 +8,7 @@ import {
   saveContextPreset,
 } from "../api/context-presets";
 import { useChatStore } from "../stores/chat-store";
-import type { ContextPresetPayload, ContextPresetRecord, ContextSegmentType, SimpleCharacter } from "../types/context-preset";
-
-const SEGMENT_LABELS: Record<ContextSegmentType, string> = {
-  ROLE_DEFINITION: "助手角色", USER_AVATAR: "用户身份", USER_BACKGROUND: "现实背景",
-  USER_PREFERENCE: "偏好与风格", CURRENT_SCENE: "当前场景", ENTITY_DEFINITION: "人物定义",
-  ENTITY_ATTRIBUTE: "人物特征", WORLD_EVENT: "历史事件", DOCUMENT_META: "文档说明", UNKNOWN: "待确认",
-};
+import type { ContextPresetPayload, ContextPresetRecord, SimpleCharacter } from "../types/context-preset";
 
 function displaySlot(value: string): string {
   return value?.trim() ? value : "暂无";
@@ -45,13 +39,6 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
     [next[index], next[to]] = [next[to], next[index]];
     patch({ timeline: next.map((item, at) => ({ ...item, order: at + 1 })) });
   };
-  const patchSegment = (index: number, type: ContextSegmentType) => {
-    if (!payload.context_ir) return;
-    patch({ context_ir: {
-      ...payload.context_ir,
-      segments: payload.context_ir.segments.map((item, at) => at === index ? { ...item, type, needs_review: type === "UNKNOWN" } : item),
-    } });
-  };
 
   return (
     <div className="preset-editor preset-editor-simple">
@@ -79,6 +66,7 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
           <label className="preset-field wide">
             <span>用户身份</span>
             <textarea rows={2} value={displaySlot(payload.me.identity) === "暂无" && !payload.me.identity ? "暂无" : payload.me.identity} onChange={(event) => patchMe("identity", event.target.value)} />
+            {payload.me_identity_helper ? <span className="preset-field-hint">{payload.me_identity_helper}</span> : null}
           </label>
           <label className="preset-field wide">
             <span>现实背景</span>
@@ -91,32 +79,11 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
         </div>
       </section>
 
-      {payload.context_ir?.version === 2 ? <details className="preset-section preset-segments">
-        <summary>文档分区 · {payload.context_ir.segments.length} 段 · {payload.context_ir.segments.filter((item) => item.needs_review).length} 段待确认 · {payload.context_ir.conflicts?.length || 0} 处冲突</summary>
-        <p>先核对每段属于角色、偏好、人物还是历史。参考段不能升级为当前角色或场景。</p>
-        {(payload.context_ir.conflicts || []).map((conflict) => <p className="preset-conflict" key={conflict.source_span.start}>身份冲突：参考段「{conflict.evidence}」未覆盖开头的当前用户身份。</p>)}
-        <div className="preset-rows">
-          {payload.context_ir.segments.map((segment, index) => (
-            <div className="preset-person-row preset-segment-row" key={segment.id}>
-              <label className="preset-field">
-                <span>原文 {segment.source_span.start}–{segment.source_span.end} · {segment.scope === "live" ? "当前" : "参考"}</span>
-                <select value={segment.type} onChange={(event) => patchSegment(index, event.target.value as ContextSegmentType)}>
-                  {(Object.keys(SEGMENT_LABELS) as ContextSegmentType[])
-                    .filter((type) => segment.scope === "live" || !["ROLE_DEFINITION", "USER_AVATAR", "CURRENT_SCENE"].includes(type))
-                    .map((type) => <option value={type} key={type}>{SEGMENT_LABELS[type]}</option>)}
-                </select>
-              </label>
-              <p className="preset-segment-text">{segment.text}</p>
-            </div>
-          ))}
-        </div>
-      </details> : null}
-
       <section className="preset-section" aria-labelledby="preset-people-title">
         <div className="preset-section-head preset-subhead-row">
           <div>
             <h3 id="preset-people-title">人物</h3>
-            <p>账号级人物预设：名称、身份，可选一件事。</p>
+            <p>名称、身份，可选一件已绑定的事。</p>
           </div>
           <button
             type="button"
@@ -160,44 +127,40 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
       <section className="preset-section" aria-labelledby="preset-timeline-title">
         <div className="preset-section-head preset-subhead-row">
           <div>
-            <h3 id="preset-timeline-title">事件顺序</h3>
-            <p>按原文出现顺序整理。时间词只描述各自回忆，不推断不同人物之间的实际先后。</p>
+            <h3 id="preset-timeline-title">已绑定事件</h3>
+            <p>每条事件已挂到已知人物。点名该人物时才会召回对应回忆。</p>
           </div>
           <button type="button" className="btn ghost preset-small-action" onClick={() => patch({
             timeline: [...payload.timeline, {
               id: "manual-" + Date.now(),
               order: payload.timeline.length + 1,
-              who: [], suggested_who: [], summary: "", when: "未注明",
+              who: payload.characters[0]?.name ? [payload.characters[0].name] : [],
+              summary: "", when: "未注明",
               chronology: "source_order", scope: "reference",
-              evidence: "", source_span: null, needs_review: false,
+              evidence: "",
             }],
           })}><Plus size={13} /> 添加事件</button>
         </div>
         <div className="preset-rows">
-          {payload.timeline.length === 0 ? <p className="preset-empty-row">暂无事件。解析长文后会显示有原文依据的事件顺序。</p> : null}
+          {payload.timeline.length === 0 ? <p className="preset-empty-row">暂无已绑定事件。解析长文后会显示有主语的事件。</p> : null}
           {payload.timeline.map((event, index) => (
             <div className="preset-person-row preset-timeline-row" key={event.id}>
               <div className="preset-timeline-heading">
-                <strong>原文顺序 {String(index + 1).padStart(2, "0")}</strong>
-                {event.needs_review ? <span className="preset-review-badge">主语待确认</span> : <span className="preset-reference-badge">参考事件</span>}
+                <strong>{(event.who[0] || "人物")} · {event.summary || "未填写事件"}</strong>
                 <div className="preset-timeline-actions">
                   <button type="button" className="preset-small-icon" aria-label={"上移事件 " + (index + 1)} disabled={index === 0} onClick={() => moveTimeline(index, -1)}>↑</button>
                   <button type="button" className="preset-small-icon" aria-label={"下移事件 " + (index + 1)} disabled={index === payload.timeline.length - 1} onClick={() => moveTimeline(index, 1)}>↓</button>
                   <button type="button" className="preset-remove" aria-label={"移除事件 " + (index + 1)} onClick={() => patch({ timeline: payload.timeline.filter((_, at) => at !== index) })}><Trash2 size={15} /></button>
                 </div>
               </div>
-              <details className="preset-timeline-detail">
-                <summary>{(event.who.length ? event.who : event.suggested_who).join("、") || "待确认人物"} · {event.summary || "未填写事件"}</summary>
-                <div className="preset-row-grid">
-                  <label className="preset-field"><span>涉及人物</span><input value={event.who.join("、")} onChange={(change) => {
-                    const names = change.target.value.split(/[、,，]/).map((name) => name.trim()).filter(Boolean);
-                    patchTimeline(index, { who: names, needs_review: names.length === 0 });
-                  }} placeholder={event.suggested_who.join("、") || "待确认"} /></label>
-                  <label className="preset-field"><span>时间线索</span><input value={event.when} onChange={(change) => patchTimeline(index, { when: change.target.value })} /></label>
-                </div>
-                <label className="preset-field wide"><span>发生的事</span><textarea rows={2} value={event.summary} onChange={(change) => patchTimeline(index, { summary: change.target.value })} /></label>
-                {event.evidence ? <p className="preset-event-evidence">原文依据：{event.evidence}</p> : null}
-              </details>
+              <div className="preset-row-grid">
+                <label className="preset-field"><span>涉及人物</span><input value={event.who.join("、")} onChange={(change) => {
+                  const names = change.target.value.split(/[、,，]/).map((name) => name.trim()).filter(Boolean);
+                  patchTimeline(index, { who: names });
+                }} placeholder="人名" /></label>
+                <label className="preset-field"><span>时间线索</span><input value={event.when} onChange={(change) => patchTimeline(index, { when: change.target.value })} /></label>
+              </div>
+              <label className="preset-field wide"><span>发生的事</span><textarea rows={2} value={event.summary} onChange={(change) => patchTimeline(index, { summary: change.target.value })} /></label>
             </div>
           ))}
         </div>
@@ -281,7 +244,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
       setPayload(draft);
       setNotice(
         draft.characters.length
-          ? `已拆出 ${draft.characters.length} 个人物和 ${draft.timeline.length} 条按原文排列的事件。请核对待确认项后保存。`
+          ? `已拆出 ${draft.characters.length} 个人物和 ${draft.timeline.length} 条已绑定事件。`
           : "未识别出人物行。可手改当前场景与「我」，或手动添加人物。",
       );
     } catch (reason) {

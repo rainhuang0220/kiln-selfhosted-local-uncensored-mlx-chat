@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Context presets V15: binder attaches every Studio event to a harvested person (or drops it), merges consecutive same-who slices into story beats, and strips compiler IR / 待确认 / 文档分区 from the public Studio payload. Chat send stays rules-only; optional 9B binder runs only on 「解析并预览」.
 - StyleBank same-hop intercept strips offstage names from the assistant bubble on the same `message_id` before finalize; singleton corpus names (no「X是她的某角色」frame) enter the bank once. Parenthetical 风格参考 is split and stored for every profile so Interactive / Balanced / Reasoning cannot dump the raw 2.5k corpus (compact `<style_bank>` fence stays immersive-only).
 - Immersive loop-guard: short sensory clauses under 40 characters may recur; three consecutive full sentences still trip `hard_self_loop`. Guard-aborted hops that add fewer than 80 unique characters do not spend a useful auto-continue slot; total provider calls this turn are hard-capped at 6 when `auto_continue_max` is below 6. Immersive `auto_continue_max` is 5; below the 5000-char floor, stub_streak no longer stops Continue (sensory deepening often fails `beat_advanced`).
 - Auto-continue after a guard trim no longer resends a prefix that mlx-lm already holds as a prompt-cache key. The turn's first chat-completions prompt counts as used, and a hop that follows a loop, run-on, stall, or fill-hop trim starts by dropping two tokens instead of one. Untrimmed Continues still drop one token. An exact cache hit had killed the mlx-lm generate thread and ended long Immersive turns in `timeout`.

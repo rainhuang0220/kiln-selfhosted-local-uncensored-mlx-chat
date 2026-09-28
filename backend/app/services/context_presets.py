@@ -20,7 +20,13 @@ from app.services import character_cards as cards_mod
 from app.services.scene_graph import _CJK, _is_name
 from app.services.style_bank import StyleBank, peel_inline_preference, split_reference_claims, split_style_corpus
 from app.services.preset_structure import extract_timeline, normalize_timeline
-from app.services.context_compiler import compile_context, refine_ambiguous_segments, route_context
+from app.services.context_compiler import (
+    bind_timeline_events,
+    bind_with_model,
+    compile_context,
+    refine_ambiguous_segments,
+    route_context,
+)
 
 _ROLE_NAME = re.compile(
     r"(?:技师|客人|店主|老板|老师|医生|护士|教练|同事|朋友|邻居|上司|室友)"
@@ -420,12 +426,76 @@ def preview_preset(text: str) -> dict[str, Any]:
         "timeline": extract_timeline(source, split.corpus, names),
         "active_character_ids": [],
     }
+    # Rules harvest first; binder attaches who or drops orphans before IR compile.
+    draft = bind_timeline_events(source, draft)
     draft["context_ir"] = compile_context(source, draft)
     draft["current_scene"] = draft["context_ir"]["current_scene"]
     if draft["context_ir"]["preferences"]:
         draft["me"]["explicit_prefs"] = "；".join(item["content"] for item in draft["context_ir"]["preferences"])
     draft["context_ir"]["preference_field_at_compile"] = draft["me"]["explicit_prefs"]
     return draft
+
+
+def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:
+    """SPA-facing draft: named people/events only. No IR fields or review homework."""
+    body = normalize_payload(draft)
+    known = {item["name"] for item in body["characters"] if item.get("name")}
+    timeline = []
+    for item in body.get("timeline") or []:
+        who = [name for name in (item.get("who") or []) if name in known]
+        if not who:
+            continue
+        timeline.append({
+            "id": item["id"],
+            "order": len(timeline) + 1,
+            "who": who,
+            "summary": _clean_text(item.get("summary"), 100),
+            "when": _clean_text(item.get("when") or "未注明", 40) or "未注明",
+            "chronology": "source_order",
+            "scope": "active" if item.get("scope") == "active" else "reference",
+            "evidence": _clean_text(item.get("evidence"), 160),
+        })
+    helper = ""
+    conflicts = (draft.get("context_ir") or {}).get("conflicts") if isinstance(draft.get("context_ir"), dict) else None
+    if conflicts:
+        helper = "长文后段出现了另一套自称，仍以开头身份为准。"
+    return {
+        "current_scene": body["current_scene"],
+        "me": body["me"],
+        "me_identity_helper": helper,
+        "characters": body["characters"],
+        "timeline": timeline,
+        "active_character_ids": body.get("active_character_ids") or [],
+        **({"uncertain": list(draft["uncertain"])} if isinstance(draft.get("uncertain"), list) and draft["uncertain"] else {}),
+    }
+
+
+def studio_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Strip compiler IR from an API preset record before it reaches the SPA."""
+    out = dict(record)
+    out["payload"] = public_studio_payload(record.get("payload") or {})
+    return out
+
+
+def rehydrate_timeline_spans(source: str, timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Recover source_span from evidence when the SPA omitted IR fields."""
+    out = []
+    cursor = 0
+    for item in timeline:
+        event = dict(item)
+        span = event.get("source_span") if isinstance(event.get("source_span"), dict) else None
+        evidence = _clean_text(event.get("evidence") or event.get("summary"), 160)
+        if (not span or span.get("start") is None) and evidence and source:
+            at = source.find(evidence, cursor)
+            if at < 0:
+                at = source.find(evidence)
+            if at >= 0:
+                event["source_span"] = {"start": at, "end": at + len(evidence)}
+                cursor = at + len(evidence)
+        event["needs_review"] = False
+        event["suggested_who"] = []
+        out.append(event)
+    return out
 
 
 def chat_frame_from_simple(payload: dict[str, Any], *, source_text: str = "") -> dict[str, Any]:
@@ -657,6 +727,8 @@ def save_simple_library(
     if len(source) > _MAX_SOURCE:
         raise ValueError("source too long")
     if source:
+        body["timeline"] = rehydrate_timeline_spans(source.strip(), body.get("timeline") or [])
+        body = bind_timeline_events(source.strip(), body)
         body["context_ir"] = compile_context(source.strip(), body)
 
     requested_active_ids = set(body.get("active_character_ids") or [])
@@ -692,6 +764,17 @@ def save_simple_library(
         "active_character_ids": active_ids,
     }
     if source:
+        stored["timeline"] = rehydrate_timeline_spans(source.strip(), stored.get("timeline") or [])
+        stored = bind_timeline_events(source.strip(), stored)
+        by_name = {c["name"]: c for c in (stored.get("characters") or []) if c.get("name")}
+        stored["characters"] = [
+            {
+                **row,
+                "one_event": row.get("one_event") or (by_name.get(row["name"]) or {}).get("one_event"),
+            }
+            for row in characters_out
+        ]
+        stored["active_character_ids"] = active_ids
         stored["context_ir"] = compile_context(source.strip(), stored)
     now = int(time.time() * 1000)
     conn = get_conn()
@@ -1090,10 +1173,14 @@ async def deep_preview_preset(source: str, draft: dict[str, Any], provider: Chat
     merged = merge_people_extract(source, draft, result.content)
     # Any row still generic after a successful call stays 待补 (honest gap).
     enriched = mark_pending_identities(merged)
+    # Closed-set binder: attach who or drop; never hand orphans to the Studio.
+    try:
+        enriched = await bind_with_model(source, enriched, provider, timeout_s=25.0)
+    except Exception:
+        enriched = bind_timeline_events(source, enriched)
     enriched["context_ir"] = compile_context(source, enriched)
     try:
         enriched = await asyncio.wait_for(refine_ambiguous_segments(source, enriched, provider), timeout=12)
     except Exception:
-        # An uncertain label remains visible for human review.
         pass
     return enriched

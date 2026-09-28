@@ -23,4 +23,7 @@ Source-grounded past or imagined occurrences, ordered by their appearance in the
 Explicit user preferences that may guide style or interaction. Its entries are not world events and are not literal dialogue to repeat.
 
 **Context IR**:
-The typed, editable representation of document segments, persona, avatar, people, relations, events, and preferences before any generation prompt is assembled.
+The typed, editable representation of document segments, persona, avatar, people, relations, events, and preferences before any generation prompt is assembled. It stays server-side. The Studio public draft only shows current scene, me, characters, and binder-attached events — never segment types, spans, or review badges.
+
+**Event binder**:
+Closed-set decision that attaches each harvested event to a known character name, merges consecutive same-who sentences into one beat, and drops orphans (and under-18 + sexual clips) instead of asking the user to resolve them.

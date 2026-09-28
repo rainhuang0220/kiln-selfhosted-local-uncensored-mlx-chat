@@ -23,9 +23,9 @@ const payload = {
     { name: "小宋", identity: "旧识" },
   ],
   timeline: [{
-    id: "ev-1", order: 1, who: ["小宋"], suggested_who: [], summary: "小宋递来一把伞",
+    id: "ev-1", order: 1, who: ["小宋"], summary: "小宋递来一把伞",
     when: "那天", chronology: "source_order" as const, scope: "reference" as const,
-    evidence: "那天小宋递来一把伞。", source_span: { start: 10, end: 22 }, needs_review: false,
+    evidence: "那天小宋递来一把伞。",
   }],
   active_character_ids: ["c1"],
 };
@@ -71,14 +71,27 @@ describe("context preset API", () => {
     expect(draft.timeline).toEqual([]);
   });
 
-  it("keeps editable Context IR when reopening a saved preset", () => {
+  it("strips Context IR and review homework from Studio payloads", () => {
     const ir = {
       version: 2, source_sha256: "abc", persona: { role: "茶师", rules: [] },
       user_avatar: { identity: "顾客", real_background: "" }, current_scene: "茶室",
       entities: [], relations: [], events: [], preferences: [], conflicts: [],
       segments: [{ id: "seg-0", text: "偏好：慢节奏。", type: "USER_PREFERENCE", scope: "reference", importance: 0.8, source_span: { start: 0, end: 8 }, needs_review: false }],
     };
-    expect(normalizePresetPayload({ ...payload, context_ir: ir }).context_ir).toEqual(ir);
+    const draft = normalizePresetPayload({
+      ...payload,
+      context_ir: ir,
+      timeline: [{
+        id: "ev-1", order: 1, who: ["小宋"], suggested_who: ["阿青"], summary: "小宋递来一把伞",
+        when: "那天", chronology: "source_order", scope: "reference",
+        evidence: "那天小宋递来一把伞。", source_span: { start: 10, end: 22 }, needs_review: true,
+      }],
+    });
+    expect(draft).not.toHaveProperty("context_ir");
+    expect(draft.timeline[0].who).toEqual(["小宋"]);
+    expect(draft.timeline[0]).not.toHaveProperty("needs_review");
+    expect(draft.timeline[0]).not.toHaveProperty("suggested_who");
+    expect(draft.timeline[0]).not.toHaveProperty("source_span");
   });
 
   it("migrates legacy preview blobs into the simple shape", () => {

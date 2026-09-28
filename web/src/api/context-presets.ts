@@ -1,5 +1,5 @@
 import { apiFetch } from "./http";
-import type { ContextIR, ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -33,29 +33,19 @@ function character(raw: unknown): SimpleCharacter {
 
 function timelineEvent(raw: unknown, index: number): PresetTimelineEvent {
   const entry = object(raw);
-  const span = object(entry.source_span);
+  const who = Array.isArray(entry.who)
+    ? entry.who.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+    : [];
   return {
     id: string(entry.id) || "manual-" + index,
     order: index + 1,
-    who: Array.isArray(entry.who) ? entry.who.filter((name): name is string => typeof name === "string") : [],
-    suggested_who: Array.isArray(entry.suggested_who)
-      ? entry.suggested_who.filter((name): name is string => typeof name === "string") : [],
+    who,
     summary: string(entry.summary),
     when: string(entry.when) || "未注明",
     chronology: "source_order",
     scope: entry.scope === "active" ? "active" : "reference",
     evidence: string(entry.evidence),
-    source_span: typeof span.start === "number" && typeof span.end === "number"
-      ? { start: span.start, end: span.end } : null,
-    needs_review: entry.needs_review === true,
   };
-}
-
-function contextIR(raw: unknown): ContextIR | undefined {
-  const value = object(raw);
-  if (value.version !== 2 || !Array.isArray(value.segments)) return undefined;
-  // Preserve compiler-owned typed fields and validated source spans for edits.
-  return value as unknown as ContextIR;
 }
 
 export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
@@ -89,9 +79,12 @@ export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
   return {
     current_scene: string(value.current_scene),
     me: meSlots(value.me),
+    me_identity_helper: string(value.me_identity_helper) || undefined,
     characters: Array.isArray(value.characters) ? value.characters.map(character) : [],
-    timeline: Array.isArray(value.timeline) ? value.timeline.map(timelineEvent) : [],
-    context_ir: contextIR(value.context_ir),
+    // Public binder rows only — drop empty who and never surface IR homework fields.
+    timeline: (Array.isArray(value.timeline) ? value.timeline : [])
+      .map(timelineEvent)
+      .filter((event) => event.who.length > 0),
     active_character_ids: Array.isArray(value.active_character_ids)
       ? value.active_character_ids.filter((item): item is string => typeof item === "string")
       : [],

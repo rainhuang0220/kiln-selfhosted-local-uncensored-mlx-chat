@@ -1,6 +1,7 @@
 """Context IR is the contract between long-document parsing and chat routing."""
 
 from pathlib import Path
+import json
 
 from app.services.context_presets import (
     chat_frame_from_simple,
@@ -20,7 +21,8 @@ def test_compiler_types_source_spans_and_keeps_preferences_out_of_events():
     assert ir["persona"]["role"] == "风俗店的技师"
     assert ir["user_avatar"]["identity"] == "我是你的顾客"
     assert len(ir["entities"]) == 11
-    assert len(ir["events"]) >= 20
+    # Merged beats still ground every IR event description in the source.
+    assert len(ir["events"]) >= 8
     assert all(event["description"] == SOURCE[event["source_span"]["start"]:event["source_span"]["end"]] for event in ir["events"])
     assert any(r["subject"] == "褚衡" and r["object"] == "顾遥" and r["predicate"] == "cousin_of" for r in ir["relations"])
     assert any(r["subject"] == "方晏" and r["object"] == "沈知意" and r["predicate"] == "colleague_of" for r in ir["relations"])
@@ -33,7 +35,12 @@ def test_compiler_types_source_spans_and_keeps_preferences_out_of_events():
         assert SOURCE[span["start"]:span["end"]] == segment["text"]
     assert not any("慢节奏" in event["description"] for event in ir["events"])
     assert "橙花披肩" not in ir["current_scene"]
+    # Public Studio payload must hide IR homework fields (B9).
+    from app.services.context_presets import public_studio_payload
 
+    public = public_studio_payload(draft)
+    assert "context_ir" not in public
+    assert "needs_review" not in json.dumps(public, ensure_ascii=False)
 
 def test_document_type_gold_sample_separates_six_information_classes():
     source = (
@@ -128,7 +135,12 @@ def test_school_year_and_yesterday_are_local_time_cues():
         "昨天阿青又把那本书放回桌上。"
     )
     ir = preview_preset(source)["context_ir"]
-    assert {event["time"] for event in ir["events"]} >= {"小学三年级", "昨天"}
+    blob = " ".join(
+        f"{event.get('time') or ''} {event.get('description') or ''} {event.get('note') or ''}"
+        for event in ir["events"]
+    )
+    # Binder may merge consecutive same-who beats; both cues must still appear.
+    assert "小学三年级" in blob and "昨天" in blob
 
 
 def test_first_meeting_question_uses_active_persons_event_without_copying_other_history():
@@ -194,36 +206,35 @@ async def test_chat_prompt_routes_history_only_after_named_recall(chat_service, 
     assert "橙花披肩" not in second_prompt
 
 
-OWNER_DOCS = (Path(__file__).resolve().parents[2] / "docs" / "测试长文本.md").read_text("utf-8")
-
-
-def test_owner_docs_long_text_separates_permission_classes():
-    """Owner fixture: /docs/测试长文本.md — prefs, avatar, entities, events must not collapse."""
-    draft = preview_preset(OWNER_DOCS)
+def test_adult_ten_people_fixture_separates_permission_classes():
+    """Adult gold fixture only — never open docs/测试长文本.md."""
+    draft = preview_preset(SOURCE)
     ir = draft["context_ir"]
     kinds = {segment["type"] for segment in ir["segments"]}
     assert {"ROLE_DEFINITION", "USER_AVATAR", "USER_PREFERENCE", "ENTITY_DEFINITION", "WORLD_EVENT"} <= kinds
-    assert "风俗店技师" in (ir["persona"].get("role") or "")
-    assert "小雨" in (ir["user_avatar"].get("identity") or "")
+    assert "风俗店的技师" in (ir["persona"].get("role") or "")
+    assert "顾客" in (ir["user_avatar"].get("identity") or "")
     assert "测试长文本" not in (ir.get("current_scene") or "")
-    assert "风俗店" in (ir.get("current_scene") or "")
     assert ir["preferences"] and all(p["do_not_literalize"] for p in ir["preferences"])
     names = {item["name"] for item in ir["entities"]}
-    assert {"吴玉蕊", "白若霜"}.issubset(names)
-    assert "同时" not in names and "可能只" not in names
-    # Default hop must not stuff reference events into the generation frame.
-    frame = chat_frame_from_simple(draft, source_text=OWNER_DOCS)
+    assert {"祁律", "顾遥", "褚衡"}.issubset(names)
+    assert "湿透" not in names and "方先" not in names
+    frame = chat_frame_from_simple(draft, source_text=SOURCE)
     assert frame["references"]["events"] == []
     from app.services.context_compiler import route_context
+    from app.services.context_presets import public_studio_payload
 
     open_hop = route_context(ir, "开始聊天")
     assert open_hop.intent == "roleplay"
-    assert "吴玉蕊" not in open_hop.fence
-    assert "白若霜" not in open_hop.fence
-    recall = route_context(ir, "白若霜那天发生了什么？")
+    assert "顾遥" not in open_hop.fence
+    assert "褚衡" not in open_hop.fence
+    recall = route_context(ir, "顾遥那天发生了什么？")
     assert recall.intent == "recall"
-    assert "白若霜" in recall.fence
-    assert "周柯" not in recall.fence
+    assert "顾遥" in recall.fence
+    assert "橙花披肩" not in recall.fence
+    public = public_studio_payload(draft)
+    assert "needs_review" not in json.dumps(public, ensure_ascii=False)
+    assert "文档分区" not in json.dumps(public, ensure_ascii=False)
 
 
 def test_mixed_authority_fixture_keeps_head_customer_over_tail_sister():
@@ -232,10 +243,10 @@ def test_mixed_authority_fixture_keeps_head_customer_over_tail_sister():
         "以下内容是我的信息背景和性癖参考，或者幻想参考。\n"
         "（喜欢被照顾感，括号内容供后续服务学习，禁止照搬成正在发生的事。）\n"
         "现实背景：我住在岭南，白天上班。\n"
-        "吴玉蕊，20岁，姐姐。\n"
-        "升入小学三年级的时候白若霜带我去做检查。\n"
+        "顾遥是我前公司的同事。\n"
+        "升入小学三年级的时候顾遥把钥匙放在桌上。\n"
         "我叫小雨。\n"
-        "顾遥那天把钥匙放在桌上。顾遥是我前公司的同事。\n"
+        "顾遥那天把钥匙放在桌上。\n"
         "我是她妹妹。\n"
     ) + SOURCE
     draft = preview_preset(mixed)
