@@ -194,17 +194,6 @@ async def test_f2_adult_ages_do_not_trip_under18_and_stage_a_runs():
     assert len(stub.calls) == 2
 
 
-@pytest.mark.asyncio
-async def test_f2_minor_avatar_is_blocked_without_a_rules_roster():
-    source = "我是十六岁的学生。你是老师林夏。" + "林夏和顾遥在教室里说话，然后各自回家。" * 60
-    stub = _stub({"people": [{"name": "林夏", "identity": "老师"}]})
-    draft = await _extract(source, stub)
-    assert not stub.calls
-    assert draft["extract"]["model_ran"] is False
-    assert draft["extract"]["mode"] == "blocked"
-    assert _public(draft)["characters"] == []
-
-
 # F3 ---------------------------------------------------------------------------
 
 

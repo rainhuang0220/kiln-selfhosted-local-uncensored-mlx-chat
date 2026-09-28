@@ -56,7 +56,7 @@ describe("context preset workspace", () => {
     expect(previewStatus({ mode: "model_failed", model_ran: false }))
       .toEqual({ line: "模型没有分析，请重试。没有使用规则名册。", failed: true });
     expect(previewStatus({ mode: "busy", model_ran: false }).failed).toBe(true);
-    expect(previewStatus({ mode: "blocked", model_ran: false }).line).toContain("没有使用规则名册");
+    expect(previewStatus({ mode: "blocked", model_ran: false }).line).toBe("模型没有分析，请重试。没有使用规则名册。");
     expect(previewStatus({ mode: "rules_short", model_ran: false }).failed).toBe(false);
   });
 });

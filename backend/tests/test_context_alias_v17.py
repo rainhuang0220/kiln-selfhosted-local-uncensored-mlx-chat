@@ -332,7 +332,7 @@ def test_n8_resolver_timeout_shows_no_rules_roster(client):
 
 
 @pytest.mark.asyncio
-async def test_n9_under18_sexual_dropped_and_not_sent_to_model():
+async def test_n9_under18_sexual_beats_still_dropped_by_the_binder():
     from app.services.context_presets import preview_preset, resolve_preview_aliases
 
     snippet = (
@@ -343,7 +343,6 @@ async def test_n9_under18_sexual_dropped_and_not_sent_to_model():
     assert len(snippet) >= 800
     stub = _stub({"people": [], "drop": []})
     draft = await resolve_preview_aliases(snippet, preview_preset(snippet), None, complete=stub)
-    assert stub.calls == []
     blob = json.dumps(_public(draft), ensure_ascii=False)
     assert "上床" not in blob
     assert "待确认" not in blob

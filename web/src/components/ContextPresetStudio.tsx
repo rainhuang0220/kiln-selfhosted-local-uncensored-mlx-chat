@@ -19,7 +19,6 @@ function displaySlot(value: string): string {
 export function previewStatus(extract: PresetExtractMeta | null): { line: string; failed: boolean } {
   if (!extract || extract.mode === "rules_short") return { line: "短文按规则整理，未调用模型。", failed: false };
   if (extract.model_ran) return { line: `模型已分析 · ${Math.round(extract.elapsed_s ?? 0)}s`, failed: false };
-  if (extract.mode === "blocked") return { line: "模型没有分析：内容涉及未满十八岁的人物。没有使用规则名册。", failed: true };
   return { line: MODEL_DID_NOT_ANALYZE, failed: true };
 }
 

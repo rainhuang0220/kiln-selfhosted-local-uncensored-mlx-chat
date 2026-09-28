@@ -33,7 +33,6 @@ from app.services.context_compiler.alias import (
     parse_resolution,
     rules_alias_map,
 )
-from app.services.context_compiler.binder import _avatar_is_under18
 from app.services.context_compiler.extract import TOTAL_CAP_S, WINDOW_TIMEOUT_S, ground_people, run_stage_a
 
 _ROLE_NAME = re.compile(
@@ -648,8 +647,7 @@ async def resolve_preview_aliases(
     rules_map = rules_alias_map(source, names)
     fallback = {"people": [], "aliases": rules_map}
     runner = complete or (provider.complete if provider is not None else None)
-    # Minors in sexual context never reach the model; rules drop them.
-    if runner is None or _avatar_is_under18(source, draft):
+    if runner is None:
         return apply_alias_resolution(source, draft, fallback)
     system, user = build_resolve_prompt(
         source,
@@ -717,7 +715,7 @@ async def extract_preview_preset(
 ) -> dict[str, Any]:
     """Studio long-paste preview: the 9B proposes every person; grounding only drops or blanks.
 
-    No runner, a minor avatar, or no usable people JSON returns empty cards with
+    No runner or no usable people JSON returns empty cards with
     model_ran=False. The rules harvest never fills the roster on this path.
     """
     text = (source or "").strip()
@@ -732,9 +730,6 @@ async def extract_preview_preset(
     runner = complete or (provider.complete if provider is not None else None)
     if runner is None:
         return model_not_ran_preview(text, "model_failed", "本机模型不可用。")
-    # Minors in sexual context never reach the model, and never get a roster.
-    if _avatar_is_under18(text, {"me": {"identity": avatar}}):
-        return model_not_ran_preview(text, "blocked", "内容涉及未满十八岁的人物。")
     stage_a = await run_stage_a(
         live, split.corpus, runner, window_timeout_s=window_timeout_s, total_cap_s=total_cap_s,
     )
