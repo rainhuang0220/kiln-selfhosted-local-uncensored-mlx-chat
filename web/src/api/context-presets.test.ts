@@ -22,6 +22,11 @@ const payload = {
     { id: "c1", name: "阿青", identity: "茶师", one_event: "初识" },
     { name: "小宋", identity: "旧识" },
   ],
+  timeline: [{
+    id: "ev-1", order: 1, who: ["小宋"], suggested_who: [], summary: "小宋递来一把伞",
+    when: "那天", chronology: "source_order" as const, scope: "reference" as const,
+    evidence: "那天小宋递来一把伞。", source_span: { start: 10, end: 22 }, needs_review: false,
+  }],
   active_character_ids: ["c1"],
 };
 
@@ -40,6 +45,8 @@ describe("context preset API", () => {
     expect(draft.me.real_background).toBe("住在城南");
     expect(draft.characters[0].name).toBe("阿青");
     expect(draft.characters[0].identity).toBe("茶师");
+    expect(draft.timeline[0].who).toEqual(["小宋"]);
+    expect(draft.timeline[0].evidence).toBe("那天小宋递来一把伞。");
     expect(mocked).toHaveBeenCalledWith("/context/presets/preview", expect.objectContaining({
       method: "POST", body: JSON.stringify({ text: longText, deep: true }),
     }));
@@ -61,6 +68,7 @@ describe("context preset API", () => {
     expect(draft.me.identity).toBe("暂无");
     expect(draft.me.real_background).toBe("暂无");
     expect(draft.me.explicit_prefs).toBe("暂无");
+    expect(draft.timeline).toEqual([]);
   });
 
   it("migrates legacy preview blobs into the simple shape", () => {

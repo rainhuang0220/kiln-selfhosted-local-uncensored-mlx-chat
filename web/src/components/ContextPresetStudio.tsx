@@ -29,6 +29,16 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
       characters: payload.characters.map((item, at) => (at === index ? { ...item, ...value } : item)),
     });
   };
+  const patchTimeline = (index: number, value: Partial<ContextPresetPayload["timeline"][number]>) => {
+    patch({ timeline: payload.timeline.map((item, at) => at === index ? { ...item, ...value } : item) });
+  };
+  const moveTimeline = (index: number, direction: number) => {
+    const next = [...payload.timeline];
+    const to = index + direction;
+    if (to < 0 || to >= next.length) return;
+    [next[index], next[to]] = [next[to], next[index]];
+    patch({ timeline: next.map((item, at) => ({ ...item, order: at + 1 })) });
+  };
 
   return (
     <div className="preset-editor preset-editor-simple">
@@ -112,6 +122,52 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
           ))}
         </div>
       </section>
+
+      <section className="preset-section" aria-labelledby="preset-timeline-title">
+        <div className="preset-section-head preset-subhead-row">
+          <div>
+            <h3 id="preset-timeline-title">事件顺序</h3>
+            <p>按原文出现顺序整理。时间词只描述各自回忆，不推断不同人物之间的实际先后。</p>
+          </div>
+          <button type="button" className="btn ghost preset-small-action" onClick={() => patch({
+            timeline: [...payload.timeline, {
+              id: "manual-" + Date.now(),
+              order: payload.timeline.length + 1,
+              who: [], suggested_who: [], summary: "", when: "未注明",
+              chronology: "source_order", scope: "reference",
+              evidence: "", source_span: null, needs_review: false,
+            }],
+          })}><Plus size={13} /> 添加事件</button>
+        </div>
+        <div className="preset-rows">
+          {payload.timeline.length === 0 ? <p className="preset-empty-row">暂无事件。解析长文后会显示有原文依据的事件顺序。</p> : null}
+          {payload.timeline.map((event, index) => (
+            <div className="preset-person-row preset-timeline-row" key={event.id}>
+              <div className="preset-timeline-heading">
+                <strong>原文顺序 {String(index + 1).padStart(2, "0")}</strong>
+                {event.needs_review ? <span className="preset-review-badge">主语待确认</span> : <span className="preset-reference-badge">参考事件</span>}
+                <div className="preset-timeline-actions">
+                  <button type="button" className="preset-small-icon" aria-label={"上移事件 " + (index + 1)} disabled={index === 0} onClick={() => moveTimeline(index, -1)}>↑</button>
+                  <button type="button" className="preset-small-icon" aria-label={"下移事件 " + (index + 1)} disabled={index === payload.timeline.length - 1} onClick={() => moveTimeline(index, 1)}>↓</button>
+                  <button type="button" className="preset-remove" aria-label={"移除事件 " + (index + 1)} onClick={() => patch({ timeline: payload.timeline.filter((_, at) => at !== index) })}><Trash2 size={15} /></button>
+                </div>
+              </div>
+              <details className="preset-timeline-detail">
+                <summary>{(event.who.length ? event.who : event.suggested_who).join("、") || "待确认人物"} · {event.summary || "未填写事件"}</summary>
+                <div className="preset-row-grid">
+                  <label className="preset-field"><span>涉及人物</span><input value={event.who.join("、")} onChange={(change) => {
+                    const names = change.target.value.split(/[、,，]/).map((name) => name.trim()).filter(Boolean);
+                    patchTimeline(index, { who: names, needs_review: names.length === 0 });
+                  }} placeholder={event.suggested_who.join("、") || "待确认"} /></label>
+                  <label className="preset-field"><span>时间线索</span><input value={event.when} onChange={(change) => patchTimeline(index, { when: change.target.value })} /></label>
+                </div>
+                <label className="preset-field wide"><span>发生的事</span><textarea rows={2} value={event.summary} onChange={(change) => patchTimeline(index, { summary: change.target.value })} /></label>
+                {event.evidence ? <p className="preset-event-evidence">原文依据：{event.evidence}</p> : null}
+              </details>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -191,7 +247,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
       setPayload(draft);
       setNotice(
         draft.characters.length
-          ? `已拆出 ${draft.characters.length} 个人物短行。请核对后保存。`
+          ? `已拆出 ${draft.characters.length} 个人物和 ${draft.timeline.length} 条按原文排列的事件。请核对待确认项后保存。`
           : "未识别出人物行。可手改当前场景与「我」，或手动添加人物。",
       );
     } catch (reason) {
@@ -247,7 +303,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
           <div>
             <p className="eyebrow">KILN / 人物预设</p>
             <h2 id="preset-workspace-title" tabIndex={-1} ref={headingRef}>人物预设</h2>
-            <p>粘贴长文，拆成场景、我、短人物行。素材库不显示。</p>
+            <p>粘贴长文，拆成当前场景、人物关系与可核对原文的事件顺序。</p>
           </div>
           <button type="button" className="icon-btn" aria-label="关闭人物预设" onClick={onClose}><X size={18} /></button>
         </header>
@@ -281,7 +337,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
             <div className="preset-source-input">
               <span className="preset-index">SOURCE</span>
               <label htmlFor="preset-source-text">粘贴长文本</label>
-              <p>一框到底。解析只出场景、我、人物短行。</p>
+              <p>一框到底。先定位人物和事件，再由本机小模型补足语义。</p>
               <textarea
                 id="preset-source-text"
                 value={sourceText}

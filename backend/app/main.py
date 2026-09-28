@@ -824,7 +824,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                     try:
                         draft = await asyncio.wait_for(
                             deep_preview_preset(body.text, draft, provider),
-                            timeout=25,
+                            timeout=50,
                         )
                         draft.setdefault("uncertain", [])
                     except Exception:

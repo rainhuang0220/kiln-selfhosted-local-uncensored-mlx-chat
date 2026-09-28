@@ -1,5 +1,5 @@
 import { apiFetch } from "./http";
-import type { ContextPresetPayload, ContextPresetRecord, MeSlots, SimpleCharacter } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -31,6 +31,26 @@ function character(raw: unknown): SimpleCharacter {
   };
 }
 
+function timelineEvent(raw: unknown, index: number): PresetTimelineEvent {
+  const entry = object(raw);
+  const span = object(entry.source_span);
+  return {
+    id: string(entry.id) || "manual-" + index,
+    order: index + 1,
+    who: Array.isArray(entry.who) ? entry.who.filter((name): name is string => typeof name === "string") : [],
+    suggested_who: Array.isArray(entry.suggested_who)
+      ? entry.suggested_who.filter((name): name is string => typeof name === "string") : [],
+    summary: string(entry.summary),
+    when: string(entry.when) || "未注明",
+    chronology: "source_order",
+    scope: entry.scope === "active" ? "active" : "reference",
+    evidence: string(entry.evidence),
+    source_span: typeof span.start === "number" && typeof span.end === "number"
+      ? { start: span.start, end: span.end } : null,
+    needs_review: entry.needs_review === true,
+  };
+}
+
 export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
   const value = object(raw);
   // Migrate any leftover legacy blobs so the SPA never crashes.
@@ -55,6 +75,7 @@ export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
           : "暂无",
       },
       characters: legacyChars,
+      timeline: [],
       active_character_ids: [],
     };
   }
@@ -62,6 +83,7 @@ export function normalizePresetPayload(raw: unknown): ContextPresetPayload {
     current_scene: string(value.current_scene),
     me: meSlots(value.me),
     characters: Array.isArray(value.characters) ? value.characters.map(character) : [],
+    timeline: Array.isArray(value.timeline) ? value.timeline.map(timelineEvent) : [],
     active_character_ids: Array.isArray(value.active_character_ids)
       ? value.active_character_ids.filter((item): item is string => typeof item === "string")
       : [],
@@ -73,6 +95,7 @@ export function emptyPresetPayload(): ContextPresetPayload {
     current_scene: "",
     me: { identity: "暂无", real_background: "暂无", explicit_prefs: "暂无" },
     characters: [],
+    timeline: [],
     active_character_ids: [],
   };
 }
@@ -107,7 +130,7 @@ function record(raw: unknown): ContextPresetRecord {
 }
 
 export async function previewContextPreset(text: string): Promise<ContextPresetPayload> {
-  // 「解析并预览」 only: rules harvest + optional clipped 9B fill (server timeout ~25s).
+  // 「解析并预览」 only: rules harvest + optional clipped 9B fill (server timeout 50s).
   const response = await apiFetch("/context/presets/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

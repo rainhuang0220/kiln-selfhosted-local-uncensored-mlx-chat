@@ -1539,6 +1539,22 @@ body::before {
 .preset-row-grid .preset-field { flex: 1 1 0; }
 .preset-remove { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--faint); }
 .preset-remove:hover { border-color: var(--danger); color: var(--danger); }
+.preset-timeline-row { gap: 7px; }
+.preset-timeline-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.preset-timeline-heading strong { color: var(--copper-2); font: 600 10px var(--mono); letter-spacing: 0.08em; }
+.preset-review-badge, .preset-reference-badge { padding: 3px 6px; border-radius: 5px; font-size: 10px; }
+.preset-review-badge { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.preset-reference-badge { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+.preset-timeline-actions { display: flex; gap: 4px; margin-left: auto; }
+.preset-small-icon { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); }
+.preset-small-icon:hover:not(:disabled) { color: var(--copper-2); border-color: var(--copper); }
+.preset-small-icon:disabled { opacity: 0.35; }
+.preset-timeline-detail { min-width: 0; }
+.preset-timeline-detail summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--bone); font-size: 12px; line-height: 1.5; }
+.preset-timeline-detail[open] summary { margin-bottom: 11px; white-space: normal; }
+.preset-timeline-detail .preset-field.wide { margin-top: 9px; }
+.preset-event-evidence { margin: 9px 0 0; padding: 8px 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.55; }
+.preset-small-icon:focus-visible, .preset-timeline-detail summary:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
 .preset-tail-fields { margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--line); }
 .preset-workspace-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 25px 16px; border-top: 1px solid var(--line); background: var(--raised); }
 .preset-foot-copy { display: grid; gap: 3px; min-width: 0; }
