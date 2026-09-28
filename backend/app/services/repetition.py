@@ -137,11 +137,12 @@ _TERMINATORS = "。！？!?…）)"
 _CLOSERS = "”」』\"'"
 
 
-def repeated_sentence_start(text: str, *, min_chars: int = 16) -> int | None:
+def repeated_sentence_start(text: str, *, min_chars: int = 16, prior: str = "") -> int | None:
     """Start of the just-finished sentence if it already appears earlier in text.
 
     Catches multi-paragraph cycles that never repeat back-to-back. Short
-    refrains (a quoted line under min_chars) are allowed to recur.
+    refrains (a quoted line under min_chars) are allowed to recur. ``prior`` is
+    the previous reply: a turn that re-types its sentences is looping too.
     """
     end = len(text.rstrip())
     k = end
@@ -160,7 +161,51 @@ def repeated_sentence_start(text: str, *, min_chars: int = 16) -> int | None:
     sentence = text[start:end]
     if len(_WS.sub("", sentence)) < min_chars:
         return None
-    return start if text.find(sentence, 0, start) != -1 else None
+    if text.find(sentence, 0, start) != -1 or (prior and sentence in prior):
+        return start
+    return None
+
+
+_PUNCT = re.compile(r"[\s，,。！？!?…（）()“”「」『』、；;：:—\-*]+")
+
+
+def _sentence_spans(text: str) -> list[tuple[int, str]]:
+    spans, begin = [], 0
+    for i, ch in enumerate(text):
+        if ch not in _TERMINATORS and ch != "\n":
+            continue
+        if i + 1 < len(text) and text[i + 1] in _TERMINATORS:
+            continue
+        piece = text[begin : i + 1]
+        core = _PUNCT.sub("", piece)
+        if core:
+            spans.append((begin + len(piece) - len(piece.lstrip()), core))
+        begin = i + 1
+    return spans
+
+
+def refrain_run_start(
+    text: str, *, window: int = 6, hits: int = 3, gram: int = 4, min_chars: int = 8
+) -> int | None:
+    """Cut index when one short phrase recurs in ``hits`` of the last ``window`` sentences.
+
+    Catches slot-filled templates (「手臂也放松一下」「背部也放松一下」…) and option
+    menus whose lines differ in one word, so no whole sentence ever repeats. The
+    first sentence of the run is kept; the cut lands on the second.
+    """
+    body = text.rstrip()
+    if not body or body[-1] not in _TERMINATORS:
+        return None
+    spans = [s for s in _sentence_spans(body) if len(s[1]) >= min_chars]
+    if len(spans) < window:
+        return None
+    tail = spans[-window:]
+    grams = [{core[i : i + gram] for i in range(len(core) - gram + 1)} for _, core in tail]
+    for piece in grams[-1]:
+        idx = [k for k, found in enumerate(grams) if piece in found]
+        if len(idx) >= hits:
+            return tail[idx[1]][0]
+    return None
 
 
 def _trigrams(text: str) -> set[str]:

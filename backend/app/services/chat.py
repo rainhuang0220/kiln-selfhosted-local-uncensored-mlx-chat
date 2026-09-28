@@ -79,7 +79,12 @@ from app.services.scene_graph import (
     next_beat_hint,
     violation_start,
 )
-from app.services.repetition import hard_self_loop, repeated_sentence_start, tail_window_loop
+from app.services.repetition import (
+    hard_self_loop,
+    refrain_run_start,
+    repeated_sentence_start,
+    tail_window_loop,
+)
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
 from app.services.thinking import (
@@ -1956,7 +1961,11 @@ class ChatService:
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
                                 break
-                            loop_at = repeated_sentence_start(content_buf) if immersive_turn else None
+                            loop_at = None
+                            if immersive_turn:
+                                loop_at = repeated_sentence_start(content_buf, prior=echo.previous)
+                                if loop_at is None:
+                                    loop_at = refrain_run_start(content_buf)
                             if loop_at is not None:
                                 lookup = getattr(self.tokenizer, "first_token", None)
                                 first = lookup(content_buf[loop_at:]) if lookup else None

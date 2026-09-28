@@ -162,3 +162,57 @@ async def test_fill_hop_fence_carries_next_beat(require_chat_template, chat_serv
     later = "\n".join(m.get("content") or "" for m in calls[1].messages)
     assert "<next_beat>" not in first
     assert "<next_beat>" in later
+
+
+# Slot-filled template from a live cycle-5 hop: no ≥16-char sentence repeats verbatim.
+_REFRAIN = (
+    "（伸手轻轻整理了一下你肩头的衣物，动作细致而体贴）\n衣服也整理一下，这样更舒服。\n"
+    "（另一只手顺势抚过你的手臂，感受肌肤的温度和质感）\n手臂也放松一下，感觉是不是更轻松了？\n"
+    "（身体微微前倾，几乎贴近你的背部，感受背部的线条）\n背部也放松一下，看看能有多松。\n"
+    "（手臂再次轻轻抬起，这次动作更加流畅而自然）\n手臂再放松一下，感觉是不是更轻盈了？\n"
+)
+
+
+def test_refrain_run_cuts_slot_template_and_keeps_first_line():
+    from app.services.repetition import refrain_run_start
+
+    cut = refrain_run_start(_REFRAIN)
+    assert cut is not None
+    kept = _REFRAIN[:cut]
+    assert "手臂也放松一下" in kept
+    assert "背部也放松一下" not in kept
+
+
+def test_refrain_run_cuts_option_menu():
+    from app.services.repetition import refrain_run_start
+
+    menu = (
+        "（她把门帘放下，指尖拂过矮桌上的温水杯）\n“水温刚好，您先润润嗓子。”\n"
+        "（她把毛巾放下，笑着看你）\n“客人，今晚想怎么安排呢？”\n\n**下一步行动提示：**\n"
+        "- **选项 A**：如果您想看菜单或服务项目介绍。\n"
+        "- **选项 B**：如果您想直接说明需求或想要的项目。\n"
+        "- **选项 C**：如果您想先了解环境或氛围。\n"
+    )
+    cut = refrain_run_start(menu)
+    assert cut is not None
+    assert "选项 B" not in menu[:cut]
+
+
+def test_refrain_run_quiet_on_prose_fixtures():
+    from app.services.repetition import refrain_run_start
+
+    for name in ("preset_dense_adult_twelve.txt", "preset_shared_scene_ten.txt"):
+        text = (FIXTURES / name).read_text("utf-8")
+        for n in range(1, len(text) + 1):
+            assert refrain_run_start(text[:n]) is None, (name, n)
+
+
+def test_repeated_sentence_start_sees_previous_reply():
+    from app.services.repetition import repeated_sentence_start
+
+    prior = "（手臂微微用力，将整个手臂的重量轻轻靠在你的肩膀上，感受你的反应）\n就这样。"
+    text = "（侧身向你走近两步，围裙系带轻轻晃）\n好，那再靠近一点。\n（手臂微微用力，将整个手臂的重量轻轻靠在你的肩膀上，感受你的反应）"
+    start = repeated_sentence_start(text, prior=prior)
+    assert start is not None and text[start:].startswith("（手臂微微用力")
+    assert repeated_sentence_start(text) is None
+    assert repeated_sentence_start("好，那再靠近一点。", prior="好，那再靠近一点。") is None

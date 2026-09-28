@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from app.providers.base import ChatChunk, ChatRequest
@@ -76,11 +78,13 @@ def test_count_output_chars_ignores_whitespace():
 
 
 def _varied(n: int, tag: str) -> str:
-    # Avoid hard_self_loop on identical glyph runs.
+    # Distinct glyphs per sentence: the loop guards read a shared phrase as a template.
+    rng = random.Random(tag)
     parts = []
     while count_output_chars("".join(parts)) < n:
         i = len(parts)
-        parts.append(f"{tag}{i}动作与呼吸变化，场景向前推进。")
+        body = "".join(chr(rng.randint(0x4E00, 0x9FA5)) for _ in range(16))
+        parts.append(f"{tag}{i}{body}。")
     return "".join(parts)
 
 
@@ -223,7 +227,7 @@ async def test_stalled_hop_backs_up_a_sentence_instead_of_one_token(
     """
     opening = _varied(1500, "开")
     last = "她把铜钥匙放回柜台，指尖在木纹上停了一下。"
-    repeat = "开0动作与呼吸变化，场景向前推进。"
+    repeat = opening[: opening.index("。") + 1]
     fill = _varied(4200, "续")
     sent_contents: list[str] = []
     calls = {"n": 0}
