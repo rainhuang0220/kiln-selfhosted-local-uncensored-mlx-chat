@@ -13,6 +13,7 @@
 | 3 | 6f12e6a | 7 | 2 1 0 1 1 2 | sync #1 to live (120145f); style digest + grounded senses (68e1b0f) |
 | 4 | 68e1b0f | 10 | 2 2 2 1 1 2 | next_beat fence on fill hops |
 | 5 | e21b213 | 9 | 2 2 2 0 1 2 | refrain + cross-turn echo guard |
+| 6 | 4964338 | 10 | 2 2 2 1 1 2 | echo reference on resume hops + short-line repeat guard |
 
 ## Next
-Cycle 6: measure refrain/echo guard. no_gain_streak=1. Full suite 613 pass.
+Cycle 7: measure line guard. no_gain_streak=2 (stop if cycle 7 <= 10). Full suite 615 pass.

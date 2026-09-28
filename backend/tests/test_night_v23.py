@@ -216,3 +216,70 @@ def test_repeated_sentence_start_sees_previous_reply():
     assert start is not None and text[start:].startswith("（手臂微微用力")
     assert repeated_sentence_start(text) is None
     assert repeated_sentence_start("好，那再靠近一点。", prior="好，那再靠近一点。") is None
+
+
+def test_repeated_line_start_catches_short_refrain_lines():
+    from app.services.repetition import repeated_line_start
+
+    text = "“只要一声，我就在。”\n\n（指尖勾住你衣领）\n\n“只要一声，我就在。”"
+    start = repeated_line_start(text)
+    assert start is not None and text[start:].startswith("“只要一声")
+    assert repeated_line_start("“我在呢。”\n\n（笑）\n\n“我在呢。”") is None
+    assert repeated_line_start("（她把毛巾递过来）\n“我就在这儿，陪着您。”", prior="“我就在这儿……陪着您。”") is not None
+
+
+def _noise(n: int, tag: str) -> str:
+    import random
+
+    rng = random.Random(tag)
+    parts: list[str] = []
+    while sum(len(p) for p in parts) < n:
+        body = "".join(chr(rng.randint(0x4E00, 0x9FA5)) for _ in range(16))
+        parts.append(f"{tag}{len(parts)}{body}。")
+    return "".join(parts)
+
+
+@pytest.mark.asyncio
+async def test_fill_hop_cannot_retype_previous_reply(chat_service, fake_provider, monkeypatch):
+    from app.providers.base import ChatChunk, ChatRequest
+
+    copied = "（手臂微微用力，将整个手臂的重量轻轻靠在你的肩膀上，感受你的反应）"
+    first_reply = _noise(300, "旧") + "\n" + copied + "\n"
+    opening = _noise(900, "新")
+    calls = {"n": 0}
+
+    monkeypatch.setattr(
+        chat_service.tokenizer, "continuation_completion_prompt", lambda messages, **kw: ("CONT", "")
+    )
+    monkeypatch.setattr(chat_service.tokenizer, "special_token_ids", lambda names: [7], raising=False)
+    monkeypatch.setattr(chat_service.tokenizer, "first_token", lambda text: None, raising=False)
+
+    async def stream(request: ChatRequest):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            body = first_reply
+        elif calls["n"] == 2:
+            body = opening
+        elif calls["n"] == 3:
+            body = ["\n" + copied, "\n" + _noise(200, "抄")]
+        else:
+            body = _noise(4200, f"续{calls['n']}")
+        for piece in body if isinstance(body, list) else [body]:
+            yield ChatChunk(id="c", model="fake", delta_content=piece)
+        yield ChatChunk(id="c", model="fake", finish_reason="stop", prompt_tokens=10, completion_tokens=100)
+        yield ChatChunk(id="c", model="fake", wire_done=True)
+
+    fake_provider.stream = stream  # type: ignore[method-assign]
+    first = [e async for e in chat_service.chat(
+        message="你好", conversation_id=None, stream=True, profile="immersive",
+        auto_continue=False, max_tokens=256,
+    )]
+    cid = next(e for e in first if e.get("event") == "meta")["data"]["conversation_id"]
+    events = [e async for e in chat_service.chat(
+        message="你靠近一点", conversation_id=cid, stream=True, profile="immersive",
+        auto_continue=True, max_tokens=6144,
+    )]
+    done = next(e for e in events if e.get("event") == "done")["data"]
+    assert calls["n"] >= 4
+    assert copied not in done["message"]["content"]
+    assert done["guard_trim"] == "loop"

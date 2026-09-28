@@ -82,6 +82,7 @@ from app.services.scene_graph import (
 from app.services.repetition import (
     hard_self_loop,
     refrain_run_start,
+    repeated_line_start,
     repeated_sentence_start,
     tail_window_loop,
 )
@@ -1963,7 +1964,9 @@ class ChatService:
                                 break
                             loop_at = None
                             if immersive_turn:
-                                loop_at = repeated_sentence_start(content_buf, prior=echo.previous)
+                                loop_at = repeated_sentence_start(content_buf, prior=prev_reply)
+                                if loop_at is None:
+                                    loop_at = repeated_line_start(content_buf, prior=prev_reply)
                                 if loop_at is None:
                                     loop_at = refrain_run_start(content_buf)
                             if loop_at is not None:
@@ -2046,14 +2049,13 @@ class ChatService:
                         cid, "assistant", "", status="streaming"
                     )
                     history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
-                if immersive_turn and not resume_assistant:
+                prev_reply = ""
+                if immersive_turn:
                     prev_reply = next(
                         (m.get("content") or "" for m in reversed(history) if m.get("role") == "assistant"),
                         "",
                     )
-                    echo = EchoSuppressor(prev_reply)
-                else:
-                    echo = EchoSuppressor("")
+                echo = EchoSuppressor("" if resume_assistant else prev_reply)
                 prior_state, prior_summary = self._load_dialogue_meta(cid)
                 beat_hint = None
                 if (

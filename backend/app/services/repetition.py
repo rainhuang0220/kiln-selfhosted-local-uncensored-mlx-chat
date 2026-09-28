@@ -184,6 +184,28 @@ def _sentence_spans(text: str) -> list[tuple[int, str]]:
     return spans
 
 
+def repeated_line_start(text: str, *, prior: str = "", min_core: int = 6) -> int | None:
+    """Start of the just-finished line if the same line, punctuation aside, came before.
+
+    Short 括号 and quoted lines (「只要一声，我就在。」) sit under the 16-char sentence
+    floor but still cycle as a block; ``prior`` is the previous reply.
+    """
+    end = len(text.rstrip())
+    k = end
+    while k > 0 and text[k - 1] in _CLOSERS:
+        k -= 1
+    if k == 0 or text[k - 1] not in _TERMINATORS:
+        return None
+    start = text.rfind("\n", 0, end) + 1
+    core = _PUNCT.sub("", text[start:end])
+    if len(core) < min_core:
+        return None
+    earlier = {_PUNCT.sub("", line) for line in text[:start].split("\n")}
+    if prior:
+        earlier |= {_PUNCT.sub("", line) for line in prior.split("\n")}
+    return start if core in earlier else None
+
+
 def refrain_run_start(
     text: str, *, window: int = 6, hits: int = 3, gram: int = 4, min_chars: int = 8
 ) -> int | None:
