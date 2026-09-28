@@ -84,7 +84,7 @@ async def test_direct_dense_paste_binds_compiled_context_for_followup(chat_servi
     assert "先从当前已知的物件或动作推进" in sent
     assert "最后一个身体动作" not in sent
     system = next(m["content"] for m in fake_provider.calls[0].messages if m["role"] == "system")
-    assert "未给出的光线、气味、衣着" in system
+    assert "未给出的外貌特征、身份关系和过去经历" in system
     assert "没有写明的物件内容和检查结果不能先断言" in system
     assert "不要增加未写明的在场物件" in system
     assert "正常一拍至少 1500 字" not in system

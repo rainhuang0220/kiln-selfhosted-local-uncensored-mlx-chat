@@ -76,3 +76,56 @@ def test_continue_prompt_never_lands_on_cached_prompt_minus_last_token():
     assert prompt + tail == native
     # Without history the one-token drop is unchanged.
     assert shorten_until_unused(native, encode=_pieces, decode=_unpieces, used=[])[0] == "接待室里灯调暗了。你能陪我"
+
+
+def _parlor_ir() -> dict:
+    from app.services.context_presets import chat_frame_from_simple, preview_preset
+
+    source = (FIXTURES / "overnight_wenai_parlor.txt").read_text("utf-8")
+    return chat_frame_from_simple(preview_preset(source), source_text=source)["context_ir"]
+
+
+def test_default_hop_carries_nameless_style_digest():
+    from app.services.context_compiler import route_context
+
+    for message in ("你好", "你靠近一点"):
+        fence = route_context(_parlor_ir(), message).fence
+        assert "技师" in fence and "接待室" in fence
+        assert fence.index("<active_context>") < fence.index("<style_digest")
+        digest = fence.split("<style_digest", 1)[1].split("</style_digest>", 1)[0]
+        assert 'do_not_literalize="true"' in digest
+        assert len(digest) >= 160
+        assert "客人" in digest and "呼吸" in digest
+        assert "以下内容" not in digest
+        assert len(fence) <= 900
+        assert "陆遥" not in fence
+
+
+def test_style_digest_drops_named_and_memory_lines_and_skips_recall():
+    from app.services.context_compiler import route_context
+
+    ir = _parlor_ir()
+    ir["entities"] = [{"name": "陆遥", "identity": "姐姐"}]
+    ir["segments"] = [
+        *ir["segments"],
+        {"type": "UNKNOWN", "scope": "reference", "needs_review": True, "text": "（称呼：像陆遥那样叫我）"},
+        {"type": "UNKNOWN", "scope": "reference", "needs_review": True, "text": "（那天：她在门口等了很久）"},
+        {"type": "UNKNOWN", "scope": "reference", "needs_review": True, "text": "（她慢慢走过来，说今晚很长）"},
+        {"type": "EVENT", "scope": "reference", "text": "（节奏：陆遥的节奏）"},
+    ]
+    fence = route_context(ir, "你好").fence
+    assert "陆遥" not in fence
+    assert "那天" not in fence
+    assert "今晚很长" not in fence
+    recall = route_context(ir, "陆遥是谁")
+    assert recall.intent == "recall"
+    assert "<style_digest" not in recall.fence
+
+
+def test_grounded_contract_allows_present_beat_senses_and_forbids_menus():
+    from app.services.literary_system import GROUNDED_CONTEXT_SYSTEM
+
+    assert "衣着变化属于这一拍" in GROUNDED_CONTEXT_SYSTEM
+    assert "未给出的光线、气味、衣着" not in GROUNDED_CONTEXT_SYSTEM
+    assert "不要列选项" in GROUNDED_CONTEXT_SYSTEM
+    assert "请用户选择先看哪里" not in GROUNDED_CONTEXT_SYSTEM

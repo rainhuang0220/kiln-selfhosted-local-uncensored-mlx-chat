@@ -4,7 +4,8 @@ Attention layers (V16):
   L0 ALWAYS-ON — ROLE / USER_AVATAR / CURRENT_SCENE (live parlor), ≤400 chars total.
   L1 ASKED-ONLY — USER_BACKGROUND when the user asks 背景/现实; entity one-liners on name mention.
   L2 RETRIEVED — default hop adds <service_requirements> (≤320 chars; persona rules, explicit
-     prefs, USER_PREFERENCE, preference bank; L0 + block ≤720); bound events on named recall.
+     prefs, USER_PREFERENCE, preference bank; L0 + block ≤720) and a nameless <style_digest>
+     of labelled 括号 style lines (≤280, whole fence ≤900); bound events on named recall.
   L3 NEVER — raw source, DOCUMENT_META, UNKNOWN, off-stage people as current_cast.
 """
 
@@ -27,6 +28,11 @@ _SCENE_CAP = 160
 _SERVICE_CAP = 320
 _SERVICE_ITEM_CAP = 120
 _TOTAL_CAP = 720
+_STYLE_CAP = 280
+_STYLE_ITEM_CAP = 60
+_FENCE_CAP = 900
+# A 括号 style instruction is a short label and a colon, e.g. （节奏：慢，先试探再推进）.
+_STYLE_LINE = re.compile(r"^[（(]\s*([^，,。:：（）()]{1,6})[:：]\s*(.+?)\s*[）)]$")
 _NEVER_SERVICE = re.compile(
     r"(?:以下|下述)(?:内容|是)|仅(?:作为|供你?)参考|幻想参考|性癖参考|信息背景"
     r"|小学|初中|高[一二三]|阁楼|loft|文本顺序|参考事件",
@@ -151,7 +157,10 @@ def _service_block(ir: dict[str, Any], l0_text: str) -> list[str]:
     role = _value(persona.get("role"), 80)
     body = ["服务约束与偏好只决定怎么接待和表达；不要复述，也不是已发生的事件。"]
     if role:
-        body.append(f"以{role}的身份先回应对方此刻的话和动作，再按下列要求推进；不要只描写房间陈设。")
+        body.append(
+            f"以{role}的身份先回应对方此刻的话和动作，再按下列要求推进；不要只描写房间陈设，"
+            "不要反复询问需求或等待指示，每段都有新的动作或接触。"
+        )
     for item in _service_items(ir, l0_text):
         line = f"- {_value(item, _SERVICE_ITEM_CAP)}"
         if len("\n".join([*body, line])) > _SERVICE_CAP:
@@ -160,6 +169,58 @@ def _service_block(ir: dict[str, Any], l0_text: str) -> list[str]:
     if len(body) == 1:
         return []
     return ['<service_requirements do_not_literalize="true">', *body, "</service_requirements>"]
+
+
+def _offstage_names(ir: dict[str, Any]) -> set[str]:
+    names = {str(item.get("name") or "") for item in ir.get("entities") or []}
+    aliases = ir.get("aliases") if isinstance(ir.get("aliases"), dict) else {}
+    names.update(str(k) for k in aliases)
+    names.update(str(v) for v in aliases.values())
+    return {name for name in names if name}
+
+
+def _style_block(ir: dict[str, Any]) -> list[str]:
+    """Nameless 括号 style lines (pace, address, senses, clothing) — how to write, never what happened."""
+    names = _offstage_names(ir)
+    items: list[str] = []
+    for seg in ir.get("segments") or []:
+        # Rules-only drafts file 括号 lines as UNKNOWN + needs_review; the label shape is the gate.
+        if seg.get("type") not in {"UNKNOWN", "USER_PREFERENCE", "STYLE", "STYLE_REFERENCE"}:
+            continue
+        match = _STYLE_LINE.match(str(seg.get("text") or "").strip())
+        if not match:
+            continue
+        label, body = match.group(1).strip(), match.group(2).strip()
+        if _RECALL.search(label) or _ASK_BACKGROUND.search(label):
+            continue
+        line = f"{label}：{body}"
+        if any(name in line for name in names) or _NEVER_SERVICE.search(line):
+            continue
+        if any(line == kept for kept in items):
+            continue
+        items.append(_value(line, _STYLE_ITEM_CAP))
+    if not items:
+        return []
+    body = ["写法参考：只决定语气、节奏和感官落点；化进动作和对白，不要复述条目。"]
+    for item in items:
+        if len("\n".join([*body, item])) > _STYLE_CAP:
+            break
+        body.append(item)
+    if len(body) == 1:
+        return []
+    return ['<style_digest do_not_literalize="true">', *body, "</style_digest>"]
+
+
+def _with_style(ir: dict[str, Any], fence: str) -> str:
+    block = _style_block(ir)
+    while block:
+        joined = fence + "\n" + "\n".join(block)
+        if len(joined) <= _FENCE_CAP:
+            return joined
+        if len(block) <= 3:
+            break
+        block = [*block[:-2], block[-1]]
+    return fence
 
 
 def route_context(ir: dict[str, Any], message: str, *, active_names: list[str] | None = None) -> RouteResult:
@@ -218,8 +279,8 @@ def route_context(ir: dict[str, Any], message: str, *, active_names: list[str] |
     while block:
         fence = head + "\n" + "\n".join(block)
         if len(fence) <= _TOTAL_CAP:
-            return RouteResult("roleplay", fence)
+            return RouteResult("roleplay", _with_style(ir, fence))
         if not block[-2].startswith("- "):
             break
         block = [*block[:-2], block[-1]]
-    return RouteResult("roleplay", head)
+    return RouteResult("roleplay", _with_style(ir, head))
