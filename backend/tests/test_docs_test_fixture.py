@@ -20,6 +20,15 @@ def test_dense_reference_has_matching_gold_and_adult_cast():
     assert all(span in SOURCE for span in evidence)
 
 
+def test_each_person_has_one_coherent_grounded_event_description():
+    assert len(GOLD["people"]) == 12
+    assert "interactions_with_narrator" not in GOLD
+    for person in GOLD["people"]:
+        assert person["one_sentence"], person["name"]
+        assert len(re.findall(r"[\u4e00-\u9fff]", person["event_description"])) >= 300, person["name"]
+        assert person["evidence"] and all(span in SOURCE for span in person["evidence"])
+
+
 def test_dense_reference_scopes_live_scene_and_harvests_cast():
     from app.services.context_presets import preview_preset, public_studio_payload
     from app.services.style_bank import split_style_corpus
