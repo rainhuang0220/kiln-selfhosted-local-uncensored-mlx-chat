@@ -345,7 +345,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
               <div className="preset-source-actions">
                 <span>{sourceText.length.toLocaleString()} 字</span>
                 <button type="button" className="btn" onClick={() => void analyze()} disabled={busy !== null || !sourceText.trim()}>
-                  <Sparkles size={14} /> {busy === "preview" ? "正在拆人物…" : "解析并预览"}
+                  <Sparkles size={14} /> {busy === "preview" ? "解析中，约一分钟" : "解析并预览"}
                 </button>
               </div>
             </div>

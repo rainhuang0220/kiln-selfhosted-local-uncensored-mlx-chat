@@ -34,6 +34,7 @@ from app.services.context_compiler.alias import (
     rules_alias_map,
 )
 from app.services.context_compiler.binder import _avatar_is_under18
+from app.services.context_compiler.extract import TOTAL_CAP_S, WINDOW_TIMEOUT_S, ground_people, run_stage_a
 
 _ROLE_NAME = re.compile(
     r"(?:技师|客人|店主|老板|老师|医生|护士|教练|同事|朋友|邻居|上司|室友)"
@@ -478,8 +479,18 @@ def harvest_people_from_corpus(corpus: str) -> list[dict[str, Any]]:
     return rows[:16]
 
 
-def preview_preset(text: str) -> dict[str, Any]:
-    """Rules-first preview for Studio: scene, me, short character rows."""
+def preview_preset(
+    text: str,
+    *,
+    characters: list[dict[str, Any]] | None = None,
+    aliases: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Studio preview: scene, me, short character rows.
+
+    Without ``characters`` the rows come from the rules harvest (short pastes,
+    chat inline, model fallback). With ``characters`` the rows are the grounded
+    Stage A+B roster and the harvest never runs.
+    """
     source = (text or "").strip()
     if not source or len(source) > _MAX_SOURCE:
         raise ValueError("source must contain 1 to 50000 characters")
@@ -503,7 +514,13 @@ def preview_preset(text: str) -> dict[str, Any]:
             user_identity = f"我叫{called.group(1).strip()}"[:40]
 
     # Studio people rows come from corpus harvest — StyleBank stays internal.
-    characters = harvest_people_from_corpus(split.corpus or reference_text)
+    if characters is None:
+        characters = harvest_people_from_corpus(split.corpus or reference_text)
+    else:
+        characters = [
+            {"name": row["name"], "identity": row.get("identity") or "", "one_event": row.get("one_event")}
+            for row in characters if isinstance(row, dict) and row.get("name")
+        ]
     characters.sort(key=lambda item: source.find(item["name"]) if item["name"] in source else len(source))
     # If live names a on-stage role (技师林夏), keep it editable but do not dump corpus.
     role = _YOU_ROLE.search(live)
@@ -518,8 +535,11 @@ def preview_preset(text: str) -> dict[str, Any]:
         if m:
             actor_name = m.group(1)
     if actor_name and _looks_like_person_name(actor_name):
-        if not any(c["name"] == actor_name for c in characters):
-            role_description = role.group(1).strip() if role else "扮演角色"
+        role_description = role.group(1).strip() if role else "扮演角色"
+        actor_row = next((c for c in characters if c["name"] == actor_name), None)
+        if actor_row is not None and not str(actor_row.get("identity") or "").strip():
+            actor_row["identity"] = role_description.replace(actor_name, "").strip("，, ")[:40]
+        if actor_row is None:
             characters.insert(0, {
                 "name": actor_name,
                 "identity": role_description[:40] or "人物",
@@ -541,7 +561,9 @@ def preview_preset(text: str) -> dict[str, Any]:
         "timeline": extract_timeline(source, split.corpus, names),
         "active_character_ids": [],
     }
-    # Rules harvest first; binder attaches who or drops orphans before IR compile.
+    if aliases:
+        draft["aliases"] = {alias: name for alias, name in aliases.items() if name in names}
+    # Binder attaches who or drops orphans before IR compile.
     draft = bind_timeline_events(source, draft)
     draft["context_ir"] = compile_context(source, draft)
     draft["current_scene"] = draft["context_ir"]["current_scene"]
@@ -649,6 +671,86 @@ async def resolve_preview_aliases(
         text, source, candidates=names, name_ok=_looks_like_person_name, rules_map=rules_map,
     )
     return apply_alias_resolution(source, draft, resolution)
+
+
+def _narrator_name(user_identity: str) -> str:
+    """Proper name inside the user's own 我是…/我叫… line (never a character row)."""
+    text = re.sub(r"[（(].*$", "", user_identity or "").strip()
+    for size in (3, 2):
+        tail = text[-size:]
+        if len(tail) == size and tail[0] in _SURNAMES and _looks_like_person_name(tail):
+            return tail
+    return ""
+
+
+def rules_fallback_preview(source: str, note: str) -> dict[str, Any]:
+    """V17 rules harvest minus the alias blocklist, with an honest note."""
+    draft = preview_preset(source)
+    names = [row["name"] for row in draft.get("characters") or [] if row.get("name")]
+    draft = mark_pending_identities(apply_alias_resolution(
+        source, draft, {"people": [], "aliases": rules_alias_map(source, names)},
+    ))
+    draft.setdefault("uncertain", []).append(note)
+    draft["extract"] = {"mode": "rules_fallback", "reason": note}
+    return draft
+
+
+async def extract_preview_preset(
+    source: str,
+    provider: ChatProvider | None,
+    *,
+    complete: Any = None,
+    window_timeout_s: float = WINDOW_TIMEOUT_S,
+    total_cap_s: float = TOTAL_CAP_S,
+) -> dict[str, Any]:
+    """Studio long-paste preview: 9B extract first, rules grounding second, one roster."""
+    text = (source or "").strip()
+    if not text or len(text) > _MAX_SOURCE:
+        raise ValueError("source must contain 1 to 50000 characters")
+    split = split_style_corpus(text)
+    live = split.live.strip()
+    avatar = _live_user_identity(live)
+    if not avatar:
+        called = re.search(r"我叫([^，,。；;\n（(]{1,20})", text)
+        avatar = f"我叫{called.group(1).strip()}"[:40] if called else ""
+    runner = complete or (provider.complete if provider is not None else None)
+    if runner is None:
+        return rules_fallback_preview(text, "本机模型不可用；已保留规则预览。")
+    # Minors in sexual context never reach the model; rules drop them.
+    if _avatar_is_under18(text, {"me": {"identity": avatar}}):
+        return rules_fallback_preview(text, "已按规则整理。")
+    stage_a = await run_stage_a(
+        live, split.corpus, runner, window_timeout_s=window_timeout_s, total_cap_s=total_cap_s,
+    )
+    if not stage_a.ran:
+        draft = rules_fallback_preview(text, "本机人物抽取暂不可用；已保留规则预览。")
+        draft["extract"].update({"windows": [len(w) for w in stage_a.windows], "errors": stage_a.errors})
+        return draft
+    corpus = split.corpus or text
+    grounded = ground_people(
+        text,
+        stage_a,
+        name_ok=_looks_like_person_name,
+        surnames=_SURNAMES,
+        narrator=_narrator_name(avatar),
+        avatar=avatar,
+        rules_identity=lambda name: _identity_near(corpus, name),
+        rules_event=lambda name: _one_event_near(corpus, name),
+    )
+    draft = preview_preset(text, characters=grounded["rows"], aliases=grounded["aliases"])
+    draft = mark_pending_identities(draft)
+    if stage_a.errors:
+        draft.setdefault("uncertain", []).append("部分长文未能抽取；这些段落的人物可能缺失。")
+    draft["extract"] = {
+        "mode": "model",
+        "windows": [len(w) for w in stage_a.windows],
+        "ok_windows": stage_a.ok_windows,
+        "errors": stage_a.errors,
+        "elapsed_s": round(stage_a.elapsed_s, 2),
+        "dropped": grounded["dropped"],
+        "last_chance": [row["name"] for row in grounded["rows"] if row["origin"] == "last_chance"],
+    }
+    return draft
 
 
 def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:

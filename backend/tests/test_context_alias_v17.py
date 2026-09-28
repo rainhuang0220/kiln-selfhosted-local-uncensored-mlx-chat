@@ -259,22 +259,22 @@ def test_n6_shared_scene_multi_who_and_default_hop_fence():
 
 
 def test_n7_preview_endpoint_calls_resolver_for_long_paste_only(client):
+    # V18: the long-paste model pass is the Stage A extract, not the clip resolver.
     from app.services import context_presets as presets
 
-    async def passthrough(source, draft, provider, **_kw):
-        return draft
+    async def rules_only(source, provider, **_kw):
+        return presets.rules_fallback_preview(source, "stub")
 
-    with patch.object(presets, "resolve_preview_aliases", new=AsyncMock(side_effect=passthrough)) as resolve:
-        with patch.object(presets, "deep_preview_preset", new=AsyncMock(side_effect=lambda s, d, p: d)):
-            long = client.post("/context/presets/preview", json={"text": WOVEN, "deep": True})
-            assert long.status_code == 200
-            assert resolve.await_count == 1
-            short = client.post(
-                "/context/presets/preview",
-                json={"text": "你是技师许澄。我是顾客。姐姐陆遥说过一句话。", "deep": True},
-            )
-            assert short.status_code == 200
-            assert resolve.await_count == 1
+    with patch.object(presets, "extract_preview_preset", new=AsyncMock(side_effect=rules_only)) as resolve:
+        long = client.post("/context/presets/preview", json={"text": WOVEN, "deep": True})
+        assert long.status_code == 200
+        assert resolve.await_count == 1
+        short = client.post(
+            "/context/presets/preview",
+            json={"text": "你是技师许澄。我是顾客。姐姐陆遥说过一句话。", "deep": True},
+        )
+        assert short.status_code == 200
+        assert resolve.await_count == 1
 
 
 @pytest.mark.asyncio

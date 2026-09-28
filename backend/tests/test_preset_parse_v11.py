@@ -112,16 +112,17 @@ async def test_preview_api_deep_flag_calls_enrich_with_timeout(client):
 
     calls: list[float] = []
 
-    async def fake_deep(source, draft, provider):
+    # V18: long-paste deep preview runs the Stage A+B extract once.
+    async def fake_deep(source, provider, **_kw):
         calls.append(1)
-        draft = dict(draft)
+        draft = dict(presets.preview_preset(source))
         draft["characters"] = [
             {"name": "祁律", "identity": "大学室友", "one_event": None},
             {"name": "顾遥", "identity": "前同事", "one_event": None},
         ]
         return draft
 
-    with patch.object(presets, "deep_preview_preset", new=AsyncMock(side_effect=fake_deep)):
+    with patch.object(presets, "extract_preview_preset", new=AsyncMock(side_effect=fake_deep)):
         response = client.post(
             "/context/presets/preview",
             json={"text": FIXTURE, "deep": True},

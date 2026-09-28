@@ -131,7 +131,7 @@ function record(raw: unknown): ContextPresetRecord {
 }
 
 export async function previewContextPreset(text: string): Promise<ContextPresetPayload> {
-  // 「解析并预览」 only: rules harvest + optional clipped 9B fill (server timeout 50s).
+  // 「解析并预览」 only: long pastes run the 9B people extract, then rules grounding (server cap 90s).
   const response = await apiFetch("/context/presets/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
