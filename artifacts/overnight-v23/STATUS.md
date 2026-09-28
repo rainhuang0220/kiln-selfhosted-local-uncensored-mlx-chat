@@ -10,6 +10,7 @@
 |---|---|---|---|---|
 | 1 | 8d4821d baseline | 4 | 2 1 0 0 1 0 | G4 loop guard + rep 1.08 floor |
 | 2 | a68b0da | 4 (+hard fail: MLX died) | 2 1 0 0 1 0 | token-id continue-prompt dedupe (MLX crash); revert rep floor |
+| 3 | 6f12e6a | 7 | 2 1 0 1 1 2 | sync #1 to live; next G2/G3 style digest |
 
 ## Next
-Cycle 3: measure the crash fix; then G5/G3 — the EOS-banned fill hop is what degenerates (loops at rep 1.0, menus/word lists at 1.08).
+Cycle 4: nameless style digest on the IR default hop (router) + grounded contract sensory clause (literary_system).
