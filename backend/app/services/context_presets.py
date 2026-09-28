@@ -683,15 +683,27 @@ def _narrator_name(user_identity: str) -> str:
     return ""
 
 
-def rules_fallback_preview(source: str, note: str) -> dict[str, Any]:
-    """V17 rules harvest minus the alias blocklist, with an honest note."""
-    draft = preview_preset(source)
-    names = [row["name"] for row in draft.get("characters") or [] if row.get("name")]
-    draft = mark_pending_identities(apply_alias_resolution(
-        source, draft, {"people": [], "aliases": rules_alias_map(source, names)},
-    ))
-    draft.setdefault("uncertain", []).append(note)
-    draft["extract"] = {"mode": "rules_fallback", "reason": note}
+def model_not_ran_preview(
+    source: str,
+    mode: str,
+    reason: str,
+    *,
+    window_chars: list[int] | None = None,
+    elapsed_s: float = 0.0,
+) -> dict[str, Any]:
+    """Long paste the 9B did not analyze: scene and 我 from the live lock, no people, no events."""
+    draft = preview_preset(source, characters=[])
+    draft["characters"] = []
+    draft["timeline"] = []
+    draft.pop("aliases", None)
+    draft["context_ir"] = compile_context(source, draft)
+    draft["extract"] = {
+        "mode": mode,
+        "model_ran": False,
+        "reason": reason,
+        "elapsed_s": round(elapsed_s, 2),
+        "window_chars": list(window_chars or []),
+    }
     return draft
 
 
@@ -703,7 +715,11 @@ async def extract_preview_preset(
     window_timeout_s: float = WINDOW_TIMEOUT_S,
     total_cap_s: float = TOTAL_CAP_S,
 ) -> dict[str, Any]:
-    """Studio long-paste preview: 9B extract first, rules grounding second, one roster."""
+    """Studio long-paste preview: the 9B proposes every person; grounding only drops or blanks.
+
+    No runner, a minor avatar, or no usable people JSON returns empty cards with
+    model_ran=False. The rules harvest never fills the roster on this path.
+    """
     text = (source or "").strip()
     if not text or len(text) > _MAX_SOURCE:
         raise ValueError("source must contain 1 to 50000 characters")
@@ -715,27 +731,27 @@ async def extract_preview_preset(
         avatar = f"我叫{called.group(1).strip()}"[:40] if called else ""
     runner = complete or (provider.complete if provider is not None else None)
     if runner is None:
-        return rules_fallback_preview(text, "本机模型不可用；已保留规则预览。")
-    # Minors in sexual context never reach the model; rules drop them.
+        return model_not_ran_preview(text, "model_failed", "本机模型不可用。")
+    # Minors in sexual context never reach the model, and never get a roster.
     if _avatar_is_under18(text, {"me": {"identity": avatar}}):
-        return rules_fallback_preview(text, "已按规则整理。")
+        return model_not_ran_preview(text, "blocked", "内容涉及未满十八岁的人物。")
     stage_a = await run_stage_a(
         live, split.corpus, runner, window_timeout_s=window_timeout_s, total_cap_s=total_cap_s,
     )
+    window_chars = [len(w) for w in stage_a.windows]
     if not stage_a.ran:
-        draft = rules_fallback_preview(text, "本机人物抽取暂不可用；已保留规则预览。")
-        draft["extract"].update({"windows": [len(w) for w in stage_a.windows], "errors": stage_a.errors})
+        draft = model_not_ran_preview(
+            text, "model_failed", "本机模型没有返回人物结果。",
+            window_chars=window_chars, elapsed_s=stage_a.elapsed_s,
+        )
+        draft["extract"]["errors"] = stage_a.errors
         return draft
-    corpus = split.corpus or text
     grounded = ground_people(
         text,
         stage_a,
         name_ok=_looks_like_person_name,
-        surnames=_SURNAMES,
         narrator=_narrator_name(avatar),
         avatar=avatar,
-        rules_identity=lambda name: _identity_near(corpus, name),
-        rules_event=lambda name: _one_event_near(corpus, name),
     )
     draft = preview_preset(text, characters=grounded["rows"], aliases=grounded["aliases"])
     draft = mark_pending_identities(draft)
@@ -743,12 +759,12 @@ async def extract_preview_preset(
         draft.setdefault("uncertain", []).append("部分长文未能抽取；这些段落的人物可能缺失。")
     draft["extract"] = {
         "mode": "model",
-        "windows": [len(w) for w in stage_a.windows],
+        "model_ran": True,
+        "elapsed_s": round(stage_a.elapsed_s, 2),
+        "window_chars": window_chars,
         "ok_windows": stage_a.ok_windows,
         "errors": stage_a.errors,
-        "elapsed_s": round(stage_a.elapsed_s, 2),
         "dropped": grounded["dropped"],
-        "last_chance": [row["name"] for row in grounded["rows"] if row["origin"] == "last_chance"],
     }
     return draft
 
@@ -785,7 +801,18 @@ def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:
         "timeline": timeline,
         "active_character_ids": body.get("active_character_ids") or [],
         **({"uncertain": list(draft["uncertain"])} if isinstance(draft.get("uncertain"), list) and draft["uncertain"] else {}),
+        **({"extract": _public_extract(draft["extract"])} if isinstance(draft.get("extract"), dict) else {}),
     }
+
+
+_PUBLIC_EXTRACT_KEYS = ("mode", "model_ran", "elapsed_s", "window_chars", "ok_windows", "reason")
+
+
+def _public_extract(meta: dict[str, Any]) -> dict[str, Any]:
+    """Whether the 9B analyzed this preview and how long it took; no model error text."""
+    out = {key: meta[key] for key in _PUBLIC_EXTRACT_KEYS if key in meta}
+    out["model_ran"] = bool(meta.get("model_ran"))
+    return out
 
 
 def studio_record(record: dict[str, Any]) -> dict[str, Any]:

@@ -1,5 +1,15 @@
 import { apiFetch } from "./http";
-import type { ContextPresetPayload, ContextPresetRecord, MeSlots, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
+import type {
+  ContextPresetPayload,
+  ContextPresetPreview,
+  ContextPresetRecord,
+  MeSlots,
+  PresetExtractMeta,
+  PresetTimelineEvent,
+  SimpleCharacter,
+} from "../types/context-preset";
+
+export const MODEL_DID_NOT_ANALYZE = "模型没有分析，请重试。没有使用规则名册。";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -130,16 +140,33 @@ function record(raw: unknown): ContextPresetRecord {
   };
 }
 
-export async function previewContextPreset(text: string): Promise<ContextPresetPayload> {
-  // 「解析并预览」 only: long pastes run the 9B people extract, then rules grounding (server cap 90s).
+function extractMeta(raw: unknown): PresetExtractMeta | null {
+  const value = object(raw);
+  if (!string(value.mode)) return null;
+  return {
+    mode: string(value.mode),
+    model_ran: value.model_ran === true,
+    elapsed_s: typeof value.elapsed_s === "number" ? value.elapsed_s : undefined,
+    window_chars: Array.isArray(value.window_chars)
+      ? value.window_chars.filter((n): n is number => typeof n === "number")
+      : undefined,
+    reason: string(value.reason) || undefined,
+  };
+}
+
+export async function previewContextPreset(text: string): Promise<ContextPresetPreview> {
+  // 「解析并预览」 only: long pastes need the 9B people extract (server cap 90s); no rules roster.
   const response = await apiFetch("/context/presets/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, deep: true }),
   });
+  if (response.status === 502 || response.status === 503 || response.status === 504) {
+    throw new Error(`${MODEL_DID_NOT_ANALYZE}（HTTP ${response.status}）`);
+  }
   const result = object(await jsonOrError(response));
   const draft = object(result.draft);
-  return normalizePresetPayload(draft.payload || draft);
+  return { payload: normalizePresetPayload(draft.payload || draft), extract: extractMeta(draft.extract) };
 }
 
 export async function listContextPresets(): Promise<ContextPresetRecord[]> {

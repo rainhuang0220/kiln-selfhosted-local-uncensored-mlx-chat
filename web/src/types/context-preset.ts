@@ -33,6 +33,20 @@ export interface ContextPresetPayload {
   active_character_ids?: string[];
 }
 
+/** Whether the local 9B analyzed a 解析并预览 request (preview only; never saved). */
+export interface PresetExtractMeta {
+  mode: string;
+  model_ran: boolean;
+  elapsed_s?: number;
+  window_chars?: number[];
+  reason?: string;
+}
+
+export interface ContextPresetPreview {
+  payload: ContextPresetPayload;
+  extract: PresetExtractMeta | null;
+}
+
 export interface ContextPresetRecord {
   id: string;
   title: string;

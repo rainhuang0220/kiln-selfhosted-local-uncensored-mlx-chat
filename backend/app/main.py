@@ -811,13 +811,11 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         from app.services.context_presets import preview_preset
 
         try:
-            # Short pastes stay rules-only. Long pastes: one 9B extract over the
-            # reference windows first, then rules grounding; one response, one roster.
+            # Short pastes stay rules-only. Long pastes need the 9B: if it did not
+            # analyze, the Studio gets empty cards and model_ran=false, never a rules roster.
             if body.deep and len(body.text) >= presets.ALIAS_RESOLVE_MIN_CHARS:
                 if getattr(app.state.chat, "_busy", set()):
-                    draft = presets.rules_fallback_preview(
-                        body.text, "模型正在生成；已保留规则预览，请稍后重试深度分析。",
-                    )
+                    draft = presets.model_not_ran_preview(body.text, "busy", "模型正在生成回复。")
                 else:
                     try:
                         draft = await presets.extract_preview_preset(body.text, app.state.provider)
@@ -825,17 +823,18 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                         raise
                     except Exception:
                         logger.exception("local people extract failed")
-                        draft = presets.rules_fallback_preview(
-                            body.text, "本机人物抽取暂不可用；已保留规则预览。",
-                        )
+                        draft = presets.model_not_ran_preview(body.text, "model_failed", "本机人物抽取出错。")
                 extract_meta = draft.get("extract") or {}
-                logger.info(
-                    "preset extract mode=%s windows=%s elapsed=%s errors=%s",
-                    extract_meta.get("mode"), extract_meta.get("windows"),
+                logger.log(
+                    logging.INFO if extract_meta.get("model_ran") else logging.WARNING,
+                    "preset extract mode=%s model_ran=%s windows=%s elapsed=%s errors=%s",
+                    extract_meta.get("mode"), extract_meta.get("model_ran"), extract_meta.get("window_chars"),
                     extract_meta.get("elapsed_s"), extract_meta.get("errors"),
                 )
             else:
                 draft = preview_preset(body.text)
+                if body.deep:
+                    draft["extract"] = {"mode": "rules_short", "model_ran": False}
             from app.services.context_presets import public_studio_payload
 
             return {"draft": public_studio_payload(draft)}

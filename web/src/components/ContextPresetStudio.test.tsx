@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ContextPresetStudio, PresetEditor } from "./ContextPresetStudio";
+import { ContextPresetStudio, PresetEditor, previewStatus } from "./ContextPresetStudio";
 import type { ContextPresetPayload } from "../types/context-preset";
 
 const payload: ContextPresetPayload = {
@@ -48,5 +48,15 @@ describe("context preset workspace", () => {
     expect(html).not.toContain("参考人物与素材");
     expect(html).not.toContain("深度分析");
     expect(html).not.toContain("直接编辑结构化信息");
+  });
+
+  it("says the 9B ran and how long, or fails visibly instead of showing a rules roster", () => {
+    expect(previewStatus({ mode: "model", model_ran: true, elapsed_s: 52.6, window_chars: [1363, 1397] }))
+      .toEqual({ line: "模型已分析 · 53s", failed: false });
+    expect(previewStatus({ mode: "model_failed", model_ran: false }))
+      .toEqual({ line: "模型没有分析，请重试。没有使用规则名册。", failed: true });
+    expect(previewStatus({ mode: "busy", model_ran: false }).failed).toBe(true);
+    expect(previewStatus({ mode: "blocked", model_ran: false }).line).toContain("没有使用规则名册");
+    expect(previewStatus({ mode: "rules_short", model_ran: false }).failed).toBe(false);
   });
 });

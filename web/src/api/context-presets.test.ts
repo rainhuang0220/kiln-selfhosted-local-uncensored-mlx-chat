@@ -38,9 +38,13 @@ describe("context preset API", () => {
   beforeEach(() => mocked.mockReset());
 
   it("previews the full source text into simple scene/me/character rows", async () => {
-    mocked.mockResolvedValue(json({ draft: payload }));
+    mocked.mockResolvedValue(json({
+      draft: { ...payload, extract: { mode: "model", model_ran: true, elapsed_s: 51.2, window_chars: [1363, 1397] } },
+    }));
     const longText = "场景" + "参考".repeat(1600) + "回到场景";
-    const draft = await previewContextPreset(longText);
+    const { payload: draft, extract } = await previewContextPreset(longText);
+    expect(extract).toEqual({ mode: "model", model_ran: true, elapsed_s: 51.2, window_chars: [1363, 1397], reason: undefined });
+    expect(draft).not.toHaveProperty("extract");
     expect(draft.current_scene).toBe("茶室");
     expect(draft.me.real_background).toBe("住在城南");
     expect(draft.characters[0].name).toBe("阿青");
@@ -59,6 +63,20 @@ describe("context preset API", () => {
       body: JSON.stringify({ text: "现实设定和参考材料", deep: true }),
     }));
     expect(String(mocked.mock.calls[0][1]?.body)).toContain("\"deep\":true");
+  });
+
+  it("turns a proxy timeout into the model-did-not-analyze copy", async () => {
+    mocked.mockResolvedValue(new Response("<html>504 Gateway Time-out</html>", { status: 504 }));
+    await expect(previewContextPreset("长文")).rejects.toThrow("模型没有分析，请重试。没有使用规则名册。（HTTP 504）");
+  });
+
+  it("returns empty cards and model_ran false when the 9B did not analyze", async () => {
+    mocked.mockResolvedValue(json({
+      draft: { ...payload, characters: [], timeline: [], extract: { mode: "model_failed", model_ran: false, reason: "本机模型没有返回人物结果。" } },
+    }));
+    const { payload: draft, extract } = await previewContextPreset("长文");
+    expect(draft.characters).toEqual([]);
+    expect(extract?.model_ran).toBe(false);
   });
 
   it("fills missing optional collections so a partial draft stays editable", () => {

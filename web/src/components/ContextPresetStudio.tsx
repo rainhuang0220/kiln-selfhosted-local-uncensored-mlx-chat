@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Plus, Sparkles, Trash2, X } from "lucide-react";
 import {
+  MODEL_DID_NOT_ANALYZE,
   emptyPresetPayload,
   getContextPreset,
   listContextPresets,
@@ -8,10 +9,18 @@ import {
   saveContextPreset,
 } from "../api/context-presets";
 import { useChatStore } from "../stores/chat-store";
-import type { ContextPresetPayload, ContextPresetRecord, SimpleCharacter } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, PresetExtractMeta, SimpleCharacter } from "../types/context-preset";
 
 function displaySlot(value: string): string {
   return value?.trim() ? value : "暂无";
+}
+
+/** One-line 解析 status. A long paste the 9B did not analyze is a failure, not a preview. */
+export function previewStatus(extract: PresetExtractMeta | null): { line: string; failed: boolean } {
+  if (!extract || extract.mode === "rules_short") return { line: "短文按规则整理，未调用模型。", failed: false };
+  if (extract.model_ran) return { line: `模型已分析 · ${Math.round(extract.elapsed_s ?? 0)}s`, failed: false };
+  if (extract.mode === "blocked") return { line: "模型没有分析：内容涉及未满十八岁的人物。没有使用规则名册。", failed: true };
+  return { line: MODEL_DID_NOT_ANALYZE, failed: true };
 }
 
 interface EditorProps {
@@ -183,6 +192,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
   const [payload, setPayload] = useState<ContextPresetPayload>(emptyPresetPayload);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [extractLine, setExtractLine] = useState<string | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -211,6 +221,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
     setSourceText("");
     setPayload(emptyPresetPayload());
     setError(null);
+    setExtractLine(null);
     setNotice("已开始新预设。");
   }
 
@@ -239,14 +250,21 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
     setBusy("preview");
     setError(null);
     setNotice(null);
+    setExtractLine(null);
     try {
-      const draft = await previewContextPreset(sourceText);
+      const { payload: draft, extract } = await previewContextPreset(sourceText);
+      const status = previewStatus(extract);
       setPayload(draft);
-      setNotice(
-        draft.characters.length
-          ? `已拆出 ${draft.characters.length} 个人物和 ${draft.timeline.length} 条已绑定事件。`
-          : "未识别出人物行。可手改当前场景与「我」，或手动添加人物。",
-      );
+      setExtractLine(status.line);
+      if (status.failed) {
+        setError(status.line);
+      } else {
+        setNotice(
+          draft.characters.length
+            ? `已拆出 ${draft.characters.length} 个人物和 ${draft.timeline.length} 条已绑定事件。`
+            : "未识别出人物行。可手改当前场景与「我」，或手动添加人物。",
+        );
+      }
     } catch (reason) {
       setError(`解析失败：${(reason as Error).message}`);
     } finally {
@@ -348,6 +366,7 @@ export function ContextPresetStudio({ onClose, onStartNewChat }: { onClose: () =
                   <Sparkles size={14} /> {busy === "preview" ? "解析中，约一分钟" : "解析并预览"}
                 </button>
               </div>
+              {extractLine ? <p className="preset-muted" role="status">{extractLine}</p> : null}
             </div>
           </aside>
           <div className="preset-structured">

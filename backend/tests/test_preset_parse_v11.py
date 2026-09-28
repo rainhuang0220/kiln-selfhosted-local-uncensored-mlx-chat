@@ -134,7 +134,7 @@ async def test_preview_api_deep_flag_calls_enrich_with_timeout(client):
 
 
 @pytest.mark.asyncio
-async def test_preview_api_deep_timeout_keeps_rules_rows(client):
+async def test_preview_api_deep_timeout_shows_no_rules_rows(client):
     from app.services import context_presets as presets
 
     async def slow_deep(source, draft, provider):
@@ -150,9 +150,10 @@ async def test_preview_api_deep_timeout_keeps_rules_rows(client):
             )
     assert response.status_code == 200
     draft = response.json()["draft"]
-    assert len(draft["characters"]) >= 8
+    # V19: a timed-out 9B returns empty cards and model_ran=false, never a rules roster.
+    assert draft["characters"] == []
+    assert draft["extract"]["model_ran"] is False
     assert "顾客" in draft["me"]["identity"]
-    assert any("规则预览" in note for note in draft.get("uncertain") or [])
 
 
 @pytest.mark.asyncio

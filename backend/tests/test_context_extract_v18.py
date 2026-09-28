@@ -120,11 +120,11 @@ async def test_m1_stage_a_runs_before_any_rules_roster():
     public = _public(draft)
     ids = _identities(public)
     assert "陆遥" in ids and "姐姐" in ids["陆遥"]
-    # Last-chance scan may add 蒋越 (蒋越二十八岁); it may never add an alias.
-    assert "蒋越" in ids
+    # V19: no rules scan adds names the model did not propose.
+    assert "蒋越" not in ids
     assert not (set(ids) & BLOCKLIST)
     assert draft["extract"]["mode"] == "model"
-    assert "蒋越" in draft["extract"]["last_chance"]
+    assert draft["extract"]["model_ran"] is True
 
 
 # M2 ---------------------------------------------------------------------------
@@ -340,16 +340,14 @@ async def test_m9_chat_send_never_runs_stage_a(chat_service, fake_provider):
 
 
 @pytest.mark.asyncio
-async def test_m10_stage_a_failure_falls_back_to_rules_without_alias_rows():
+async def test_m10_stage_a_failure_returns_empty_cards_not_rules():
     stub = _raising(TimeoutError("mlx timeout"))
     draft = await _extract(WOVEN, stub)
     assert len(stub.calls) == 2
-    assert draft["extract"]["mode"] == "rules_fallback"
+    assert draft["extract"]["mode"] == "model_failed"
+    assert draft["extract"]["model_ran"] is False
     public = _public(draft)
-    names = set(_identities(public))
-    assert not (names & BLOCKLIST)
-    assert {"陆遥", "沈乔", "蒋越", "顾青"} <= names
-    assert any("规则预览" in note for note in public.get("uncertain") or [])
+    assert public["characters"] == [] and public["timeline"] == []
 
 
 def test_m10_endpoint_survives_stage_a_error(client):
@@ -359,11 +357,10 @@ def test_m10_endpoint_survives_stage_a_error(client):
         response = client.post("/context/presets/preview", json={"text": WOVEN, "deep": True})
     assert response.status_code == 200
     draft = response.json()["draft"]
-    names = {row["name"] for row in draft["characters"]}
-    assert not (names & BLOCKLIST)
-    assert {"陆遥", "蒋越", "顾青"} <= names
+    assert draft["characters"] == []
+    assert draft["extract"]["model_ran"] is False
     blob = json.dumps(draft, ensure_ascii=False)
-    for token in ("needs_review", "suggested_who", "source_span", "segments", "extract"):
+    for token in ("needs_review", "suggested_who", "source_span", "segments", "mlx error"):
         assert token not in blob
 
 

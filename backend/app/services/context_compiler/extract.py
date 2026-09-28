@@ -4,8 +4,8 @@ Stage A sends the live lock plus whole reference paragraphs (1200–1800 chars,
 200 overlap) to the chat model and asks for people[] JSON. Stage B never
 proposes people ahead of the model: it keeps, folds, or drops what the model
 returned and grounds every identity to a clause the source attaches to that
-exact name. The only rules addition is a last-chance scan for a proper name on
-X是… / X，N岁 / 叫X. Chat send never reaches this module.
+exact name. Stage B only drops a person or blanks a field; it never adds a
+name, a job, or an event. Chat send never reaches this module.
 """
 
 from __future__ import annotations
@@ -46,10 +46,8 @@ TOTAL_CAP_S = 90.0
 MAX_TOKENS = 1200
 MAX_ROWS = 16
 
-_CJK = "\u4e00-\u9fff"
 _CLAUSE_END = re.compile(r"[。！？!?；;\n]")
 _SENTENCE_END = re.compile(r"[。！？!?\n]")
-_NUMERALS = "零一二三四五六七八九十两"
 # Blood/family kinship only binds by apposition (姐姐陆遥 / 林栀是她妹妹), never by proximity.
 _KIN = frozenset(
     {
@@ -401,64 +399,15 @@ def _cjk_name(token: str) -> bool:
     return 2 <= len(token) <= 4 and all("\u4e00" <= ch <= "\u9fff" for ch in token)
 
 
-def last_chance_names(
-    source: str,
-    *,
-    have: Iterable[str],
-    name_ok: Callable[[str], bool],
-    surnames: Iterable[str],
-    exclude: Iterable[str] = (),
-) -> list[str]:
-    """Proper names the model missed on X是… / X，N岁 / 叫X. Nothing else."""
-    text = source or ""
-    known = {n for n in have if n}
-    banned = {n for n in exclude if n}
-    surname_set = set(surnames)
-    out: list[str] = []
-
-    def consider(cands: list[str]) -> None:
-        for cand in cands:
-            if not cand or any(ch in _NUMERALS for ch in cand):
-                continue
-            if cand[0] not in surname_set or is_alias_or_role(cand) or not name_ok(cand):
-                continue
-            if cand in banned or any(cand in b or b in cand for b in banned):
-                return
-            if cand in known or any(cand in k or k in cand for k in known) or cand in out:
-                return
-            out.append(cand)
-            return
-
-    lead_words = tuple(sorted(FOLDABLE | {"的", "叫", "是", "和", "与", "跟"}, key=len, reverse=True))
-
-    def at_boundary(start: int) -> bool:
-        head = text[max(0, start - 4):start]
-        return not head or not ("\u4e00" <= head[-1] <= "\u9fff") or head.endswith(lead_words)
-
-    def before(at: int) -> list[str]:
-        return [text[at - size:at] for size in (2, 3) if at - size >= 0 and at_boundary(at - size)]
-
-    for match in re.finditer(rf"(?:[，,]\s*)?(?:\d{{1,2}}|[{_NUMERALS}]{{2,3}})岁", text):
-        consider(before(match.start()))
-    for match in re.finditer(r"(?<!不)是", text):
-        consider(before(match.start()))
-    for match in re.finditer(rf"(?:她|他|我|你)?(?:名叫|叫)([{_CJK}]{{2,3}})", text):
-        consider([match.group(1)[:2], match.group(1)])
-    return out
-
-
 def ground_people(
     source: str,
     stage_a: StageA,
     *,
     name_ok: Callable[[str], bool],
-    surnames: Iterable[str],
     narrator: str = "",
     avatar: str = "",
-    rules_identity: Callable[[str], str] | None = None,
-    rules_event: Callable[[str], str | None] | None = None,
 ) -> dict[str, Any]:
-    """Keep, fold, or drop Stage A people. Never add a job the source did not attach."""
+    """Keep, fold, or drop Stage A people; blank a field the source did not attach."""
     text = source or ""
     order: list[str] = []
     proposals: dict[str, list[dict[str, Any]]] = {}
@@ -484,11 +433,7 @@ def ground_people(
         n for n in order
         if not any(n != o and n in o and text.count(n) == text.count(o) for o in order)
     ]
-    rows_order = list(order)
-    for name in last_chance_names(text, have=order, name_ok=name_ok, surnames=surnames, exclude=[narrator]):
-        if len(rows_order) >= MAX_ROWS:
-            break
-        rows_order.append(name)
+    rows_order = order[:MAX_ROWS]
 
     claims: dict[str, set[str]] = {}
     for name in order:
@@ -524,20 +469,15 @@ def ground_people(
                     in_window = raw in window and name in window
                     candidates.append((not has_role, from_alias, not in_window, len(grounded), grounded))
         identity = min(candidates)[4] if candidates else ""
-        if not identity and rules_identity is not None:
-            identity = grounder.identity(rules_identity(name) or "", name)
         event = ""
         for person in proposals.get(name, []):
             event = grounder.event(person.get("one_event") or "", name)
             if event:
                 break
-        if not event and rules_event is not None:
-            event = rules_event(name) or ""
         rows.append({
             "name": name,
             "identity": identity,
             "one_event": event or None,
             "present": any(bool(p.get("present")) for p in proposals.get(name, [])),
-            "origin": "model" if name in proposals else "last_chance",
         })
     return {"rows": rows, "aliases": aliases, "dropped": dropped}

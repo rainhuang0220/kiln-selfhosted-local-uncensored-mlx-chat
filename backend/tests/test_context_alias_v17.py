@@ -263,7 +263,7 @@ def test_n7_preview_endpoint_calls_resolver_for_long_paste_only(client):
     from app.services import context_presets as presets
 
     async def rules_only(source, provider, **_kw):
-        return presets.rules_fallback_preview(source, "stub")
+        return presets.model_not_ran_preview(source, "model_failed", "stub")
 
     with patch.object(presets, "extract_preview_preset", new=AsyncMock(side_effect=rules_only)) as resolve:
         long = client.post("/context/presets/preview", json={"text": WOVEN, "deep": True})
@@ -301,7 +301,7 @@ async def test_n7_chat_send_never_calls_resolver(chat_service, fake_provider):
 # N8 ---------------------------------------------------------------------------
 
 
-def test_n8_resolver_timeout_keeps_rules_without_alias_rows(client):
+def test_n8_resolver_timeout_shows_no_rules_roster(client):
     from app.services import context_presets as presets
 
     async def slow(*_a, **_kw):
@@ -317,9 +317,9 @@ def test_n8_resolver_timeout_keeps_rules_without_alias_rows(client):
             response = client.post("/context/presets/preview", json={"text": WOVEN, "deep": True})
     assert response.status_code == 200
     draft = response.json()["draft"]
-    names = {row["name"] for row in draft["characters"]}
-    assert not (names & ALIAS_ROWS)
-    assert {"陆遥", "沈乔", "蒋越", "顾青"} <= names
+    # V19: the 9B did not analyze (FakeProvider echoes prose) → empty cards, never a rules roster.
+    assert draft["characters"] == []
+    assert draft["extract"]["model_ran"] is False
     blob = json.dumps(draft, ensure_ascii=False)
     for token in ("needs_review", "suggested_who", "source_span", "segments"):
         assert token not in blob

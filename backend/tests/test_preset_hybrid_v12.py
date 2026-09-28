@@ -52,8 +52,8 @@ def _identity_matches_planted(name: str, identity: str) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_h1_timeout_keeps_names_marks_pending(client):
-    """H1: enrich never returns → names stay; 人物→待补; no junk names."""
+async def test_h1_timeout_shows_no_rules_roster(client):
+    """H1 (V19): enrich never returns → empty cards, model_ran=false; no rules names."""
     from app.services import context_presets as presets
 
     async def never_returns(source, draft, provider):
@@ -68,15 +68,9 @@ async def test_h1_timeout_keeps_names_marks_pending(client):
             )
     assert response.status_code == 200
     draft = response.json()["draft"]
-    names = _name_set(draft)
-    assert len(names & set(PLANTED)) >= 8
-    for junk in JUNK:
-        assert junk not in names
-    for row in draft["characters"]:
-        ident = str(row.get("identity") or "")
-        assert ident != "人物", row
-        # Either honest 待补 or a real rules clause — never a blank fake fill.
-        assert ident == "待补" or len(ident) >= 2
+    assert _name_set(draft) == set()
+    assert draft["extract"]["model_ran"] is False
+    assert "顾客" in draft["me"]["identity"]
 
 
 def test_h2_clip_for_window_not_whole_corpus():
