@@ -23,7 +23,7 @@ def test_immersive_budget_and_min_output():
     assert profile["presence_penalty"] <= 0.25
     # Count-scaled penalties push CJK prose into synonym chains past ~3k chars.
     assert profile["frequency_penalty"] == 0.0
-    assert profile["repetition_penalty"] == 1.0
+    assert 1.08 <= profile["repetition_penalty"] <= 1.18
     # A paragraph cycle is ~900 tokens; the presence window has to see it.
     assert profile["presence_context_size"] >= 1024
     assert profile["enable_thinking"] is False

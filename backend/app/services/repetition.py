@@ -132,7 +132,8 @@ def score_repetition(text: str) -> RepetitionReport:
     )
 
 
-_TERMINATORS = "。！？!?…"
+# A closing parenthesis ends a 括号 action line; those recur verbatim in paragraph cycles.
+_TERMINATORS = "。！？!?…）)"
 _CLOSERS = "”」』\"'"
 
 
@@ -160,6 +161,36 @@ def repeated_sentence_start(text: str, *, min_chars: int = 16) -> int | None:
     if len(_WS.sub("", sentence)) < min_chars:
         return None
     return start if text.find(sentence, 0, start) != -1 else None
+
+
+def _trigrams(text: str) -> set[str]:
+    compact = _WS.sub("", text)
+    return {compact[i : i + 3] for i in range(len(compact) - 2)}
+
+
+def tail_window_loop(text: str, *, window: int = 400, threshold: float = 0.45) -> int | None:
+    """Cut index when the last ``window`` chars mostly re-say the ``window`` before them.
+
+    Catches cycles built from short questions and 括号 lines that never repeat one
+    ≥16-char sentence back-to-back. Ordinary prose stays under ~0.2 trigram Jaccard.
+    """
+    if len(text) < 2 * window:
+        return None
+    before, after = _trigrams(text[-2 * window : -window]), _trigrams(text[-window:])
+    if not before or not after:
+        return None
+    if len(before & after) / len(before | after) < threshold:
+        return None
+    cut = len(text) - window
+    for i in range(cut - 1, -1, -1):
+        if text[i] in _TERMINATORS or text[i] == "\n":
+            cut = i + 1
+            break
+    # The window before is already loop material; peel sentences said earlier.
+    head = text[:cut].rstrip()
+    while (start := repeated_sentence_start(head, min_chars=2)) is not None:
+        head = head[:start].rstrip()
+    return len(head)
 
 
 def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 40) -> str | None:

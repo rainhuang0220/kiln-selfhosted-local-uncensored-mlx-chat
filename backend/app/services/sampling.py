@@ -92,6 +92,9 @@ def resolve_sampling(
         if value is None:
             continue
         preset[key] = float(value) if key not in {"top_k", "presence_context_size", "frequency_context_size", "repetition_context_size"} else int(value)
+    floor = (base or {}).get("repetition_penalty_floor")
+    if floor:
+        preset["repetition_penalty"] = max(float(preset["repetition_penalty"] or 0), float(floor))
     preset["top_k"] = int(preset["top_k"])
     for key in (
         "presence_context_size",

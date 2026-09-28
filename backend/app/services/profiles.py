@@ -84,7 +84,10 @@ IMMERSIVE = {
     "presence_context_size": 1024,
     "frequency_penalty": 0.0,
     "frequency_context_size": 256,
-    "repetition_penalty": 1.0,
+    # Multiplicative (not count-scaled). The web client sends 1.0 (= off) verbatim,
+    # so the floor keeps a paragraph cycle from re-sampling itself at 1.0.
+    "repetition_penalty": 1.08,
+    "repetition_penalty_floor": 1.08,
     "repetition_context_size": 256,
     "prompt_soft_target": 12288,
     "prompt_budget": 16384,

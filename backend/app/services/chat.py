@@ -78,7 +78,7 @@ from app.services.scene_graph import (
     graph_owned_pin,
     violation_start,
 )
-from app.services.repetition import hard_self_loop, repeated_sentence_start
+from app.services.repetition import hard_self_loop, repeated_sentence_start, tail_window_loop
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
 from app.services.thinking import (
@@ -1640,6 +1640,8 @@ class ChatService:
         fill_hop = False
         fill_hop_count = 0
         guard_trim: str | None = None
+        # A paragraph cycle across the tail window ends the turn; another fill hop re-enters it.
+        loop_stop = False
         deflect_ids: set[int] = set()
         stall_count = 0
         prefix_mutated = False
@@ -1835,7 +1837,7 @@ class ChatService:
 
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
-            nonlocal guard_trim, prefix_mutated, guard_hits, status, error
+            nonlocal guard_trim, prefix_mutated, guard_hits, status, error, loop_stop
             agen_iter = agen.__aiter__()
             last_token_ms = now_ms()
             stream_open = False
@@ -1934,6 +1936,16 @@ class ChatService:
                                 content_buf = content_buf[:cut].rstrip()
                                 guard_trim = "runon"
                                 guard_hits += 1
+                                prefix_mutated = True
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
+                                break
+                            window_at = tail_window_loop(content_buf) if immersive_turn else None
+                            if window_at is not None:
+                                content_buf = content_buf[:window_at].rstrip()
+                                guard_trim = "window_loop"
+                                guard_hits += 1
+                                loop_stop = True
                                 prefix_mutated = True
                                 ledger.observe_finish("stop")
                                 ledger.provider_protocol_closed = True
@@ -2350,6 +2362,7 @@ class ChatService:
                     enable_auto
                     and not error
                     and not user_cancelled
+                    and not loop_stop
                     and provider_calls < provider_call_cap
                     and should_auto_continue(
                         visible_chars=visible_n,
