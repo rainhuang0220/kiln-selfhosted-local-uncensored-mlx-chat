@@ -41,17 +41,17 @@ describe("context preset API", () => {
     expect(draft.characters[0].name).toBe("阿青");
     expect(draft.characters[0].identity).toBe("茶师");
     expect(mocked).toHaveBeenCalledWith("/context/presets/preview", expect.objectContaining({
-      method: "POST", body: JSON.stringify({ text: longText }),
+      method: "POST", body: JSON.stringify({ text: longText, deep: true }),
     }));
   });
 
-  it("never sends deep analysis from the SPA preview helper", async () => {
+  it("sends deep enrich on 解析并预览 only (chat send stays rules-only)", async () => {
     mocked.mockResolvedValue(json({ draft: payload }));
     await previewContextPreset("现实设定和参考材料");
     expect(mocked).toHaveBeenCalledWith("/context/presets/preview", expect.objectContaining({
-      body: JSON.stringify({ text: "现实设定和参考材料" }),
+      body: JSON.stringify({ text: "现实设定和参考材料", deep: true }),
     }));
-    expect(String(mocked.mock.calls[0][1]?.body)).not.toContain("deep");
+    expect(String(mocked.mock.calls[0][1]?.body)).toContain("\"deep\":true");
   });
 
   it("fills missing optional collections so a partial draft stays editable", () => {
