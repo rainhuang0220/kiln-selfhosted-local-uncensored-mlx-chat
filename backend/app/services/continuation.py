@@ -32,11 +32,21 @@ def shorten_until_unused(
     if len(ids) < 2:
         return prompt, ""
     seen = set(used or [])
+    # The cache is keyed by token ids: a sent prompt and that prompt minus its last
+    # token. A differently spelled string can still re-encode onto either key.
+    seen_ids: set[tuple[int, ...]] = set()
+    for text in seen:
+        sent = tuple(encode(text))
+        seen_ids.update((sent, sent[:-1]))
+
+    def cached(text: str) -> bool:
+        return text in seen or tuple(encode(text)) in seen_ids
+
     max_drop = max(1, len(ids) - min_keep)
     drop_n = min(2, max_drop) if prompt in seen else 1
     trimmed = decode(ids[:-drop_n])
     tail = decode(ids[-drop_n:])
-    while trimmed in seen and drop_n < max_drop:
+    while cached(trimmed) and drop_n < max_drop:
         drop_n += 1
         trimmed = decode(ids[:-drop_n])
         tail = decode(ids[-drop_n:])

@@ -47,16 +47,32 @@ def test_tail_window_loop_quiet_on_prose_fixtures():
             assert tail_window_loop(text[:n]) is None, (name, n)
 
 
-def test_immersive_repetition_floor_beats_client_one():
-    from app.services.profiles import resolve_profile
-    from app.services.sampling import mlx_repetition_penalty, resolve_sampling
+def _pieces(text: str) -> list[int]:
+    # Toy tokenizer: 「聊天」 is one token, everything else one char per token.
+    out, i = [], 0
+    while i < len(text):
+        if text.startswith("聊天", i):
+            out.append(-1)
+            i += 2
+        else:
+            out.append(ord(text[i]))
+            i += 1
+    return out
 
-    preset = resolve_profile("immersive")
-    sampled = resolve_sampling(enable_thinking=False, repetition_penalty=1.0, base=preset)
-    assert 1.08 <= sampled["repetition_penalty"] <= 1.18
-    assert mlx_repetition_penalty(sampled["repetition_penalty"]) == sampled["repetition_penalty"]
-    assert "repetition_penalty_floor" not in sampled
-    dialogue = resolve_sampling(
-        enable_thinking=False, repetition_penalty=1.0, base=resolve_profile("interactive_dialogue")
-    )
-    assert mlx_repetition_penalty(dialogue["repetition_penalty"]) == 0.0
+
+def _unpieces(ids: list[int]) -> str:
+    return "".join("聊天" if t == -1 else chr(t) for t in ids)
+
+
+def test_continue_prompt_never_lands_on_cached_prompt_minus_last_token():
+    """Live V23 crash: hop 3 re-encoded to hop 2's ids minus one token (different string)."""
+    from app.services.continuation import shorten_until_unused
+
+    sent = "接待室里灯调暗了。你能陪我聊天"  # hop 2 prompt; mlx caches its ids minus the last token
+    native = "接待室里灯调暗了。你能陪我呀"  # guard-trimmed hop 3 differs only in the last token
+    prompt, tail = shorten_until_unused(native, encode=_pieces, decode=_unpieces, used=[sent])
+    assert _pieces(prompt) != _pieces(sent)[:-1]
+    assert _pieces(prompt) != _pieces(sent)
+    assert prompt + tail == native
+    # Without history the one-token drop is unchanged.
+    assert shorten_until_unused(native, encode=_pieces, decode=_unpieces, used=[])[0] == "接待室里灯调暗了。你能陪我"

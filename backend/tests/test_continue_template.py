@@ -157,7 +157,8 @@ def test_completion_prompt_avoids_used_prefix():
     ids = tok.encode(native, add_special_tokens=False)
     assert first != second
     assert tok.encode(first, add_special_tokens=False) == ids[:-1]
-    assert tok.encode(second, add_special_tokens=False) == ids[:-2]
+    # ids[:-2] is `first` minus its last token: the key mlx-lm cached for the first hop.
+    assert tok.encode(second, add_special_tokens=False) == ids[:-3]
 
 
 def test_guard_cut_prefix_skips_the_finished_hop_cache_key():

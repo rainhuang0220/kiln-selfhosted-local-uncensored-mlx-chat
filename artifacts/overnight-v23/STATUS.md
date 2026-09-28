@@ -9,6 +9,7 @@
 | cycle | measured code | sum | G1 G2 G3 G4 G5 G6 | patch after |
 |---|---|---|---|---|
 | 1 | 8d4821d baseline | 4 | 2 1 0 0 1 0 | G4 loop guard + rep 1.08 floor |
+| 2 | a68b0da | 4 (+hard fail: MLX died) | 2 1 0 0 1 0 | token-id continue-prompt dedupe (MLX crash); revert rep floor |
 
 ## Next
-Cycle 2: re-run P1/P2 on the cycle-1 commit; if G4 rises, next class is G2/G3 (nameless style digest on the IR default hop).
+Cycle 3: measure the crash fix; then G5/G3 — the EOS-banned fill hop is what degenerates (loops at rep 1.0, menus/word lists at 1.08).
