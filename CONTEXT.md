@@ -23,7 +23,7 @@ Source-grounded past or imagined occurrences, ordered by their appearance in the
 Explicit user preferences that may guide style or interaction. Its entries are not world events and are not literal dialogue to repeat.
 
 **Context IR**:
-The typed, editable representation of document segments, persona, avatar, people, relations, events, and preferences before any generation prompt is assembled. It stays server-side. The Studio public draft only shows current scene, me, characters, and binder-attached events — never segment types, spans, or review badges.
+The typed, editable representation of document segments, persona, avatar, people, relations, events, and preferences before any generation prompt is assembled. It stays server-side. The Studio public draft only shows current scene, me, characters, and binder-attached events — never segment types, spans, or review badges. Each character card lists that person's events (who[] names them exactly) under a collapsed 相关事件 header; `one_event` is not shown.
 
 **Event binder**:
 Closed-set decision that attaches each harvested event to known character names (every co-actor in the evidence clip, up to four), merges consecutive beats only when the who-set is equal, and drops orphans (and under-18 + sexual clips) instead of asking the user to resolve them.

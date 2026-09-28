@@ -1539,6 +1539,15 @@ body::before {
 .preset-row-grid .preset-field { flex: 1 1 0; }
 .preset-remove { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--faint); }
 .preset-remove:hover { border-color: var(--danger); color: var(--danger); }
+.preset-related { min-width: 0; }
+.preset-related-head { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+.preset-related-head:hover { color: var(--copper-2); }
+.preset-related-head:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+.preset-related-count { color: var(--copper-2); font-family: var(--mono); }
+.preset-related-list { display: grid; gap: 7px; margin: 7px 0 0; padding: 0; list-style: none; }
+.preset-related-list li { padding: 7px 10px; border-left: 2px solid var(--line); }
+.preset-related-text { margin: 0; color: var(--bone); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.preset-related-when { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .preset-timeline-row { gap: 7px; }
 .preset-timeline-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .preset-timeline-heading strong { color: var(--copper-2); font: 600 10px var(--mono); letter-spacing: 0.08em; }

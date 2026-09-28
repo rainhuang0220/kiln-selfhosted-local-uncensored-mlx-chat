@@ -9,10 +9,45 @@ import {
   saveContextPreset,
 } from "../api/context-presets";
 import { useChatStore } from "../stores/chat-store";
-import type { ContextPresetPayload, ContextPresetRecord, PresetExtractMeta, SimpleCharacter } from "../types/context-preset";
+import type { ContextPresetPayload, ContextPresetRecord, PresetExtractMeta, PresetTimelineEvent, SimpleCharacter } from "../types/context-preset";
+
+const RELATED_EVENT_MAX_CHARS = 500;
 
 function displaySlot(value: string): string {
   return value?.trim() ? value : "暂无";
+}
+
+/** Timeline rows whose who[] names this person exactly, in timeline order. */
+export function eventsForPerson(name: string, timeline: PresetTimelineEvent[]): PresetTimelineEvent[] {
+  if (!name) return [];
+  return timeline.filter((event) => event.who.includes(name)).sort((a, b) => a.order - b.order);
+}
+
+export function RelatedEvents({ events, open, onToggle }: { events: PresetTimelineEvent[]; open: boolean; onToggle: () => void }) {
+  return (
+    <div className="preset-related">
+      <button type="button" className="preset-related-head" aria-expanded={open} onClick={onToggle}>
+        <span>相关事件</span><span className="preset-related-count">{events.length}</span><span aria-hidden="true">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && events.length ? (
+        <ul className="preset-related-list">
+          {events.map((event) => (
+            <li key={event.id}>
+              <p className="preset-related-text">
+                <span className="preset-related-when">{event.when || "未注明"}</span>{" · "}
+                {Array.from(event.summary || "未填写事件").slice(0, RELATED_EVENT_MAX_CHARS).join("")}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function PersonRelatedEvents({ name, timeline }: { name: string; timeline: PresetTimelineEvent[] }) {
+  const [open, setOpen] = useState(false);
+  return <RelatedEvents events={eventsForPerson(name, timeline)} open={open} onToggle={() => setOpen((value) => !value)} />;
 }
 
 /** One-line 解析 status. A long paste the 9B did not analyze is a failure, not a preview. */
@@ -91,12 +126,12 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
         <div className="preset-section-head preset-subhead-row">
           <div>
             <h3 id="preset-people-title">人物</h3>
-            <p>名称、身份，可选一件已绑定的事。</p>
+            <p>名称与一句话身份。展开「相关事件」查看此人已绑定的事件。</p>
           </div>
           <button
             type="button"
             className="btn ghost preset-small-action"
-            onClick={() => patch({ characters: [...payload.characters, { name: "", identity: "", one_event: undefined }] })}
+            onClick={() => patch({ characters: [...payload.characters, { name: "", identity: "" }] })}
           >
             <Plus size={13} /> 添加
           </button>
@@ -114,10 +149,6 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
                   <span>身份</span>
                   <input value={person.identity} onChange={(event) => patchCharacter(index, { identity: event.target.value })} placeholder="是谁" />
                 </label>
-                <label className="preset-field">
-                  <span>一件事（可选）</span>
-                  <input value={person.one_event || ""} onChange={(event) => patchCharacter(index, { one_event: event.target.value || undefined })} placeholder="可空" />
-                </label>
                 <button
                   type="button"
                   className="preset-remove"
@@ -127,6 +158,7 @@ export function PresetEditor({ payload, onChange }: EditorProps) {
                   <Trash2 size={15} />
                 </button>
               </div>
+              <PersonRelatedEvents name={person.name} timeline={payload.timeline} />
             </div>
           ))}
         </div>

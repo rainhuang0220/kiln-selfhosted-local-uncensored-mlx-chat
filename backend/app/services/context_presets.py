@@ -769,6 +769,12 @@ def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:
     body = normalize_payload(draft)
     body["characters"] = [row for row in body["characters"] if not is_alias_or_role(row.get("name") or "")]
     known = {item["name"] for item in body["characters"] if item.get("name")}
+    # normalize_timeline bounds stored/prompt summaries at 100; the card shows up to 500.
+    full_summary: dict[str, Any] = {}
+    raw_timeline = draft.get("timeline") if isinstance(draft.get("timeline"), list) else []
+    for at, raw in enumerate(raw_timeline[:40], start=1):
+        if isinstance(raw, dict):
+            full_summary.setdefault(str(raw.get("id") or f"manual-{at}").strip()[:64], raw.get("summary"))
     timeline = []
     for item in body.get("timeline") or []:
         who = [name for name in (item.get("who") or []) if name in known]
@@ -778,7 +784,7 @@ def public_studio_payload(draft: dict[str, Any]) -> dict[str, Any]:
             "id": item["id"],
             "order": len(timeline) + 1,
             "who": who,
-            "summary": _clean_text(item.get("summary"), 100),
+            "summary": _clean_text(full_summary.get(item["id"], item.get("summary")), 500),
             "when": _clean_text(item.get("when") or "未注明", 40) or "未注明",
             "chronology": "source_order",
             "scope": "active" if item.get("scope") == "active" else "reference",
