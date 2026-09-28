@@ -4,6 +4,24 @@ from app.providers.mlx import MlxProvider
 from app.services.sampling import mlx_repetition_penalty
 
 
+def test_owned_loopback_client_ignores_proxy_environment(monkeypatch):
+    import asyncio
+
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    provider = MlxProvider(Settings(mlx_base_url="http://127.0.0.1:8081"))
+
+    async def inspect():
+        client = await provider._client_obj()
+        try:
+            assert client._trust_env is False
+        finally:
+            await provider.aclose()
+
+    asyncio.run(inspect())
+
+
 def test_mlx_payload_includes_supported_sampling_fields():
     provider = MlxProvider(Settings(mlx_base_url="http://127.0.0.1:8081"))
     req = ChatRequest(

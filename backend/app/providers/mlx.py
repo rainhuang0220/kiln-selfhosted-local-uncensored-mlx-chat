@@ -46,6 +46,8 @@ class MlxProvider:
                     connect=self.settings.mlx_connect_timeout_s,
                 ),
                 follow_redirects=False,
+                # MLX is allowlisted to loopback; a system proxy can break it.
+                trust_env=False,
             )
         return self._client
 
