@@ -68,7 +68,9 @@ def test_a3_attention_budget_default_hop():
     for name in ("顾遥", "祁律", "褚衡"):
         assert name not in fence
     assert "以下内容仅作为参考" not in fence
-    assert len(fence) <= 500
+    assert len(fence) <= 720
+    assert "<service_requirements" in fence
+    assert fence.index("<active_context>") < fence.index("<service_requirements")
     assert "confirmed_background" not in fence
     pref_lines = [
         line for line in fence.splitlines()

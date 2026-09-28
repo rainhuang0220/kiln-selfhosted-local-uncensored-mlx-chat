@@ -42,6 +42,13 @@ from app.services.context_presets import (
     style_bank_for_preset,
 )
 from app.services.context_compiler import route_context
+from app.services.generation_errors import (
+    BETWEEN_TOKEN_IDLE_S,
+    FIRST_TOKEN_IDLE_S,
+    GENERATION_IDLE,
+    PROVIDER_BUSY,
+    user_generation_error,
+)
 from app.services.fact_extractor import (
     extract_atoms,
     extract_facts,
@@ -1829,11 +1836,13 @@ class ChatService:
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
             nonlocal guard_trim, prefix_mutated, guard_hits, status, error
-            idle_limit_s = 20.0
             agen_iter = agen.__aiter__()
             last_token_ms = now_ms()
+            stream_open = False
             try:
                 while True:
+                    # Shared 9B may still be decoding a preview; give the first token longer.
+                    idle_limit_s = BETWEEN_TOKEN_IDLE_S if ledger.had_output else FIRST_TOKEN_IDLE_S
                     try:
                         chunk = await asyncio.wait_for(agen_iter.__anext__(), timeout=idle_limit_s)
                     except StopAsyncIteration:
@@ -1841,15 +1850,15 @@ class ChatService:
                     except asyncio.TimeoutError:
                         if not ledger.had_output:
                             status = "error"
-                            error = "生成无响应"
+                            error = GENERATION_IDLE if stream_open else PROVIDER_BUSY
                             ledger.exception = TimeoutError(error)
                             yield {
                                 "event": "error",
                                 "data": {
                                     "error": {
-                                        "message": "生成无响应",
+                                        "message": error,
                                         "type": "api_error",
-                                        "code": "generation_idle_timeout",
+                                        "code": "generation_idle_timeout" if stream_open else "provider_busy",
                                     }
                                 },
                             }
@@ -1859,6 +1868,7 @@ class ChatService:
                             "data": {"stage": "正在写…", "eta_s": idle_limit_s},
                         }
                         continue
+                    stream_open = True
                     if chunk.wire_done:
                         ledger.observe_done_wire()
                         continue
@@ -1870,15 +1880,15 @@ class ChatService:
                         continue
                     if chunk.keepalive:
                         # Keepalives alone must not hide a dead generate thread.
-                        if not ledger.had_output and (now_ms() - last_token_ms) >= int(idle_limit_s * 1000):
+                        if not ledger.had_output and (now_ms() - last_token_ms) >= int(FIRST_TOKEN_IDLE_S * 1000):
                             status = "error"
-                            error = "生成无响应"
+                            error = GENERATION_IDLE
                             ledger.exception = TimeoutError(error)
                             yield {
                                 "event": "error",
                                 "data": {
                                     "error": {
-                                        "message": "生成无响应",
+                                        "message": GENERATION_IDLE,
                                         "type": "api_error",
                                         "code": "generation_idle_timeout",
                                     }
@@ -2255,6 +2265,7 @@ class ChatService:
                     do_auto = False
                 if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
                     error = "upstream stream ended before a reliable terminal"
+                error = user_generation_error(error, had_output=ledger.had_output or bool(content_buf))
                 if evidence and content_buf:
                     checked = verify_answer(
                         question=text,

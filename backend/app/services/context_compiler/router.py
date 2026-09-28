@@ -3,7 +3,8 @@
 Attention layers (V16):
   L0 ALWAYS-ON — ROLE / USER_AVATAR / CURRENT_SCENE (live parlor), ≤400 chars total.
   L1 ASKED-ONLY — USER_BACKGROUND when the user asks 背景/现实; entity one-liners on name mention.
-  L2 RETRIEVED — at most one 80-char preference hint on default hop; bound events on named recall.
+  L2 RETRIEVED — default hop adds <service_requirements> (≤320 chars; persona rules, explicit
+     prefs, USER_PREFERENCE, preference bank; L0 + block ≤720); bound events on named recall.
   L3 NEVER — raw source, DOCUMENT_META, UNKNOWN, off-stage people as current_cast.
 """
 
@@ -23,7 +24,16 @@ _BARE_OPEN = re.compile(r"^(?:你好|您好|开始(?:聊天)?|嗨|哈喽|在吗)
 _CUE_PREF = re.compile(r"以下内容|仅作为参考|信息背景和性癖参考|幻想参考|性癖参考")
 _L0_CAP = 400
 _SCENE_CAP = 160
-_PREF_CAP = 80
+_SERVICE_CAP = 320
+_SERVICE_ITEM_CAP = 120
+_TOTAL_CAP = 720
+_NEVER_SERVICE = re.compile(
+    r"(?:以下|下述)(?:内容|是)|仅(?:作为|供你?)参考|幻想参考|性癖参考|信息背景"
+    r"|小学|初中|高[一二三]|阁楼|loft|文本顺序|参考事件",
+    re.I,
+)
+_LABEL_PREFIX = re.compile(r"^[^:：]{1,12}[:：]")
+_ROLE_LEAD = re.compile(r"^你(?:是|扮演)(?:一[个名位])?")
 
 
 @dataclass(frozen=True)
@@ -95,6 +105,63 @@ def _l0_block(ir: dict[str, Any], *, active_names: list[str] | None) -> list[str
     return trimmed
 
 
+def _service_items(ir: dict[str, Any], l0_text: str) -> list[str]:
+    """How to serve and what the user asked for — never diary names, events, or cue bodies."""
+    persona = ir.get("persona") if isinstance(ir.get("persona"), dict) else {}
+    names = {str(item.get("name") or "") for item in ir.get("entities") or []}
+    aliases = ir.get("aliases") if isinstance(ir.get("aliases"), dict) else {}
+    names.update(str(k) for k in aliases)
+    names.update(str(v) for v in aliases.values())
+    offstage = [name for name in names if name and name not in l0_text]
+
+    candidates: list[str] = [str(rule) for rule in persona.get("rules") or []]
+    for seg in ir.get("segments") or []:
+        if seg.get("type") != "ROLE_DEFINITION" or seg.get("scope") != "live" or seg.get("needs_review"):
+            continue
+        for clause in re.split(r"[；;。！!？?\n]|[，,](?=我)", str(seg.get("text") or "")):
+            clause = clause.strip()
+            if clause and not clause.startswith("我") and _ROLE_LEAD.sub("", clause) not in l0_text:
+                candidates.append(clause)
+    # me.explicit_prefs reaches the IR as pref-manual; preference_field_at_compile is a stale mirror.
+    bank = _style_prefs(ir)
+    for item in bank:
+        if item.get("id") == "pref-manual":
+            candidates.extend(re.split(r"[；;\n]", str(item.get("content") or "")))
+    candidates.extend(
+        str(seg.get("text") or "") for seg in ir.get("segments") or []
+        if seg.get("type") == "USER_PREFERENCE" and not seg.get("needs_review")
+    )
+    candidates.extend(str(item.get("content") or "") for item in bank)
+
+    out: list[str] = []
+    for raw in candidates:
+        content = _LABEL_PREFIX.sub("", raw.strip()).strip()
+        if not content or content in l0_text or _NEVER_SERVICE.search(content):
+            continue
+        if any(name in content for name in offstage):
+            continue
+        if any(content in kept or kept in content for kept in out):
+            continue
+        out.append(content)
+    return out
+
+
+def _service_block(ir: dict[str, Any], l0_text: str) -> list[str]:
+    persona = ir.get("persona") if isinstance(ir.get("persona"), dict) else {}
+    role = _value(persona.get("role"), 80)
+    body = ["服务约束与偏好只决定怎么接待和表达；不要复述，也不是已发生的事件。"]
+    if role:
+        body.append(f"以{role}的身份先回应对方此刻的话和动作，再按下列要求推进；不要只描写房间陈设。")
+    for item in _service_items(ir, l0_text):
+        line = f"- {_value(item, _SERVICE_ITEM_CAP)}"
+        if len("\n".join([*body, line])) > _SERVICE_CAP:
+            break
+        body.append(line)
+    if len(body) == 1:
+        return []
+    return ['<service_requirements do_not_literalize="true">', *body, "</service_requirements>"]
+
+
 def route_context(ir: dict[str, Any], message: str, *, active_names: list[str] | None = None) -> RouteResult:
     """Default roleplay excludes history. Recall uses named, verified events only."""
     query = (message or "").strip()
@@ -145,20 +212,14 @@ def route_context(ir: dict[str, Any], message: str, *, active_names: list[str] |
                 f"现实设定: {_value(entity.get('name'), 80)}；{_value(entity.get('identity'), 120)}"
             )
 
-    # L2: at most one short preference hint on default hop — never six blobs.
-    prefs = _style_prefs(ir)
-    if prefs:
-        hint = _value(prefs[0].get("content"), _PREF_CAP)
-        if hint:
-            lines.append(
-                "<preference_bank do_not_literalize=\"true\">"
-                "偏好只影响表达与服务方式，不能当作角色身份或已发生事件复述。"
-            )
-            lines.append(hint)
-            lines.append("</preference_bank>")
-
-    fence = "\n".join(lines)
-    # Soft total guard for default hop (L0 + optional one hint).
-    if len(fence) > 500 and "<preference_bank" in fence:
-        fence = fence.split("<preference_bank", 1)[0].rstrip()
-    return RouteResult("roleplay", fence)
+    # L2: service requirements after the parlor lock; soft-drop from its tail to fit 720.
+    head = "\n".join(lines)
+    block = _service_block(ir, head)
+    while block:
+        fence = head + "\n" + "\n".join(block)
+        if len(fence) <= _TOTAL_CAP:
+            return RouteResult("roleplay", fence)
+        if not block[-2].startswith("- "):
+            break
+        block = [*block[:-2], block[-1]]
+    return RouteResult("roleplay", head)

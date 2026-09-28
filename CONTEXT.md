@@ -29,7 +29,10 @@ The typed, editable representation of document segments, persona, avatar, people
 Closed-set decision that attaches each harvested event to known character names (every co-actor in the evidence clip, up to four), merges consecutive beats only when the who-set is equal, and drops orphans (and under-18 + sexual clips) instead of asking the user to resolve them.
 
 **Attention layers**:
-Packed prompt layers for a generation turn. L0 is the short live parlor lock (role, avatar, current scene). L1 is asked-only background. L2 is at most one short preference hint plus named recall events. L3 is never packed (raw source, document meta, off-stage cast).
+Packed prompt layers for a generation turn. L0 is the short live parlor lock (role, avatar, current scene). L1 is asked-only background. L2 is the service requirements block on a default hop, or named recall events. L3 is never packed (raw source, document meta, off-stage cast).
+
+**Service requirements**:
+The `<service_requirements do_not_literalize="true">` block that follows L0 on a default hop, including a bare 你好. It says how to serve and what the user asked for: persona rules and role details not already in L0, then explicit prefs (`pref-manual`), USER_PREFERENCE segments, and the rest of the preference bank. The block is capped at 320 characters, and L0 plus the block at 720; items drop from the tail first. It never carries off-stage names, events, cue bodies (以下内容仅作为参考), or school-year memories. Named recall and identity hops do not carry it.
 
 **Alias**:
 A pronoun, kinship word, or role noun (他 / 她 / 姐姐 / 妈妈 / 宝宝 / 闺蜜 / 老师 / 队长 / 校医 / 顾客 / 技师 …) that refers to a person without naming them. An alias is never a character name. Explicit apposition (姐姐陆遥 / 姐姐是陆遥 / 陆遥是我姐姐) folds it onto the proper name by rules; an alias claimed by two names folds onto neither. A folded alias mention counts as event evidence for the named person.
@@ -46,6 +49,7 @@ The earlier closed-set pass that captioned 36- and 30-char clips around rules-ha
 ## Time budget
 
 - Chat send: unchanged, milliseconds, no 9B.
+- First token: 45 s, because the one-at-a-time 9B may still be finishing a preview. After the first token, 20 s between tokens. If nothing arrives, or the local model is unreachable, timing out, Hub-erroring, or closes with 0 bytes before any token, chat shows 本机模型忙碌，请稍后再试. 生成无响应 means a stream opened and then went silent.
 - Short paste under 800 characters, 「解析并预览」: rules only, under 2 s, `extract.mode = "rules_short"`.
 - Long paste of 800 characters or more, 「解析并预览」: people extract. Windows run one after another because mlx-lm decodes one request at a time (concurrent windows only queued, and the second timed out while waiting). About 75 s for a 2.5k diary on the local 9B, 75 s per window, 170 s hard cap. A long-paste preview under 8 s with full cards means the model did not run.
 - Public timeout: `deploy/nginx-kiln.plainlist.space.conf` has `location = /context/presets/preview` with `proxy_read_timeout 180s`. The live vhost is `/www/server/panel/vhost/nginx/kiln.plainlist.space.conf` on the VPS; without that block the `/context` prefix uses nginx's default 60 s and a long paste dies with 504. Studio shows 504 as 模型没有分析，请重试。没有使用规则名册。 Localhost-only workaround: open Studio on `http://127.0.0.1:8787`.
