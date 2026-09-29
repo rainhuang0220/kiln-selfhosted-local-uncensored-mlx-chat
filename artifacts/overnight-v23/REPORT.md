@@ -42,7 +42,7 @@
 ## Publication and scope
 
 - The original cycle commits had an injected `Co-authored-by: Cursor` trailer. The publication chain recreates each commit with its original tree and author, removes only that trailer, and remains a fast-forward descendant of `8d4821d`. Scored `b39869a` maps to `ad05349`; original report tip `63a39cd` maps to `0d25c9b`. No force push or ancestor amend was used.
-- Push criteria are met (best_sum 10, G1 2, G4 1). Publish only to the existing `feat/immersive-dialogue` branch and keep PR #6 draft.
+- Push criteria were met (best_sum 10, G1 2, G4 1). The cleaned chain was fast-forward pushed to `feat/immersive-dialogue`; PR #6 was updated and remains draft. No force push was used.
 - Files touched outside the allowed list:
   - `continuation.py`: the continue-key fix for the MLX-kill hard fail.
   - `chat.py`: beyond idle copy, this wires the guards, next_beat and the previous-reply reference.
