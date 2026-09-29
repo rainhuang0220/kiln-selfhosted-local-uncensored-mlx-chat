@@ -18,3 +18,6 @@
 
 ## Stopped
 3 consecutive cycles without beating 10. Best code b39869a. Next lever: continuation seam fragments after guard cuts (stray '平稳）' lines) and P2 length.
+
+## Publication checkpoint
+The scored best `b39869a` is tree-identical to trailer-free `ad05349`. The cleaned chain is prepared for a fast-forward update of existing draft PR #6. The cycle stop remains in force; no eighth quality cycle was run.
