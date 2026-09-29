@@ -1,0 +1,3 @@
+=== sudo -n powermetrics once ===
+sudo: a password is required
+POWERMETRICS_SKIPPED exit=1

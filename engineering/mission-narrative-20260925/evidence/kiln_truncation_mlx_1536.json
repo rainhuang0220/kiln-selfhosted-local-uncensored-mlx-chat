@@ -1,0 +1,16 @@
+{
+  "layer": "direct_mlx",
+  "requested_max_tokens": 1536,
+  "finish_reason": "length",
+  "completion_tokens": 1536,
+  "prompt_tokens": 73,
+  "visible_char_count": 2475,
+  "raw_char_count": 2485,
+  "han_count": 2185,
+  "elapsed_s": 85.23,
+  "swapout_pages_delta": 0,
+  "swap_free_mib_before": 815.88,
+  "swap_free_mib_after": 1519.94,
+  "content_head": "春天的脚步总是伴随着细微而敏锐的信号悄然而至，当最后一抹残雪在屋檐下化作潺潺溪流，当凛冽的北风逐渐收敛了它呼啸的锋芒，大",
+  "content_tail": "月是水稻分蘖期的关键阶段，也是其他作物移栽后的田间管理时期。农民们要加强对水稻的田间管理，及时施肥、喷药，促进分蘖成穗，"
+}

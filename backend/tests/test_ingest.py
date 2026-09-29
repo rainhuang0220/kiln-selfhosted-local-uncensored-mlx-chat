@@ -1,4 +1,25 @@
-from app.services.ingest import pack_document, pack_user_message, split_chunks, split_query_and_body
+from app.services.ingest import pack_document, pack_user_message, requests_full_document, split_chunks, split_query_and_body
+
+
+def test_cross_document_comparison_requires_full_source():
+    assert requests_full_document("请比较两份文档的所有差异。\n# File: a.txt\n内容")
+    assert requests_full_document("请对比这两段代码。\n# File: a.py\ncode")
+    assert not requests_full_document("请找出发票编号。\n# File: a.txt\n内容")
+
+
+def test_pack_keeps_named_section_evidence_in_long_compendium():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "engineering/mission-20260925/eval"
+    document = (root / "semantic-compendium-2.txt").read_text()
+    question = "在章节 [L43] 中，调度把夜班人数改成了多少人？"
+    packed = pack_user_message(
+        question + "\n# File: semantic-compendium-2.txt\n" + document,
+        budget=10_000,
+        estimate=len,
+    )
+    assert packed.applied
+    assert "不是11人，请假后是8人。" in packed.text
 
 
 def _est(text: str) -> int:

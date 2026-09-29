@@ -19,7 +19,14 @@ export interface TokenUsage {
   decodeTokensPerSec?: number | null;
 }
 
-export type GenerationProfile = "interactive_dialogue" | "balanced" | "reasoning";
+export type GenerationProfile =
+  | "immersive"
+  | "interactive_dialogue"
+  | "fast"
+  | "balanced"
+  | "reasoning"
+  | "long_form";
+
 
 export interface GenerationParams {
   profile: GenerationProfile;
@@ -113,9 +120,22 @@ export interface ChatLifecycleInfo {
   message?: string | null;
 }
 
+export interface GatewayStatus {
+  state: string;
+  transport_status?: string;
+  model_status?: string;
+  inference_status?: string;
+  inference_capability?: "UNVERIFIED" | "READY" | "BUSY" | "DEGRADED" | "FAILED" | string;
+  suspension_reason?: string | null;
+  last_verified_at?: number | null;
+  verification_method?: string | null;
+  evidence_expires_at?: number | null;
+}
+
 export interface Health {
   status: string;
   provider: { name: string; reachable: boolean; base_url: string };
+  gateway?: GatewayStatus | null;
   chat?: ChatLifecycleInfo | null;
   model: string;
   context_window: number;

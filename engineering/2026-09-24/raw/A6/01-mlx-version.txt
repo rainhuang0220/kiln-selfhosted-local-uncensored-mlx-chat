@@ -1,0 +1,35 @@
+# Captured 2026-09-24. No generation. No weight download.
+
+## Live process uses kiln venv, not Homebrew python3.14
+# PID 1581 maps:
+#   .../kiln/.venv/lib/python3.12/site-packages/mlx/core.cpython-312-darwin.so
+#   .../kiln/.venv/lib/python3.12/site-packages/mlx/lib/libmlx.dylib
+#   .../kiln/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib
+# Interpreter: /opt/homebrew/Cellar/python@3.12/3.12.12_2/.../Python
+# Homebrew python3.12 itself: ModuleNotFoundError: mlx_lm
+
+## kiln/.venv metadata (importlib.metadata)
+mlx-lm 0.31.3
+mlx 0.32.1
+dist-info:
+  mlx_lm-0.31.3.dist-info
+  mlx-0.32.1.dist-info
+  mlx_metal-0.32.1.dist-info
+mlx_lm file: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm/__init__.py
+server.py mtime: Aug 23 01:05:39 2026
+
+## Homebrew python3.14 (not the live server)
+/opt/homebrew/bin/python3 -> Python 3.14.7
+pip show:
+  mlx-lm 0.31.3  location /opt/homebrew/lib/python3.14/site-packages
+  mlx    0.32.1  requires mlx-metal
+importlib.metadata: mlx-lm 0.31.3, mlx 0.32.1, mlx-metal 0.32.1
+server.py mtime: Aug 22 18:38:26 2026
+Note: bare `python3 -c "import mlx_lm"` printed OMP Error #15 (duplicate libomp)
+and did not print __version__. Versions above are from pip/importlib.metadata.
+Help below was taken from the venv interpreter, which did not hit that error.
+
+## Help invocation that succeeded
+KMP_DUPLICATE_LIB_OK=TRUE /Users/rainhuang/Desktop/models/kiln/.venv/bin/python -m mlx_lm server --help
+KMP_DUPLICATE_LIB_OK=TRUE .../kiln/.venv/bin/python -m mlx_lm generate --help
+KMP_DUPLICATE_LIB_OK=TRUE .../kiln/.venv/bin/python -m mlx_lm.benchmark --help

@@ -1,0 +1,55 @@
+=== symlink sample in model dirs ===
+DIR /Users/rainhuang/Desktop/models/image-flux1-dev-mflux-4bit
+  files=33 symlinks=0
+  file    2.15G text_encoder_2/0.safetensors
+  file    2.14G transformer/1.safetensors
+  file    2.13G transformer/2.safetensors
+  file    2.13G transformer/0.safetensors
+  file    0.53G text_encoder_2/1.safetensors
+  file    0.30G transformer/3.safetensors
+  file    0.16G vae/0.safetensors
+  file    0.07G text_encoder/0.safetensors
+DIR /Users/rainhuang/Desktop/models/image-flux2-klein-4b-mflux-4bit
+  files=32 symlinks=0
+  file    2.15G transformer/0.safetensors
+  file    2.14G text_encoder/0.safetensors
+  file    0.17G vae/0.safetensors
+  file    0.13G text_encoder/1.safetensors
+  file    0.07G .cache/huggingface/download/vae/EyungE0_iOj0gd7KELZIUY6XP2o=.5053e0f1a87db7b97dc9f43ddba152c0d77858e87ab515fdf2ed9e6ca0374fab.d1fe1a1d.incomplete
+DIR /Users/rainhuang/Desktop/models/image-flux2-klein-4b-uncensored-te
+  files=3 symlinks=0
+DIR /Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit
+  files=48 symlinks=0
+  file    2.14G transformer/0.safetensors
+  file    2.14G text_encoder/0.safetensors
+  file    1.88G .cache/huggingface/download/text_encoder/EyungE0_iOj0gd7KELZIUY6XP2o=.5857538440e94dbe89f44ee3bb192aad7fd8d0559fb2f3cbe05807e5dda1ab67.4f336974.incomplete
+  file    1.32G transformer/1.safetensors
+  file    0.16G vae/0.safetensors
+  file    0.13G text_encoder/1.safetensors
+  file    0.08G .cache/huggingface/download/vae/EyungE0_iOj0gd7KELZIUY6XP2o=.d4309faa3683186faccb490afe237cae63c599b3e4fbb5ce9ef90393bb775a80.67059808.incomplete
+  file    0.07G .cache/huggingface/download/transformer/EyungE0_iOj0gd7KELZIUY6XP2o=.49d6d45165cbf65e387f4fdcacf0ae25b84b39ecdd382bba846e86cc3d9d4b65.f64cbbf5.incomplete
+DIR /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+  files=39 symlinks=0
+  file    5.13G model-00001-of-00002.safetensors
+  file    0.54G model-00002-of-00002.safetensors
+DIR /Users/rainhuang/Desktop/models/qwen3.8-27b
+  files=27 symlinks=0
+  file    5.35G model-00002-of-00003.safetensors
+  file    5.33G model-00001-of-00003.safetensors
+  file    4.45G model-00003-of-00003.safetensors
+DIR /Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b
+  files=10 symlinks=0
+  file    2.84G wan_1.3B_exp_e14.safetensors
+DIR /Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx
+  files=4 symlinks=0
+  file    11.36G t5_encoder.safetensors
+  file    0.84G model.safetensors
+  file    0.51G vae.safetensors
+DIR /Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux
+  files=28 symlinks=0
+  file    11.36G models_t5_umt5-xxl-enc-bf16.pth
+  file    0.51G Wan2.1_VAE.pth
+DIR /Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src
+  files=3 symlinks=0
+  file    2.84G diffusion_pytorch_model.safetensors
+  file    0.51G Wan2.1_VAE.pth

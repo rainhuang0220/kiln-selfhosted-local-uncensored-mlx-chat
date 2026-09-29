@@ -1,0 +1,25 @@
+=== hf cache ls --show-warnings ===
+[{"id": "model/Qwen/Qwen2.5-1.5B-Instruct", "repo_id": "Qwen/Qwen2.5-1.5B-Instruct", "repo_type": "model", "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "snapshot_path": "/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "size": "3.1G", "last_modified": "5 weeks ago", "refs": ["main"]}]
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX/snapshots. Repo ignored.
+
+=== hf cache ls human ===
+ID                               REVISION                                 SIZE LAST_MODIFIED REFS
+-------------------------------- ---------------------------------------- ---- ------------- ----
+model/Qwen/Qwen2.5-1.5B-Instruct 989aa7980e4cf806f80c7fef2b1adb7bc71aa306 3.1G 5 weeks ago   main
+
+Found 1 repo(s) for a total of 1 revision(s) and 3.1G on disk.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit/snapshots. Repo ignored.
+Warning: Snapshots dir doesn't exist in cached repo: /Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX/snapshots. Repo ignored.

@@ -1,0 +1,6 @@
+{
+  "gate": "R8",
+  "result": "EXTERNAL_DEPENDENCY",
+  "reason": "No legitimate browser login session available. cursor-ide-browser tabs list was empty. Anonymous /auth/status returns ok:false. Bearer token auth proves API owner access only and is not a UI click-path acceptance. Passwords will not be invented or scraped.",
+  "next_step": "Owner logs into http://127.0.0.1:7777 or https://kiln.plainlist.space with real credentials, then re-run browser Stop/Continue/long-form acceptance."
+}

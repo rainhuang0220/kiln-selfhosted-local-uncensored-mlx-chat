@@ -1,0 +1,83 @@
+===== launchctl print gui/501/com.kiln.mtplx-tunnel =====
+gui/501/com.kiln.mtplx-tunnel = {
+	active count = 1
+	path = /Users/rainhuang/Library/LaunchAgents/com.kiln.mtplx-tunnel.plist
+	type = LaunchAgent
+	state = running
+
+	program = /usr/bin/ssh
+	arguments = {
+		/usr/bin/ssh
+		-N
+		-o
+		ExitOnForwardFailure=yes
+		-o
+		ServerAliveInterval=30
+		-o
+		ServerAliveCountMax=3
+		-o
+		BatchMode=yes
+		-R
+		127.0.0.1:8081:127.0.0.1:8081
+		ubuntu@175.24.134.228
+	}
+
+	stdout path = /tmp/kiln-mtplx-tunnel.log
+	stderr path = /tmp/kiln-mtplx-tunnel.err
+	inherited environment = {
+		SSH_AUTH_SOCK => /var/run/com.apple.launchd.C8E1YkSULA/Listeners
+	}
+
+	default environment = {
+		PATH => /usr/bin:/bin:/usr/sbin:/sbin
+	}
+
+	environment = {
+		OSLogRateLimit => 64
+		XPC_SERVICE_NAME => com.kiln.mtplx-tunnel
+	}
+
+	domain = gui/501 [100015]
+	asid = 100015
+	minimum runtime = 10
+	exit timeout = 5
+	runs = 22600
+	pid = 26156
+	immediate reason = inefficient
+	forks = 0
+	execs = 1
+	initialized = 1
+	trampolined = 1
+	started suspended = 0
+	proxy started suspended = 0
+	checked allocations = 0 (queried = 1)
+	checked allocations reason = no host
+	checked allocations flags = 0x0
+	last exit code = 255
+
+	resource coalition = {
+		ID = 243921
+		type = resource
+		state = active
+		active count = 1
+		name = com.kiln.mtplx-tunnel
+	}
+
+	jetsam coalition = {
+		ID = 243922
+		type = jetsam
+		state = active
+		active count = 1
+		name = com.kiln.mtplx-tunnel
+	}
+
+	spawn type = daemon (3)
+	jetsam priority = 40
+	jetsam memory limit (active) = (unlimited)
+	jetsam memory limit (inactive) = (unlimited)
+	jetsamproperties category = daemon
+	jetsam thread limit = 32
+	cpumon = default
+
+	properties = keepalive | runatload | inferred program
+}

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="多人物交织叙事的正文与逐人互动事件对照">
+  <title>交织日记｜人物事件验收</title>
+  <style>
+    :root { --paper:#eee9df; --sheet:#f8f4ea; --ink:#24251f; --soft:#6c7068; --line:#ccc7b9; --accent:#9c3e2c; --deep:#263834; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--paper); color:var(--ink); font-family:"Songti SC","Noto Serif CJK SC",Georgia,serif; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.24; background-image:radial-gradient(#8d826f 0.45px,transparent 0.45px); background-size:7px 7px; }
+    a { color:inherit; }
+    .mast { position:relative; z-index:2; background:var(--deep); color:#f2ead9; padding:30px clamp(22px,4vw,72px) 27px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:end; }
+    .eyebrow { margin:0 0 8px; color:#d3b9a0; font:600 11px/1.4 ui-monospace,SFMono-Regular,monospace; letter-spacing:.22em; }
+    h1 { font-size:clamp(36px,4.7vw,72px); line-height:1.05; font-weight:500; letter-spacing:.065em; margin:0; }
+    .sub { max-width:630px; color:#cfcfc4; margin:15px 0 0; line-height:1.75; font-size:14px; }
+    .counts { display:flex; gap:22px; align-items:end; }
+    .counts span { display:grid; gap:3px; min-width:72px; }
+    .counts strong { font:400 35px/1 Georgia,serif; color:#e0aa8b; }
+    .counts small { color:#cfcfc4; font-size:11px; letter-spacing:.08em; }
+    .tools { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:10px 24px; padding:13px clamp(22px,4vw,72px); border-bottom:1px solid var(--line); font:600 12px/1.5 ui-monospace,SFMono-Regular,monospace; background:#e5dfd3; }
+    .tools a { text-decoration:none; border-bottom:1px solid var(--accent); padding-bottom:2px; }
+    .tools a:hover,.tools a:focus-visible { color:var(--accent); }
+    .tools .hash { margin-left:auto; color:var(--soft); font-weight:400; }
+    main { position:relative; display:grid; grid-template-columns:minmax(0,1.03fr) minmax(0,1fr); gap:0; max-width:1800px; margin:auto; min-height:calc(100vh - 185px); }
+    .pane { min-width:0; padding:28px clamp(22px,3.7vw,66px) 70px; }
+    .source { background:var(--sheet); border-right:1px solid var(--line); }
+    .analysis { background:#e9e3d6; }
+    .pane-head { display:flex; align-items:baseline; justify-content:space-between; gap:15px; border-bottom:1px solid var(--line); padding-bottom:13px; margin-bottom:26px; }
+    h2 { margin:0; font-size:23px; font-weight:500; letter-spacing:.09em; }
+    .pane-head span { color:var(--soft); font:11px/1.4 ui-monospace,SFMono-Regular,monospace; }
+    .story { max-width:730px; margin:auto; font-size:16px; line-height:2.1; letter-spacing:.02em; }
+    .story p { margin:0 0 1.6em; text-indent:2em; }
+    .story p:first-child { text-indent:0; font-size:18px; color:var(--deep); border-left:3px solid var(--accent); padding-left:17px; }
+    .story-present { background:#eee4d5; border-left:3px solid var(--accent); padding:14px 17px; text-indent:0!important; }
+    .scope { margin:0 0 20px; color:var(--soft); font-size:13px; line-height:1.75; }
+    .jump { display:flex; flex-wrap:wrap; gap:7px; margin:0 0 23px; }
+    .jump a { text-decoration:none; padding:6px 9px; border:1px solid #c6c0b2; border-radius:2px; font-size:12px; background:#f1ecdf; }
+    .jump a:hover,.jump a:focus-visible { border-color:var(--accent); color:var(--accent); }
+    .person { border-top:1px solid #b9b4a9; padding:0; }
+    .person:last-child { border-bottom:1px solid #b9b4a9; }
+    .person summary { cursor:pointer; display:flex; gap:13px; align-items:baseline; list-style:none; padding:17px 0; }
+    .person summary::-webkit-details-marker { display:none; }
+    .person summary::after { content:"＋"; margin-left:8px; font-size:21px; line-height:1; color:var(--accent); }
+    .person[open] summary::after { content:"−"; }
+    .person-index { color:var(--accent); font:13px/1 ui-monospace,SFMono-Regular,monospace; }
+    .person-name { font-size:24px; letter-spacing:.12em; }
+    .person-count { margin-left:auto; color:var(--soft); font:11px/1.4 ui-monospace,SFMono-Regular,monospace; white-space:nowrap; }
+    .relation { margin:0 0 13px 29px; color:#50564c; font-size:13px; line-height:1.7; }
+    .event { margin:0 0 14px 29px; background:#f6f1e7; border:1px solid #d5cfc1; padding:15px 18px 14px; box-shadow:3px 3px 0 #dad3c6; }
+    .event-prose { margin:0; font-size:14px; line-height:1.95; }
+    .evidence summary { cursor:pointer; font-size:12px; color:var(--accent); }
+    .event-top { display:flex; gap:10px; align-items:center; border-bottom:1px solid #ddd5c8; padding-bottom:10px; margin-bottom:10px; font:11px/1.2 ui-monospace,SFMono-Regular,monospace; }
+    .event-number { color:var(--accent); font-weight:700; }
+    .event-status { color:#f9f3e8; background:var(--deep); padding:4px 7px; }
+    .event-scene { color:var(--soft); margin-left:auto; }
+    dl { display:grid; grid-template-columns:42px 1fr; column-gap:10px; row-gap:7px; margin:0; font-size:13px; line-height:1.65; }
+    dt { color:var(--accent); font-weight:700; } dd { margin:0; }
+    .evidence { border-top:1px dashed #d0c7ba; margin-top:12px; padding-top:9px; }
+    .evidence>span { font:10px/1.4 ui-monospace,SFMono-Regular,monospace; color:var(--soft); letter-spacing:.08em; }
+    blockquote { margin:6px 0 0 0; padding-left:9px; border-left:2px solid #c6a993; color:#5e6057; font-size:12px; line-height:1.6; }
+    footer { position:relative; padding:17px clamp(22px,4vw,72px) 25px; border-top:1px solid var(--line); font:11px/1.7 ui-monospace,SFMono-Regular,monospace; color:var(--soft); }
+    @media (min-width:900px) { .pane { max-height:calc(100vh - 165px); overflow-y:auto; scrollbar-color:#c5bba9 transparent; } }
+    @media (max-width:899px) { .mast { grid-template-columns:1fr; } main { grid-template-columns:1fr; } .analysis { order:-1; } .source { border-right:0; border-bottom:1px solid var(--line); } .counts { gap:30px; } .tools .hash { display:none; } }
+    @media (max-width:560px) { .mast { padding-top:25px; } .pane { padding-bottom:42px; } .story { font-size:15px; } .event { margin-left:0; } .relation { margin-left:0; } }
+  </style>
+</head>
+<body>
+  <header class="mast">
+    <div><p class="eyebrow">TEST DOSSIER / 01</p><h1>交织日记</h1><p class="sub">每个人物保留一句话身份，以及一段完整叙述其与陆闻的事件；右侧可展开核对原文。</p></div>
+    <div class="counts"><span><strong>12</strong><small>成年人物</small></span><span><strong>12</strong><small>事件长描述</small></span></div>
+  </header>
+  <nav class="tools" aria-label="页面导航与文档下载"><a href="#events">直达人物描述 ↓</a><a href="../多人物交织场景_输入.md">正文原文件 ↗</a><a href="../多人物交织场景_标准结构.json">结构化 JSON ↗</a><a href="../多人物交织场景_人物事件对照.md">长描述文档 ↗</a><span class="hash">SOURCE SHA256 4730fa73b104</span></nav>
+  <main>
+    <section class="pane source" id="source"><div class="pane-head"><h2>正文</h2><span>INPUT / NATURAL PROSE</span></div><div class="story"><p class="">你是风俗店技师许澄，三十二岁；我是二十九岁的顾客陆闻。我把一叠日记纸带来，想让你先读。下述内容是我的私人幻想日记，仅供你参考。</p>
+<p class="">姐姐陆遥三十四岁了，还留着学生时代用过的那种薄册子。她每答应别人一件事，就把日期写在右上角；如果有人失约，她不责备，只翻到那一页，请对方自己看。我从小怕她这个动作。沈乔却不怕。她是姐姐的闺蜜，比姐姐小一岁，有回在我面前把册子合上，说：“他又不是来受审的。”我当时正准备为忘记回信辩解，听她这么一说，反倒把那句借口咽了回去。那是确实发生过的一句话，至于她们后来有没有在同一个傍晚来过我的公寓，我已经说不准了。我在日记里写她们进门时没有按铃，陆遥径直走到窗边，沈乔靠着门框，看我把一张便条折了三次，又展开。我想解释那张便条写给谁，陆遥没有追问，沈乔却把椅子拉近了些，叫我先念第一行。我念出开头的称呼，后面的字却读不下去，便把纸翻面压在膝上。两个人等着我开口的时候，屋里安静得像有人把钟停了。我知道自己喜欢那种被注视的紧张，便把这段写得越来越长，连窗帘被风吹起的样子都写进去了。第二天我才想起，那间公寓的窗根本打不开。</p>
+<p class="">一个月后，我在成年人的业余排球馆见过唐宁。她三十一岁，是队长，个子并不比旁人高多少，却能在大家同时说话时让球场静下来。蒋越二十八岁，负责收球，总把球车推到灯下，方便看清地上的线。我把她们也写进了同一页：唐宁让我重新站到发球线后，先看脚，再看手；蒋越翻过计分板，露出两个空白的零，又把球递回我手里。我问她是否要从零算，她看着那两个零，说不然还能从哪里算。我接过球，站了很久，最后只做了准备动作，没有把球发出去。唐宁看出我在拖延，说可以从头再来，却不能装作刚才那次已经完成。我终于把球托起来，仍没有发出去，只向她点了点头。那句话本来只关乎训练，我却在回程的车上反复想着。车窗里映出我自己的脸，后面忽然叠上姐姐翻册子的手；等我低头去看，手机里只有一条沈乔发来的消息，问我周末是否有空。我没回。她问的是周末，我脑子里却还站在那条白线上。</p>
+<p class="">那天的车也许并不是从球馆开出的。我常把几个地方的灯光记成同一种颜色。面向成年学员的夜校里有间校医室，周岚在那里做健康咨询，三十八岁，讲话很慢。我曾去问过一次睡眠的问题，进门前想好了许多形容词，坐下却只说“最近不太好”。她把笔放在桌上，问“不太好”是入睡难、醒得早，还是醒后再睡不回去。我说是凌晨醒来后总盯着窗外，她让我再想想持续了几天，我只好承认自己没记清。我在日记里让她问了更多，也让自己回答得比当时诚实；真实的记录只到她在表格里写下“待确认”为止。后来有一页写唐宁把计分板推到她面前，周岚又接过球，说我既然来了就该把动作做完。我知道这不可能：周岚不打那支球队，她的桌上也没有球。可是我总舍不得划掉那一页。两个人隔着不相干的场所，居然都让我把含糊的地方说清楚。</p>
+<p class="">林见工作的店开在另一条街，门口没有招牌，玻璃上贴着褪色的营业时间。她三十岁，是那里的店员，说话像先在心里排过顺序；二十六岁的林栀是她妹妹，笑起来和她很像，却喜欢等别人把话说完。那天我走进去时，林见正在整理三张空白卡片。她说自己偏向“S”，习惯先提出规则；林栀在隔壁喊她，说自己的“M”是愿意依照商定的步骤来，别替她省掉确认。我第一次听她们这样介绍自己，倒觉得两人说的不是同一件事。林见带我进左边的会谈室，三张卡一字摆开，让我写下愿意谈、暂时不谈、还需确认的事。我写第三张时停了很久，她把笔帽推过来，没有看我的字。我把原先写下的“可以”划掉，改成“还不知道”，她才收回手。隔壁传来一下轻响，像有人把计时器放在桌上。我不记得门当时关没关，也不敢说林栀听见了我们的话。等我敲了隔壁的门，林栀才让我进来，要我照着自己写下的顺序读卡。我念到第二张卡时改了口，她按停计时器，问要不要从这一张重来。我说要，她把卡片推还给我，等我重新决定。日记后来把这两间房写得像一条走不完的走廊；实际上从左边出来，往右转两步就到了。</p>
+<p class="">我原本打算把那几张卡寄给姐姐，最终没寄。地铁上我捏着信封，旁边一位穿办公室工牌的女人问我是不是陆闻。她叫何冉，三十五岁，我们在朋友的聚会上见过一次。她的同事叶舒，三十二岁，站在几步之外看线路图。列车一晃，信封从我指间滑到她鞋边；她捡起来还给我，我说了声谢谢。她又问我到哪站换乘，我说还要再坐两站，她便退回线路图前。何冉问我为什么每次提到姐姐都像要向谁交作业。我说没有，她却指指我手里的信封，问敢不敢现在给陆遥打个电话，把邀请她来看我这件事说清楚。车到站时，人群挤过我们之间。何冉没有碰到我，她只等着，仿佛我一伸手就能从口袋里拿出一个答案。我记得自己看见了姐姐的号码；我也记得自己把手机锁了屏。日记的一行写“陆遥接了，沈乔就在她旁边，提醒我别又改时间”，紧挨着的下一行却写“号码没有拨出去”。哪一行都没有删。叶舒那时还在看线路图，列车门开了，她先下车，我连她有没有听见何冉那句话都不知道。</p>
+<p class="">再翻两页，林见似乎也上了那节车厢。她手里拿着卡片，问我第三张还要不要保留；唐宁在车门上方翻计分板；周岚隔着玻璃纠正我把“也许”说成“肯定”。我写到这里才发现自己把灯光、白线和车厢里的扶手缠在一起了。林见没有上过地铁，唐宁也不可能带着计分板追来。可每次写到姐姐，我就想起她那本薄册子，接着想起唐宁让我回到发球线的声音，最后又看见林栀按停计时器的手。她们没有相遇，是我让她们在纸上相遇。大学同学顾青和我同岁。毕业前我曾把一页写乱的草稿给他看，他拿笔在两个名字之间画线，叫我先说清谁认识谁。我照着画，却把沈乔接成了自己的闺蜜；他笑着擦掉那条线，我才重新写下“姐姐的闺蜜”。如今页边又多了一句“把人物关系画出来，别再认错”，我连那是不是他的笔迹都不确定。写着写着，我竟把他安进了店铺的走廊；这一句我划掉了，他那天不在那里。</p>
+<p class="">沈乔后来真给我打过一次电话，问我便条写完没有。我刚从夜校出来，路边的风把纸吹得翻了面。我说还没写好，她没有替我催姐姐，也没有问信封寄出去了没有，只说写不下去就先留白。我站在便利店门口，看玻璃里的自己像站在排球馆那条线后。何冉的问题、林见的卡片和周岚的表格这时都挤在一起，连我也分不清先想起的是哪一个。那晚我回家把便条重新铺平，第一行仍是空的。那些让我反复重写的场面，我有的经历过一小截，有的纯粹是想象；它们在日记里靠得很近，在生活里却未必连得上。</p>
+<p class="story-present">现在纸到了你手里。接待室的桌面很空，你伸手接住最上面一页，我本想把纸抽回去，最后仍让它留在你掌心。我把两只手放在桌沿，看你翻过第一页。外面的响动隔着门传来，我看不见那里是谁。你抬头时，我没催你继续读，只想听你先问我一句话。</p></div></section>
+    <section class="pane analysis" id="events"><div class="pane-head"><h2>人物与陆闻</h2><span>GOLD / EVENT NARRATIVES</span></div><p class="scope">每人一段连贯事件描述，约 300–400 字。当前接待室只有许澄和陆闻；回忆、想象及互斥分支分别说明。</p><nav class="jump" aria-label="跳转到人物"><a href="#person-0">许澄</a>
+<a href="#person-1">陆闻</a>
+<a href="#person-2">陆遥</a>
+<a href="#person-3">沈乔</a>
+<a href="#person-4">唐宁</a>
+<a href="#person-5">蒋越</a>
+<a href="#person-6">周岚</a>
+<a href="#person-7">林见</a>
+<a href="#person-8">林栀</a>
+<a href="#person-9">何冉</a>
+<a href="#person-10">叶舒</a>
+<a href="#person-11">顾青</a></nav><details class="person" id="person-0" open><summary><span class="person-index">01</span><span class="person-name">许澄</span><span class="person-count">32 岁</span></summary><p class="relation">当前接待室里的技师，陆闻把日记交给她，等待她先读再提问。</p><article class="event"><p class="event-prose">这段关系只发生在日记之外的接待室，是整个文本的现在时。陆闻带着一叠纸来到许澄面前，先说明纸上的经历有虚构和记忆混杂，希望她读过再开口。到了末尾，纸确实交到许澄手里：她伸手接住最上面一页，陆闻一瞬间想把纸抽回，最后没有这么做。他把双手放在桌沿，看她翻过第一页；门外有响动，但两人都没有看见是谁。许澄抬头时，陆闻也没有催她读下一页，只等她先问一句话。这里已有的事件是递纸、接纸、翻页与等待，尚没有许澄作出的判断或提问。结构化时可以让她从陆闻此刻想谈的事入手，但不能把日记里的任何人提前带进接待室，也不能替纸背面或门外响动补事实。陆闻把决定下一句怎样开始的空间留给她；她也只读到第一页，还没有获得日记所有片段的完整解释。她与陆闻的关系目前是一场刚打开的谈话，不应从职业或纸上的幻想推断两人已经讨论过任何具体偏好。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>你伸手接住最上面一页，我本想把纸抽回去，最后仍让它留在你掌心</blockquote><blockquote>我把两只手放在桌沿，看你翻过第一页</blockquote><blockquote>你抬头时，我没催你继续读，只想听你先问我一句话</blockquote></details></article></details>
+<details class="person" id="person-1"><summary><span class="person-index">02</span><span class="person-name">陆闻</span><span class="person-count">29 岁</span></summary><p class="relation">二十九岁的顾客和日记叙述者，他把不同地点的经历、想象与未完成的回答写在一起。</p><article class="event"><p class="event-prose">陆闻是各段事件的共同主角。他害怕姐姐陆遥翻开记录失约的册子，却又会在幻想中等她和沈乔一起听自己念便条；在排球馆，他接过蒋越递回的球，听唐宁说可以重新来，仍只托着球而没有发出去；在夜校校医室，他把“最近不太好”逐渐说明为凌晨醒来，又承认持续天数记不清。到了林见和林栀的两间房，他自己把卡片上的“可以”改成“还不知道”，第二次读卡改口后也选择重来。地铁上何冉问他敢不敢给姐姐打电话，他看见号码，又记得锁了屏，日记却留下接通与未拨出的互斥句子。最后他把纸交给许澄，想听一个问题。上述片段不能压成一条连续时间线：有真实互动、经过加工的日记、明确想象和未解的分支。这份文本最容易误读之处，是把他对“说清楚”的反复迟疑当成某个单一事件。他是在不同人物面前做出不同程度的回答，最后才把这些未完成的回答带给许澄；有些问题仍需在现在的谈话里由他自己确认。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>我是二十九岁的顾客陆闻</blockquote></details></article></details>
+<details class="person" id="person-2"><summary><span class="person-index">03</span><span class="person-name">陆遥</span><span class="person-count">34 岁</span></summary><p class="relation">陆闻的姐姐，她记约定的薄册子贯穿陆闻的记忆与幻想。</p><article class="event"><p class="event-prose">陆遥与陆闻最早的互动来自那本薄册子。有人失约时，她不会直接责备，而是翻到记有日期的那一页，请对方自己看；陆闻从小害怕她这个动作。日记随后写她与闺蜜沈乔在同一个傍晚来到陆闻的公寓：她走到窗边，看陆闻把便条折了又展开，却没有追问便条写给谁；陆闻想解释，始终没有顺利说出口。公寓拜访本身被叙述者明确标为记不清的画面，连写出的窗帘也与不能打开的窗户矛盾，因此不能算确认发生。地铁上的电话又出现两种互斥写法，其中一种写陆遥接起电话、沈乔在旁边提醒别改时间，另一种写号码根本没拨出。陆遥的身份是姐姐，但她既没有在当前接待室，也不能被断言确实接过那通电话。陆闻后来反复想起她翻册子的手势，这种联想把排球馆的计分板、林见的卡片以及何冉在地铁上的追问连起来，却没有让陆遥实际参与这些场景。她对陆闻的影响可写进关系叙述，不能被改写成她在各处亲自行动。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>如果有人失约，她不责备，只翻到那一页，请对方自己看。我从小怕她这个动作</blockquote><blockquote>陆遥径直走到窗边，沈乔靠着门框，看我把一张便条折了三次，又展开</blockquote><blockquote>我想解释那张便条写给谁，陆遥没有追问</blockquote></details></article></details>
+<details class="person" id="person-3"><summary><span class="person-index">04</span><span class="person-name">沈乔</span><span class="person-count">33 岁</span></summary><p class="relation">陆遥的闺蜜，她在陆闻犹豫时有时替他挡住压力，有时请他说清。</p><article class="event"><p class="event-prose">沈乔和陆闻之间有几种事实状态不同的互动。有一次真实记忆中，她在陆闻面前合上陆遥的薄册子，说他不是来受审的；陆闻原本准备解释自己忘了回信，听到这句话反而把借口咽回去。日记里的公寓画面则不确定是否发生：她靠着门框，看陆闻反复折便条，随后拉近椅子请他念第一行。陆闻念出称呼，后面的字读不下去，只好把纸翻面压在膝上。排球馆回程时，陆闻还收到她问周末是否有空的消息，但没有回复。后来有一通被明确说成真实的电话：沈乔问便条写完没有，陆闻承认还没写好，她没有替姐姐催信，只说写不下去可以先留白。地铁电话的接通分支也提到她在陆遥旁边，但它与未拨出分支冲突，不能合并成确定事实。她与陆闻之间的节奏也因此不同于陆遥：真实的一次保护、未证实的公寓催读和真实的后续电话各有出处。把三者写成一个晚上连续发生，会抹掉原文刻意保留的记忆边界，也会误判她何时真的听到了陆闻的回答。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>有回在我面前把册子合上，说：“他又不是来受审的。”</blockquote><blockquote>听她这么一说，反倒把那句借口咽了回去</blockquote><blockquote>沈乔却把椅子拉近了些，叫我先念第一行</blockquote><blockquote>我念出开头的称呼，后面的字却读不下去</blockquote><blockquote>沈乔后来真给我打过一次电话，问我便条写完没有</blockquote></details></article></details>
+<details class="person" id="person-4"><summary><span class="person-index">05</span><span class="person-name">唐宁</span><span class="person-count">31 岁</span></summary><p class="relation">成年业余女排队长，她要求陆闻把没完成的发球重新做清楚。</p><article class="event"><p class="event-prose">唐宁与陆闻的主要事件在排球馆。她先让他退回发球线后，按脚和手的顺序重新准备；蒋越把计分板翻回零并交还球，陆闻接过球，站了许久却只做准备动作。唐宁看出拖延，允许他从头来，同时指出不能把刚才那次说成已经完成。陆闻终于托起球，仍然没有发出，只向她点头。回程时，这句关于训练的话留在他脑里，并与姐姐翻册子的手势叠在一起；这是陆闻的联想，唐宁并未因此去见陆遥或沈乔。日记后来把唐宁和校医周岚写到同一页，甚至写她把计分板推到周岚面前；叙述者自己说这不可能。再后面的地铁拼接中，唐宁仿佛在车门上方翻计分板，也被明确解释为纸上的相遇。重组时应保留真实训练互动与想象拼接之间的界线。陆闻喜欢的并非一次成功发球，而是她把失败与重来区分得很清楚。结构化叙述应保留他两次仍没发出的动作，以及她说话后他只点头的回应；若写成唐宁教会他发球、两人完成训练，就给这段未完成的事件补了不存在的结果。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>唐宁让我重新站到发球线后，先看脚，再看手</blockquote><blockquote>我接过球，站了很久，最后只做了准备动作，没有把球发出去</blockquote><blockquote>唐宁看出我在拖延，说可以从头再来，却不能装作刚才那次已经完成</blockquote><blockquote>我终于把球托起来，仍没有发出去，只向她点了点头</blockquote></details></article></details>
+<details class="person" id="person-5"><summary><span class="person-index">06</span><span class="person-name">蒋越</span><span class="person-count">28 岁</span></summary><p class="relation">成年业余女排队员，她用归零的计分板和递回的球回应陆闻。</p><article class="event"><p class="event-prose">蒋越在排球馆并非只有一个队员标签。她负责把球收回球车，习惯将车推到灯下，好看清地上的边线。在陆闻迟迟没有完成发球的一段里，她先把计分板翻到两个零，再把球递回他手中。陆闻问是否真的要从零算，她看着计分板反问：不然还能从哪里算。陆闻接球后站了很久，只做了准备动作，唐宁随后才指出他不能把未完成的一次说成完成。蒋越与陆闻的这次问答使“重新开始”变成一个具体动作，而不只是唐宁的一条抽象规则。她没有替陆闻发球，也没有在后来校医室或地铁的纸上拼接里真正出现。结构化描述可以说明她的动作如何推动陆闻面对未完成的发球，但不能据此增写两人之间不存在的私下交往。她的回答短而直接，和唐宁较完整的规则说明形成对照；陆闻后来在别处想起的却主要是计分板的“零”。这种回想可以作为人物影响写出，但不能因此把蒋越放进夜校、地铁或林见的房间，也不能把她的沉默填成额外对白。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>蒋越翻过计分板，露出两个空白的零</blockquote><blockquote>我问她是否要从零算</blockquote><blockquote>又把球递回我手里</blockquote><blockquote>她看着那两个零，说不然还能从哪里算。我接过球，站了很久</blockquote></details></article></details>
+<details class="person" id="person-6"><summary><span class="person-index">07</span><span class="person-name">周岚</span><span class="person-count">38 岁</span></summary><p class="relation">成年夜校校医，她通过追问把陆闻含糊的睡眠描述变成待确认的信息。</p><article class="event"><p class="event-prose">周岚和陆闻的互动发生在面向成年学员的夜校校医室。陆闻原先准备了许多形容词，坐下后只说最近“不太好”；周岚放下笔，分开追问是入睡困难、过早醒来，还是醒后无法再睡。陆闻于是说自己凌晨醒来后总盯着窗外。她继续问这种情况持续了几天，陆闻承认没记清，真实记录到她在表格里写下“待确认”为止。陆闻在日记中又让她问更多、让自己回答得更坦白，那已经是加工后的版本。另一页甚至写唐宁把计分板推到她面前、她接过球要求陆闻完成动作；叙述者马上说明周岚不在那支球队，桌上也没有球。地铁拼接里隔着玻璃纠正“也许”与“肯定”的周岚同样是联想。她的现实角色是校医，不是队员，也未进入当前接待室。她的表格保留了“待确认”，并没有给出诊断。陆闻后来把她的提问方式和唐宁的动作要求联在一起，是日记写法造成的主题联系；若模型把这层联想当成两人同时指导陆闻的一场真实会面，便跨过了原文给出的现实边界。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>她把笔放在桌上，问“不太好”是入睡难、醒得早，还是醒后再睡不回去</blockquote><blockquote>我说是凌晨醒来后总盯着窗外</blockquote><blockquote>她让我再想想持续了几天，我只好承认自己没记清</blockquote><blockquote>真实的记录只到她在表格里写下“待确认”为止</blockquote></details></article></details>
+<details class="person" id="person-7"><summary><span class="person-index">08</span><span class="person-name">林见</span><span class="person-count">30 岁</span></summary><p class="relation">三十岁的店员和林栀的姐姐，她在左边会谈室引导陆闻自己划定谈话边界。</p><article class="event"><p class="event-prose">林见在那家没有招牌的店里工作。她向陆闻介绍自己偏向先定规则的一方，随后带他进左边的会谈室，摆出三张空白卡，让他把话题分别写成愿意谈、暂时不谈与还需确认。陆闻写到第三张时停住，林见只把笔帽推过去，没有偷看。他把原先写的“可以”划掉，改成“还不知道”，她才收回手。整个事件的重点是林见提出流程，但关键选择仍由陆闻亲手修改，而非她替他作决定。隔壁传来计时器似的轻响，陆闻不记得门是否关着，所以不能推定林见或林栀听见了另一房间的全部话。后来日记把林见写进地铁车厢，让她拿着卡片再问第三张是否保留；叙述者明确说她没有上过地铁。那是把会谈室记忆拼进另一场景，不是新的现实互动。陆闻离开左房间后才去敲林栀的门，两段互动是同一店铺经历的前后部分，而不是林见与林栀共同下达的一串指令。林见推动事件的方式，是要求陆闻把自己的选择落到纸上，同时尊重他后来把那个选择改成“不知道”。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>林见带我进左边的会谈室，三张卡一字摆开，让我写下愿意谈、暂时不谈、还需确认的事</blockquote><blockquote>我写第三张时停了很久</blockquote><blockquote>她把笔帽推过来，没有看我的字</blockquote><blockquote>我把原先写下的“可以”划掉，改成“还不知道”</blockquote></details></article></details>
+<details class="person" id="person-8"><summary><span class="person-index">09</span><span class="person-name">林栀</span><span class="person-count">26 岁</span></summary><p class="relation">林见的妹妹，她在右边会谈室按陆闻写下的步骤行动，并允许他改口重来。</p><article class="event"><p class="event-prose">林栀先从隔壁喊话，说明自己愿意按商定的步骤回应，但不希望别人替她省掉确认；陆闻听着姐妹两人不同的自我介绍，觉得她们并不是在说同一件事。到了右边的会谈室，他敲门后林栀才让他进去，请他依照自己写下的顺序读卡。读到第二张时陆闻改了口，她立刻按停计时器，问要不要从这一张重来。陆闻说要，她把卡片推回，等他重新决定。她在这里做的是停下流程、让陆闻确认，而不是替他决定卡片内容。两间会谈室相邻，却不能因为隔壁曾有轻响就断言她听到了左边的所有对话；陆闻自己也记不清门当时是否关着。后来他在别处想起她按停计时器的手，只是记忆跳接，不表示她进入了地铁或当前接待室。陆闻在便利店门口又想起她按停计时器的手，说明这一次允许改口的经历留在他的记忆里。那只是后来独处时的回想；若写成林栀打来电话、陪他走出夜校或替他整理便条，都是原文没有提供的后续行动。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>等我敲了隔壁的门，林栀才让我进来，要我照着自己写下的顺序读卡</blockquote><blockquote>我念到第二张卡时改了口，她按停计时器，问要不要从这一张重来</blockquote><blockquote>我说要，她把卡片推还给我，等我重新决定</blockquote></details></article></details>
+<details class="person" id="person-9"><summary><span class="person-index">10</span><span class="person-name">何冉</span><span class="person-count">35 岁</span></summary><p class="relation">三十五岁的办公室职员，她在地铁上逼陆闻把对姐姐的邀请说清。</p><article class="event"><p class="event-prose">何冉在晚高峰地铁上认出陆闻，他们此前只在朋友聚会上见过一次。陆闻手里捏着原想寄给姐姐、最终没有寄出的信封；何冉先问他为什么每次提起姐姐都像在交作业，陆闻说没有。她随后指着信封，追问他敢不敢当场给陆遥打电话，把邀请说清楚。人群在到站时从两人之间挤过，她没有碰陆闻，只等着他自行决定。陆闻记得自己看见了姐姐的号码，也记得锁了屏，日记接连留下“陆遥接了，沈乔在旁边”与“号码没有拨出去”两种互斥写法。何冉的提问是真正需要记录的互动，电话是否打通则不能由结构化答案替陆闻裁决。后面纸上拼接的林见、唐宁和周岚也不能算作何冉在现实车厢里见到的人。她没有在车厢里触碰陆闻，原文写的是声音、信封和等待。叶舒曾与陆闻交换信封及换乘信息，但何冉没有让叶舒参加电话提问；把两位办公室职员合成一个逼问陆闻的角色，会同时弄错她们各自的行动和信息范围。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>何冉问我为什么每次提到姐姐都像要向谁交作业。我说没有</blockquote><blockquote>她却指指我手里的信封，问敢不敢现在给陆遥打个电话</blockquote><blockquote>我记得自己看见了姐姐的号码；我也记得自己把手机锁了屏</blockquote></details></article></details>
+<details class="person" id="person-10"><summary><span class="person-index">11</span><span class="person-name">叶舒</span><span class="person-count">32 岁</span></summary><p class="relation">何冉的同事，她在地铁上与陆闻短暂交换信封和换乘信息。</p><article class="event"><p class="event-prose">叶舒站在地铁车厢里看线路图，起初离何冉和陆闻有几步远。列车晃动时，陆闻指间的信封滑到她鞋边；她把信封捡起还给他，陆闻接过并说了声谢谢。接着她问他要在哪站换乘，陆闻回答还要再坐两站，她便退回线路图前。列车门再次打开时，叶舒先下车。上述两次往返足以构成她与主角的具体事件，而不应只写成“何冉的同事”一句身份标签。原文同时说陆闻不知道她是否听见了何冉让他给姐姐打电话的那句话，所以不能把电话内容、陆闻手机屏幕或他的犹豫写成叶舒所知。她也没有与陆遥或沈乔发生直接互动，当前接待室里更没有她。何冉的追问开始后，叶舒已经回到线路图前；后来她先下车，陆闻仍无法判断她是否听见那句话。整理她的经历时，这份“不知道”应保留。她可以被描述为提供过实际帮助的人，却不能被描述为电话分支的见证人或参与者。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>信封从我指间滑到她鞋边；她捡起来还给我，我说了声谢谢</blockquote><blockquote>她又问我到哪站换乘，我说还要再坐两站，她便退回线路图前</blockquote><blockquote>列车门开了，她先下车</blockquote></details></article></details>
+<details class="person" id="person-11"><summary><span class="person-index">12</span><span class="person-name">顾青</span><span class="person-count">29 岁</span></summary><p class="relation">陆闻的大学同学，他曾帮陆闻擦掉画错的人物关系线。</p><article class="event"><p class="event-prose">顾青与陆闻同岁。毕业前，陆闻把一页写乱的草稿交给他看；顾青在两个名字之间画线，要求陆闻先说清楚谁认识谁。陆闻照着画，却错把沈乔连成了自己的闺蜜。顾青笑着擦掉那条线，陆闻才重新写下“姐姐的闺蜜”。这是两人之间完整的往返：交出草稿、画关系、画错、纠正，不能被缩成“大学同学”四个字。多年后，日记页边又出现一句提醒人把关系画出来的话，但陆闻不确定那是不是顾青的笔迹，不能再算一次确认发生的对话。陆闻写着写着还把顾青安进了林见店铺的走廊，随后亲自划掉，并说明顾青那天并不在那里。顾青的大学互动、可疑笔迹和被删的店铺出场属于三个不同事实层次，不能合并。顾青的纠错也解释了为什么陆闻会特别担心结构化后的关系被写错：一条线画错，就会把沈乔从姐姐的闺蜜变成他的闺蜜。文本在这里给了清楚的往事与一处模糊的署名，两者应分别记录，而不是因姓名相同便视为同一次出场。</p><details class="evidence"><summary>查看原文依据</summary><blockquote>毕业前我曾把一页写乱的草稿给他看，他拿笔在两个名字之间画线，叫我先说清谁认识谁</blockquote><blockquote>我照着画，却把沈乔接成了自己的闺蜜</blockquote><blockquote>他笑着擦掉那条线，我才重新写下“姐姐的闺蜜”</blockquote><blockquote>我连那是不是他的笔迹都不确定</blockquote><blockquote>这一句我划掉了，他那天不在那里</blockquote></details></article></details></section>
+  </main>
+  <footer>人工校对的标准答案 · 页面由 docs/test 的正文与 JSON 生成 · 可用原文依据逐条核验</footer>
+</body>
+</html>

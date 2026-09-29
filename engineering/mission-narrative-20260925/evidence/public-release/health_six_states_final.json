@@ -1,0 +1,17 @@
+{
+  "ts": "2026-09-26T04:44:44Z",
+  "origin": "https://kiln.plainlist.space",
+  "STATIC_UP": true,
+  "PUBLIC_API_UP": true,
+  "AUTHENTICATION_UP": true,
+  "BACKEND_UP": true,
+  "MODEL_AVAILABLE": true,
+  "END_TO_END_CHAT_UP": "requires_auth",
+  "codes": {
+    "homepage": 200,
+    "readyz": 200,
+    "auth_status": 200,
+    "local_health": 200
+  },
+  "note": "Unauthenticated probe does not generate."
+}

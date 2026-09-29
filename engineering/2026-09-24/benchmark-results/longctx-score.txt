@@ -1,0 +1,17 @@
+category                    n  correct accuracy
+code_function_lookup        2        2    1.000
+cross_paragraph             2        0    0.000
+distractor_entities         2        2    1.000
+exact_date_number           2        1    0.500
+fact_near_end               2        1    0.500
+fact_near_middle            2        2    1.000
+fact_near_start             2        1    0.500
+multi_turn_memory           2        1    0.500
+ordered_event_chain         2        2    1.000
+OVERALL                    18       12    0.667
+FAIL	lc-zh-start-02	fact_near_start	exact	got=釉 - 丙午 -318	gold=釉-丙午-318
+FAIL	lc-zh-end-02	fact_near_end	exact	got=验 - 庚 -9041	gold=验-庚-9041
+FAIL	lc-en-num-01	exact_date_number	contains_all	got=Based on the contract packet details provided:  1.  **Identify the addendum i...	gold=['2024-11-07', '18450']
+FAIL	lc-en-cross-01	cross_paragraph	contains_all	got=remains at dock 7, marked HOLD at 09:10	gold=['remains at dock 3', 'HOLD']
+FAIL	lc-zh-cross-02	cross_paragraph	contains_all	got=C-9 在 18:00 留在**维修台**。  使它留下的标记原词是：**在修**。  **推导过程：** 1.  **初始状态**：C-9 于上午借出。...	gold=['留在维修台', '在修']
+FAIL	lc-zh-dialog-02	multi_turn_memory	exact	got=周晚|3 月 9 日	gold=周晚|3月9日

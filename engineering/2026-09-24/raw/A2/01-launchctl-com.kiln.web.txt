@@ -1,0 +1,78 @@
+===== launchctl print gui/501/com.kiln.web =====
+gui/501/com.kiln.web = {
+	active count = 1
+	path = /Users/rainhuang/Library/LaunchAgents/com.kiln.web.plist
+	type = LaunchAgent
+	state = running
+
+	program = /bin/bash
+	arguments = {
+		/bin/bash
+		/Users/rainhuang/Library/Application Support/kiln/start-web.sh
+	}
+
+	working directory = /Users/rainhuang/Desktop/models/kiln
+
+	stdout path = /tmp/kiln-web.log
+	stderr path = /tmp/kiln-web.err
+	inherited environment = {
+		SSH_AUTH_SOCK => /var/run/com.apple.launchd.C8E1YkSULA/Listeners
+	}
+
+	default environment = {
+		PATH => /usr/bin:/bin:/usr/sbin:/sbin
+	}
+
+	environment = {
+		OSLogRateLimit => 64
+		VITE_API_TARGET => http://127.0.0.1:8787
+		PATH => /Users/rainhuang/.nvm/versions/node/v24.18.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+		HOME => /Users/rainhuang
+		XPC_SERVICE_NAME => com.kiln.web
+	}
+
+	domain = gui/501 [100015]
+	asid = 100015
+	minimum runtime = 15
+	exit timeout = 5
+	runs = 4
+	pid = 97755
+	immediate reason = inefficient
+	forks = 13
+	execs = 3
+	initialized = 1
+	trampolined = 1
+	started suspended = 0
+	proxy started suspended = 0
+	checked allocations = 0 (queried = 1)
+	checked allocations reason = no host
+	checked allocations flags = 0x0
+	last exit code = 143
+
+	resource coalition = {
+		ID = 325800
+		type = resource
+		state = active
+		active count = 1
+		name = com.kiln.web
+	}
+
+	jetsam coalition = {
+		ID = 325801
+		type = jetsam
+		state = active
+		active count = 1
+		name = com.kiln.web
+	}
+
+	spawn type = interactive (4)
+	jetsam priority = 40
+	jetsam memory limit (active) = (unlimited)
+	jetsam memory limit (inactive) = (unlimited)
+	jetsamproperties category = daemon
+	jetsam thread limit = 32
+	cpumon = default
+	job state = running
+
+	properties = keepalive | runatload | inferred program
+}

@@ -1,0 +1,40 @@
+# GGUF
+find /Users/rainhuang/Desktop/models -name '*.gguf' -maxdepth 4
+  count: 0
+  names: none
+# Same predicate without maxdepth, still under /Users/rainhuang/Desktop/models:
+  count: 0
+
+# Machine
+sysctl hw.memsize = 25769803776  (24.0 GiB)
+machdep.cpu.brand_string = Apple M4
+hw.ncpu = 10
+sw_vers: macOS 26.5 (Build 25F71)
+mlx.core.device_info() from kiln venv, no model load, no HTTP request:
+  device_name: Apple M4
+  architecture: applegpu_g16g
+  memory_size: 25769803776
+  max_recommended_working_set_size: 19069665280  (17.760 GiB)
+  max_buffer_length: 14302248960  (13.320 GiB)
+  resource_limit: 499000
+
+# PID 1581
+ps: RSS 5408 KB, VSZ 440573264 KB, %CPU 0.0, elapsed 13-01:02:33
+  RSS is not the GPU footprint. Do not read 5408 KB as "model unloaded".
+footprint -p 1581:
+  Footprint: 5086 MB
+  phys_footprint: 5086 MB
+  phys_footprint_peak: 7944 MB
+  IOAccelerator (graphics) dirty: 4872 MB
+  TOTAL dirty+clean: 5086 MB
+
+vm_stat snapshot (page size 16384):
+  free          3697 pages   0.056 GiB
+  active      280862 pages   4.286 GiB
+  inactive    272291 pages   4.155 GiB
+  speculative   8099 pages   0.124 GiB
+  wired       231780 pages   3.537 GiB
+  compressor occupied 721952 pages  11.016 GiB
+  compressor stored  3062886 pages  46.736 GiB (logical pages stored, not physical)
+memory_pressure at the same time: system has 1572864 pages (24 GiB);
+free pages were a few thousand; swapins/swapouts already large.

@@ -1,0 +1,19 @@
+{
+  "layer": "authenticated_api",
+  "profile": "interactive_dialogue",
+  "elapsed_s": 73.9,
+  "visible_char_count": 2551,
+  "raw_char_count": 2565,
+  "han_count": 2292,
+  "finish_reason": "length",
+  "terminal_state": "completed_length",
+  "model_finish_reason": "length",
+  "usage": {
+    "prompt_tokens": 73,
+    "completion_tokens": 1536,
+    "total_tokens": 1609,
+    "prompt_tokens_source": "upstream",
+    "cached_tokens": 69
+  },
+  "message_len": 2565
+}

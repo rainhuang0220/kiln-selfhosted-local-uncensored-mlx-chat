@@ -65,6 +65,31 @@ def test_finish_length_is_classified(chat_service, fake_provider):
     assert _assistant(chat_service, cid)["status"] == "complete"
 
 
+def test_malformed_then_finish_and_done_is_not_a_clean_stop(chat_service, fake_provider):
+    async def bad(_request: ChatRequest):
+        yield ChatChunk(id="x", model="fake", delta_content="看得见")
+        yield ChatChunk(id="x", model="fake", malformed=True)
+        yield ChatChunk(id="x", model="fake", finish_reason="stop")
+        yield ChatChunk(id="x", model="fake", wire_done=True)
+
+    fake_provider.stream = bad  # type: ignore[method-assign]
+    events = asyncio.run(
+        _collect(chat_service.chat(message="hi", conversation_id=None, stream=True))
+    )
+    done = next(ev for ev in events if ev["event"] == "done")
+    assert done["data"]["terminal_state"] == "completed_with_transport_error"
+    assert done["data"]["incomplete"] is True
+    assert done["data"]["model_finish_reason"] == "stop"
+    assert done["data"]["transport_integrity"] == "damaged"
+    assert done["data"]["message"]["content"] == "看得见"
+    assert done["data"]["message"]["status"] != "complete"
+    cid = next(ev for ev in events if ev["event"] == "meta")["data"]["conversation_id"]
+    asst = _assistant(chat_service, cid)
+    assert asst["content"] == "看得见"
+    assert asst["status"] != "complete"
+    assert asst["finish_reason"] != "stop"
+
+
 def test_malformed_frames_then_eof(chat_service, fake_provider):
     async def bad(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", malformed=True)
@@ -110,7 +135,8 @@ def test_zero_token_upstream_is_unknown_or_error(chat_service, fake_provider):
 
 
 def test_repetition_guard_keeps_text(chat_service, fake_provider):
-    loop = "他抬起头看向窗外。" * 3
+    looped = "他抬起头看向窗外，又把目光缓缓移回桌上那只空了的杯子，像是在等什么人先开口再说话。"
+    loop = looped * 3
 
     async def looping(_request: ChatRequest):
         yield ChatChunk(id="x", model="fake", delta_content=loop)
@@ -149,6 +175,7 @@ def test_continue_does_not_insert_user_message(require_chat_template, chat_servi
                 conversation_id=cid,
                 stream=True,
                 continue_generation=True,
+                auto_continue=False,
             )
         )
     )

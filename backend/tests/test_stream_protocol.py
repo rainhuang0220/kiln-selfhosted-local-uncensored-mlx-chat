@@ -78,3 +78,18 @@ def test_non_stream_missing_finish_is_unknown():
     assert classify_non_stream(finish_reason=None) is TerminalState.UPSTREAM_PROTOCOL_ERROR
     assert classify_non_stream(finish_reason="stop") is TerminalState.COMPLETED_STOP
     assert classify_non_stream(finish_reason="length") is TerminalState.COMPLETED_LENGTH
+
+
+def test_malformed_frame_then_finish_and_done_is_not_clean():
+    ledger = StreamLedger(malformed_frames=1)
+    ledger.observe_finish("stop")
+    ledger.observe_done_wire()
+    state = ledger.classify()
+    assert state.value == "completed_with_transport_error"
+    assert state is not TerminalState.COMPLETED_STOP
+    assert state is not TerminalState.COMPLETED_LENGTH
+    assert ledger.incomplete(state) is True
+    assert ledger.message_status(state) != "complete"
+    assert ledger.model_finish_reason == "stop"
+    assert ledger.transport_integrity == "damaged"
+    assert ledger.stored_finish_reason(state) != "stop"

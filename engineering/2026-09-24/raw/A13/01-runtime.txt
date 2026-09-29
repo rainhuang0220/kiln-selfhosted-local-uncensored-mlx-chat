@@ -1,0 +1,28 @@
+=== date ===
+2026年 9月24日 星期四 20时57分09秒 CST
+=== hf version ===
+✓ hf version
+  version: 1.27.0
+=== python hub cache constants ===
+hub_version 1.28.0
+HF_HOME /Users/rainhuang/.cache/huggingface
+HF_HUB_CACHE /Users/rainhuang/.cache/huggingface/hub
+HUGGINGFACE_HUB_CACHE /Users/rainhuang/.cache/huggingface/hub
+default_cache_path /Users/rainhuang/.cache/huggingface/hub
+env HF_HOME None
+env HF_HUB_CACHE None
+env HUGGINGFACE_HUB_CACHE None
+env TRANSFORMERS_CACHE None
+env HF_XET_CACHE None
+=== live listeners ===
+COMMAND  PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python  1581 rainhuang    7u  IPv4 0xc78dadaa4d753204      0t0  TCP 127.0.0.1:8081 (LISTEN)
+COMMAND     PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+ClashX    59877 rainhuang   44u  IPv4 0x5f59710aeb5ec52e      0t0  TCP 198.18.0.1:7777 (LISTEN)
+node      97771 rainhuang   13u  IPv4 0x6b9fde12d10de23a      0t0  TCP 127.0.0.1:7777 (LISTEN)
+COMMAND   PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python  15068 rainhuang   13u  IPv4 0x11b941f41523b31a      0t0  TCP 127.0.0.1:8787 (LISTEN)
+=== mlx/mtplx/mflux processes ===
+ 1581   6752 /opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python -m mlx_lm.server --model /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4 --host 127.0.0.1 --port 8081 --max-tokens 32768 --temp 1.0 --top-p 0.95 --top-k 20 --decode-concurrency 1 --prompt-concurrency 1 --prefill-step-size 1024 --prompt-cache-size 4 --prompt-cache-bytes 4G --chat-template-args {"enable_thinking":false,"reasoning_effort":"medium"}
+=== active-model.env ===
+NO active-model.env

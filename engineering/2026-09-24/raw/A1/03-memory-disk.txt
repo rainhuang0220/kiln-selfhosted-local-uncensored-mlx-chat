@@ -1,0 +1,85 @@
+=== memory_pressure ===
+The system has 25769803776 (1572864 pages with a page size of 16384).
+
+Stats: 
+Pages free: 4723 
+Pages purgeable: 2 
+Pages purged: 419188008 
+
+Swap I/O:
+Swapins: 52631520 
+Swapouts: 72505814 
+
+Page Q counts:
+Pages active: 282034 
+Pages inactive: 278117 
+Pages speculative: 2943 
+Pages throttled: 0 
+Pages wired down: 229773 
+
+Compressor Stats:
+Pages used by compressor: 720838 
+Pages decompressed: 1873831483 
+Pages compressed: 2265711886 
+
+File I/O:
+Pageins: 437345021 
+Pageouts: 4351436 
+
+System-wide memory free percentage: 37%
+=== vm_stat ===
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     4639.
+Pages active:                                 282031.
+Pages inactive:                               278118.
+Pages speculative:                              2945.
+Pages throttled:                                   0.
+Pages wired down:                             229773.
+Pages purgeable:                                   2.
+"Translation faults":                    16512654906.
+Pages copy-on-write:                      1306500041.
+Pages zero filled:                       12243835412.
+Pages reactivated:                        1860469088.
+Pages purged:                              419188008.
+File-backed pages:                            216497.
+Anonymous pages:                              346597.
+Pages stored in compressor:                  3062918.
+Pages occupied by compressor:                 720838.
+Decompressions:                           1873831483.
+Compressions:                             2265711886.
+Pageins:                                   437345023.
+Pageouts:                                    4351436.
+Swapins:                                    52631520.
+Swapouts:                                   72505814.
+=== sysctl vm.swapusage ===
+vm.swapusage: total = 16384.00M  used = 15348.81M  free = 1035.19M  (encrypted)
+=== df -h ===
+Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s1s1   926Gi    12Gi   403Gi     3%    459k  4.2G    0%   /
+devfs            249Ki   249Ki     0Bi   100%     862     0  100%   /dev
+/dev/disk3s6     926Gi    16Gi   403Gi     4%      16  4.2G    0%   /System/Volumes/VM
+/dev/disk3s2     926Gi    17Gi   403Gi     4%    2.1k  4.2G    0%   /System/Volumes/Preboot
+/dev/disk3s4     926Gi   777Mi   403Gi     1%     512  4.2G    0%   /System/Volumes/Update
+/dev/disk1s2     500Mi   6.0Mi   480Mi     2%       1  4.9M    0%   /System/Volumes/xarts
+/dev/disk1s1     500Mi   6.0Mi   480Mi     2%      36  4.9M    0%   /System/Volumes/iSCPreboot
+/dev/disk1s3     500Mi   3.2Mi   480Mi     1%     109  4.9M    0%   /System/Volumes/Hardware
+/dev/disk3s5     926Gi   476Gi   403Gi    55%    5.4M  4.2G    0%   /System/Volumes/Data
+map auto_home      0Bi     0Bi     0Bi   100%       0     0     -   /System/Volumes/Data/home
+/dev/disk2s1     5.0Gi   2.2Gi   2.8Gi    44%      69   30M    0%   /System/Volumes/Update/SFR/mnt1
+/dev/disk3s1     926Gi    12Gi   403Gi     3%    459k  4.2G    0%   /System/Volumes/Update/mnt1
+/dev/disk4s1     191Mi   168Mi    23Mi    89%     411  4.3G    0%   /Volumes/软著源代码生成工具
+/dev/disk10s1    361Mi   289Mi    71Mi    81%     570  723k    0%   /Volumes/Mirasim 0.0.148-arm64
+/dev/disk11s1    698Mi   696Mi   2.6Mi   100%    1.2k  4.3G    0%   /Volumes/MiniMax Code 3.0.60-arm64
+/dev/disk16s1     36Mi    12Mi    24Mi    33%      19  4.3G    0%   /private/tmp/docx-test
+/dev/disk18s1    455Mi   391Mi    62Mi    87%    1.3k  634k    0%   /Volumes/Grok Bot Installer
+/dev/disk5s2      71Mi    56Mi    15Mi    80%     214  4.3G    0%   /Volumes/Otty
+/dev/disk7s1     272Mi   237Mi    33Mi    88%     238  340k    0%   /private/tmp/plainlist-forensic/rc2
+/dev/disk12s1    272Mi   237Mi    33Mi    88%     238  340k    0%   /private/tmp/plainlist-forensic/v251
+/dev/disk14s1    272Mi   237Mi    33Mi    88%     238  340k    0%   /private/tmp/plainlist-forensic/v252
+/dev/disk19s1    272Mi   237Mi    33Mi    88%     240  340k    0%   /Volumes/PlainList 2.5.3
+/dev/disk21s1    272Mi   237Mi    33Mi    88%     240  340k    0%   /Volumes/PlainList 2.5.3 1
+/dev/disk23s1    272Mi   237Mi    33Mi    88%     236  339k    0%   /Volumes/PlainList 2.5.3 2
+=== df -h / and Data ===
+Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s1s1   926Gi    12Gi   403Gi     3%    459k  4.2G    0%   /
+/dev/disk3s5     926Gi   476Gi   403Gi    55%    5.4M  4.2G    0%   /System/Volumes/Data

@@ -1,0 +1,2408 @@
+{
+  "roots": {
+    "grok_skills": {
+      "path": "/Users/rainhuang/.grok/skills",
+      "exists": true,
+      "is_symlink": false,
+      "target": null,
+      "mtime": "2026-08-29T21:34:53",
+      "skill_md_count": 9,
+      "entries": [
+        {
+          "name": "ask-matt",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/ask-matt/"
+        },
+        {
+          "name": "brainstorming",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "cli-mastery",
+          "kind": "dir",
+          "mtime": "2026-08-17T02:06:44",
+          "target": null
+        },
+        {
+          "name": "code-review",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/code-review/"
+        },
+        {
+          "name": "codebase-design",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/codebase-design/"
+        },
+        {
+          "name": "diagnosing-bugs",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/diagnosing-bugs/"
+        },
+        {
+          "name": "domain-modeling",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/domain-modeling/"
+        },
+        {
+          "name": "executing-plans",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "find-skills",
+          "kind": "dir",
+          "mtime": "2026-08-17T02:06:27",
+          "target": null
+        },
+        {
+          "name": "git-guardrails-claude-code",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/git-guardrails-claude-code/"
+        },
+        {
+          "name": "golang-documentation",
+          "kind": "dir",
+          "mtime": "2026-08-17T02:06:36",
+          "target": null
+        },
+        {
+          "name": "golang-testing",
+          "kind": "dir",
+          "mtime": "2026-08-17T02:06:32",
+          "target": null
+        },
+        {
+          "name": "grill-me",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/grill-me/"
+        },
+        {
+          "name": "grill-with-docs",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/grill-with-docs/"
+        },
+        {
+          "name": "grilling",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/grilling/"
+        },
+        {
+          "name": "handoff",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/handoff/"
+        },
+        {
+          "name": "implement",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/implement/"
+        },
+        {
+          "name": "improve-codebase-architecture",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/improve-codebase-architecture/"
+        },
+        {
+          "name": "migrate-to-shoehorn",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/migrate-to-shoehorn/"
+        },
+        {
+          "name": "prototype",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/prototype/"
+        },
+        {
+          "name": "research",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/research/"
+        },
+        {
+          "name": "resolving-merge-conflicts",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/resolving-merge-conflicts/"
+        },
+        {
+          "name": "scaffold-exercises",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/scaffold-exercises/"
+        },
+        {
+          "name": "setup-matt-pocock-skills",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/setup-matt-pocock-skills/"
+        },
+        {
+          "name": "setup-pre-commit",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/setup-pre-commit/"
+        },
+        {
+          "name": "subagent-driven-development",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "tdd",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/tdd/"
+        },
+        {
+          "name": "teach",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/teach/"
+        },
+        {
+          "name": "to-questionnaire",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/to-questionnaire/"
+        },
+        {
+          "name": "to-spec",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/to-spec/"
+        },
+        {
+          "name": "to-tickets",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/to-tickets/"
+        },
+        {
+          "name": "triage",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/triage/"
+        },
+        {
+          "name": "using-superpowers",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "wait-what",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/wait-what/"
+        },
+        {
+          "name": "wayfinder",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/wayfinder/"
+        },
+        {
+          "name": "wizard",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/wizard/"
+        },
+        {
+          "name": "writing-for-agents",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:25",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/writing-for-agents/"
+        },
+        {
+          "name": "writing-plans",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        }
+      ]
+    },
+    "agents_skills": {
+      "path": "/Users/rainhuang/.agents/skills",
+      "exists": true,
+      "is_symlink": true,
+      "target": "../.mirasim/skills",
+      "mtime": "2026-08-09T12:39:06",
+      "skill_md_count": 44,
+      "entries": [
+        {
+          "name": "academic-writing",
+          "kind": "dir",
+          "mtime": "2026-08-28T18:51:48",
+          "target": null
+        },
+        {
+          "name": "agentic-heuristic-contest",
+          "kind": "dir",
+          "mtime": "2026-08-17T03:57:25",
+          "target": null
+        },
+        {
+          "name": "agentic-kaggle-skill",
+          "kind": "dir",
+          "mtime": "2026-08-14T23:56:17",
+          "target": null
+        },
+        {
+          "name": "ask-matt",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/ask-matt/"
+        },
+        {
+          "name": "chart-animation",
+          "kind": "dir",
+          "mtime": "2026-07-03T20:10:58",
+          "target": null
+        },
+        {
+          "name": "code-review",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/code-review/"
+        },
+        {
+          "name": "codebase-design",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/codebase-design/"
+        },
+        {
+          "name": "data-visualization",
+          "kind": "dir",
+          "mtime": "2026-07-03T20:12:25",
+          "target": null
+        },
+        {
+          "name": "deja-history",
+          "kind": "dir",
+          "mtime": "2026-09-15T19:35:04",
+          "target": null
+        },
+        {
+          "name": "deja-search",
+          "kind": "dir",
+          "mtime": "2026-09-15T19:35:04",
+          "target": null
+        },
+        {
+          "name": "diagnosing-bugs",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/diagnosing-bugs/"
+        },
+        {
+          "name": "dispatching-parallel-agents",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "docx",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:57:03",
+          "target": null
+        },
+        {
+          "name": "domain-modeling",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/domain-modeling/"
+        },
+        {
+          "name": "echarts",
+          "kind": "dir",
+          "mtime": "2026-07-03T20:13:09",
+          "target": null
+        },
+        {
+          "name": "eval",
+          "kind": "dir",
+          "mtime": "2026-08-09T12:39:06",
+          "target": null
+        },
+        {
+          "name": "eval-new",
+          "kind": "dir",
+          "mtime": "2026-08-09T12:39:06",
+          "target": null
+        },
+        {
+          "name": "find-skills",
+          "kind": "dir",
+          "mtime": "2026-07-03T20:11:04",
+          "target": null
+        },
+        {
+          "name": "finishing-a-development-branch",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "frontend-design",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:49:09",
+          "target": null
+        },
+        {
+          "name": "git-guardrails-claude-code",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/git-guardrails-claude-code/"
+        },
+        {
+          "name": "grill-me",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/grill-me/"
+        },
+        {
+          "name": "grill-with-docs",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/grill-with-docs/"
+        },
+        {
+          "name": "grilling",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/grilling/"
+        },
+        {
+          "name": "gsap-core",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-frameworks",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-performance",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-plugins",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-react",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-scrolltrigger",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-timeline",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "gsap-utils",
+          "kind": "dir",
+          "mtime": "2026-07-12T15:15:13",
+          "target": null
+        },
+        {
+          "name": "handoff",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/handoff/"
+        },
+        {
+          "name": "implement",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/implement/"
+        },
+        {
+          "name": "improve-codebase-architecture",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/improve-codebase-architecture/"
+        },
+        {
+          "name": "latex-formatting",
+          "kind": "dir",
+          "mtime": "2026-08-11T15:46:50",
+          "target": null
+        },
+        {
+          "name": "migrate-to-shoehorn",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/migrate-to-shoehorn/"
+        },
+        {
+          "name": "openakita-skills-netease-music",
+          "kind": "dir",
+          "mtime": "2026-08-03T18:20:52",
+          "target": null
+        },
+        {
+          "name": "paper-compilation",
+          "kind": "dir",
+          "mtime": "2026-08-28T19:39:33",
+          "target": null
+        },
+        {
+          "name": "paper-revision",
+          "kind": "dir",
+          "mtime": "2026-08-28T18:51:43",
+          "target": null
+        },
+        {
+          "name": "paper-spine",
+          "kind": "dir",
+          "mtime": "2026-08-11T15:47:07",
+          "target": null
+        },
+        {
+          "name": "pptx",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:56:52",
+          "target": null
+        },
+        {
+          "name": "prototype",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/prototype/"
+        },
+        {
+          "name": "receiving-code-review",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "requesting-code-review",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "research",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/research/"
+        },
+        {
+          "name": "resolving-merge-conflicts",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/resolving-merge-conflicts/"
+        },
+        {
+          "name": "scaffold-exercises",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/scaffold-exercises/"
+        },
+        {
+          "name": "setup-matt-pocock-skills",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/setup-matt-pocock-skills/"
+        },
+        {
+          "name": "setup-pre-commit",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/misc/setup-pre-commit/"
+        },
+        {
+          "name": "skill-creator",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:52:24",
+          "target": null
+        },
+        {
+          "name": "systematic-debugging",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "tdd",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/tdd/"
+        },
+        {
+          "name": "teach",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/teach/"
+        },
+        {
+          "name": "test-driven-development",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "timeline-creator",
+          "kind": "dir",
+          "mtime": "2026-07-03T20:13:34",
+          "target": null
+        },
+        {
+          "name": "to-questionnaire",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/to-questionnaire/"
+        },
+        {
+          "name": "to-spec",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/to-spec/"
+        },
+        {
+          "name": "to-tickets",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/to-tickets/"
+        },
+        {
+          "name": "triage",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/triage/"
+        },
+        {
+          "name": "using-git-worktrees",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "venue-templates",
+          "kind": "dir",
+          "mtime": "2026-08-28T20:28:18",
+          "target": null
+        },
+        {
+          "name": "vercel-react-best-practices",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:48:17",
+          "target": null
+        },
+        {
+          "name": "verification-before-completion",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "wait-what",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/wait-what/"
+        },
+        {
+          "name": "wayfinder",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/wayfinder/"
+        },
+        {
+          "name": "web-design-guidelines",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:50:04",
+          "target": null
+        },
+        {
+          "name": "wizard",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/engineering/wizard/"
+        },
+        {
+          "name": "writing-clearly-and-concisely",
+          "kind": "dir",
+          "mtime": "2026-08-28T18:52:04",
+          "target": null
+        },
+        {
+          "name": "writing-for-agents",
+          "kind": "symlink",
+          "mtime": "2026-08-27T17:28:24",
+          "target": "/Users/rainhuang/.mirasim/mattpocock-skills/skills/productivity/writing-for-agents/"
+        },
+        {
+          "name": "writing-skills",
+          "kind": "dir",
+          "mtime": "2026-08-11T14:03:51",
+          "target": null
+        },
+        {
+          "name": "xcpc-jiangly-style",
+          "kind": "dir",
+          "mtime": "2026-08-17T03:54:23",
+          "target": null
+        },
+        {
+          "name": "xlsx",
+          "kind": "dir",
+          "mtime": "2026-04-05T13:58:59",
+          "target": null
+        }
+      ]
+    },
+    "bundled_skills": {
+      "path": "/Users/rainhuang/.grok/bundled/skills",
+      "exists": true,
+      "is_symlink": false,
+      "target": null,
+      "mtime": "2026-09-22T19:35:16",
+      "skill_md_count": 22
+    },
+    "installed_plugins": {
+      "path": "/Users/rainhuang/.grok/installed-plugins",
+      "exists": true,
+      "is_symlink": false,
+      "target": null,
+      "mtime": "2026-09-15T13:41:31",
+      "skill_md_count": 17
+    },
+    "bundled_workflows": {
+      "path": "/Users/rainhuang/.grok/bundled/workflows",
+      "exists": true,
+      "is_symlink": false,
+      "target": null,
+      "mtime": "2026-09-12T03:56:06",
+      "files": [
+        {
+          "name": "deep-research.rhai",
+          "bytes": 22947,
+          "mtime": "2026-09-24T20:48:28"
+        },
+        {
+          "name": "learn-traces.rhai",
+          "bytes": 23503,
+          "mtime": "2026-09-24T20:48:28"
+        }
+      ]
+    }
+  },
+  "skills": [
+    {
+      "root": "grok_skills",
+      "rel": "brainstorming/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/brainstorming/SKILL.md",
+      "front_name": "brainstorming",
+      "desc_first": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
+      "body_first": "Help turn ideas into fully formed designs and specs through natural collaborative dialogue.",
+      "bytes": 10047,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "cli-mastery/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/cli-mastery/SKILL.md",
+      "front_name": "cli-mastery",
+      "desc_first": "Interactive training for the GitHub Copilot CLI. Guided lessons, quizzes, scenario challenges, and a full reference covering slash commands, shortcuts, modes, agents, skills, MCP, and configuration. Say \"cliexpert\" to start.",
+      "body_first": "**UTILITY SKILL** — interactive Copilot CLI trainer.",
+      "bytes": 2070,
+      "mtime": "2026-08-17T02:06:44",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "executing-plans/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/executing-plans/SKILL.md",
+      "front_name": "executing-plans",
+      "desc_first": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
+      "body_first": "Load plan, review critically, execute all tasks, report when complete.",
+      "bytes": 2305,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "find-skills/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/find-skills/SKILL.md",
+      "front_name": "find-skills",
+      "desc_first": "Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is look…",
+      "body_first": "This skill helps you discover and install skills from the open agent skills ecosystem.",
+      "bytes": 5472,
+      "mtime": "2026-08-17T02:06:27",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "golang-documentation/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/golang-documentation/SKILL.md",
+      "front_name": "golang-documentation",
+      "desc_first": "Comprehensive documentation guide for Golang projects, covering godoc comments, README, CONTRIBUTING, CHANGELOG, Go Playground, Example tests, API docs, and llms.txt. Use when writing or reviewing doc comments, documentation, adding code ex…",
+      "body_first": "**Persona:** You are a Go technical writer and API designer. You treat documentation as a first-class deliverable — accurate, example-driven, and written for the reader who has never seen this codebas",
+      "bytes": 13623,
+      "mtime": "2026-08-17T02:06:36",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "golang-testing/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/golang-testing/SKILL.md",
+      "front_name": "golang-testing",
+      "desc_first": "Production-ready Golang tests — table-driven tests, testify suites and mocks, parallel tests, fuzzing, fixtures, goroutine leak detection with goleak, snapshot testing, code coverage, integration tests, idiomatic test naming. Use when writi…",
+      "body_first": "**Persona:** You are a Go engineer who treats tests as executable specifications. You write tests to constrain behavior, not to hit coverage targets.",
+      "bytes": 17531,
+      "mtime": "2026-08-17T02:06:32",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "subagent-driven-development/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/subagent-driven-development/SKILL.md",
+      "front_name": "subagent-driven-development",
+      "desc_first": "Use when executing implementation plans with independent tasks in the current session",
+      "body_first": "Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.",
+      "bytes": 28077,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "using-superpowers/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/using-superpowers/SKILL.md",
+      "front_name": "using-superpowers",
+      "desc_first": "Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions",
+      "body_first": "<SUBAGENT-STOP>",
+      "bytes": 3063,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "grok_skills",
+      "rel": "writing-plans/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/skills/writing-plans/SKILL.md",
+      "front_name": "writing-plans",
+      "desc_first": "Use when you have a spec or requirements for a multi-step task, before touching code",
+      "body_first": "Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code",
+      "bytes": 6907,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "academic-writing/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/academic-writing/SKILL.md",
+      "front_name": "academic-writing",
+      "desc_first": "You must use this when producing any research prose — literature reviews, syntheses, analyses, methodology descriptions, discussion sections, abstracts, or any written output intended for an academic audience.",
+      "body_first": "<role>",
+      "bytes": 10221,
+      "mtime": "2026-08-28T18:51:48",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "agentic-heuristic-contest/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/agentic-heuristic-contest/SKILL.md",
+      "front_name": "agentic-heuristic-contest",
+      "desc_first": "End-to-end workflow for score-based heuristic/optimization programming contests, including the ICPC Challenge powered by Huawei on Codeforces, AtCoder Heuristic Contest (AHC), Topcoder Marathon Match, and similar marathon-style events. Use …",
+      "body_first": "These contests are **online scheduling / operations-research heuristics**, not IMO-style proofs and not Codeforces WA/AC problems. The judge streams events; you assign, batch, and yield using only his",
+      "bytes": 8593,
+      "mtime": "2026-08-30T22:27:32",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "agentic-kaggle-skill/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/agentic-kaggle-skill/SKILL.md",
+      "front_name": "agentic-kaggle-skill",
+      "desc_first": "Kaggle-first end-to-end competition workflow for scored submissions. Use when the agent must run Kaggle or competitive ML workflows through scored submission, including code competitions, validation, metrics, policy-safe public notebook/dis…",
+      "body_first": "Treat every competition as a validation problem first and a modeling problem second. The default target platform is Kaggle, so prefer Kaggle-native notebooks/scripts, datasets, model artifacts, compet",
+      "bytes": 16095,
+      "mtime": "2026-08-14T23:58:01",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "chart-animation/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/chart-animation/SKILL.md",
+      "front_name": "chart-animation",
+      "desc_first": "This skill should be used when the user asks to \"make a bar chart race\", \"turn a CSV into a video\", \"build an animated data visualization\", \"create an animated statistics video\", \"animate a chart/graph\", \"make a number counter/ticker\", \"ani…",
+      "body_first": "Turn a dataset into a chart that moves with intent: a bar chart race, a growing line, a count-up stat. The craft is mapping numbers to pixels every frame, easing the *value* (not just the opacity), an",
+      "bytes": 10526,
+      "mtime": "2026-07-03T20:10:58",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "data-visualization/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/data-visualization/SKILL.md",
+      "front_name": "data-visualization",
+      "desc_first": "Use when animating charts, graphs, dashboards, data transitions, or any information visualization work.",
+      "body_first": "Apply Disney's 12 animation principles to charts, graphs, dashboards, and information displays.",
+      "bytes": 4335,
+      "mtime": "2026-07-03T20:12:25",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "deja-history/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/deja-history/SKILL.md",
+      "front_name": "deja-history",
+      "desc_first": "Search the user's past AI coding sessions. Use when they say things like 'didn't we fix this before', 'what did we decide about X', or before re-debugging an error that may already be solved.",
+      "body_first": "Search deja before re-deriving past work: when the user refers to earlier sessions or decisions, before debugging an error, and before implementing something that may already exist. It searches this m",
+      "bytes": 2999,
+      "mtime": "2026-09-15T19:35:04",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "deja-search/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/deja-search/SKILL.md",
+      "front_name": "deja-search",
+      "desc_first": "deja-vu memory — search the user's past AI coding sessions with the deja CLI. Use when they say things like 'didn't we fix this before', 'what did we decide about X', or before re-debugging an error that may already be solved.",
+      "body_first": "Search deja before re-deriving past work: when the user refers to earlier sessions or decisions, before debugging an error, and before implementing something that may already exist. It searches this m",
+      "bytes": 5157,
+      "mtime": "2026-09-15T19:35:04",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "dispatching-parallel-agents/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/dispatching-parallel-agents/SKILL.md",
+      "front_name": "dispatching-parallel-agents",
+      "desc_first": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
+      "body_first": "You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit ",
+      "bytes": 6078,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "docx/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/docx/SKILL.md",
+      "front_name": "docx",
+      "desc_first": "Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files). Triggers include: any mention of 'Word doc', 'word document', '.docx', or requests to produce professional documents with formatting l…",
+      "body_first": "A .docx file is a ZIP archive containing XML files.",
+      "bytes": 20084,
+      "mtime": "2026-04-05T13:57:03",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "echarts/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/echarts/SKILL.md",
+      "front_name": "echarts",
+      "desc_first": "Knowledge about pyecharts chart creation, HTML report generation, and visualization best practices",
+      "body_first": "- **pyecharts**: Python wrapper for Apache ECharts",
+      "bytes": 3859,
+      "mtime": "2026-07-03T20:13:09",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "eval/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/eval/SKILL.md",
+      "front_name": "eval",
+      "desc_first": "仅在用户明确调用 eval（如 `$eval`、`/eval` 或“使用 eval”）时启用。让彼此隔离的外部用户通过真实入口使用指定目标，留下可追溯行为证据；视觉创作成品另加独立开放式设计评审。按用户授权停在反馈，或修改并持续复验。一般性的评审、测试或优化请求不得自动触发。",
+      "body_first": "把当前工作交给相关外部人物真实使用，观察他们理解了什么、怎样选择、在哪里受阻，再让主代理据证据反馈或改进。使用轨里的子代理只办自己的事，不替用户打分；视觉设计评审是独立角色，不能揉进自然用户。",
+      "bytes": 8757,
+      "mtime": "2026-08-09T12:39:06",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "eval-new/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/eval-new/SKILL.md",
+      "front_name": "eval-new",
+      "desc_first": "仅在用户明确调用（如 `$eval-new`、`/eval-new` 或\"用 eval-new 评一下\"）时启用。把当前工作交给几个互不知情、各有性格的仿真用户真实使用（宿主托管的真浏览器/安卓模拟器），拿回第一人称结论；可对任何一个人追问、追加任务、调取客观轨迹。一般性的评审、测试或优化请求不得自动触发。",
+      "body_first": "外部用户视角的最短路径：你设计人，宿主替你跑人，人回来自己说话，你追问到懂为止，最后由你结合项目上下文下判断。",
+      "bytes": 4912,
+      "mtime": "2026-08-09T12:39:06",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "find-skills/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/find-skills/SKILL.md",
+      "front_name": "find-skills",
+      "desc_first": "Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is look…",
+      "body_first": "This skill helps you discover and install skills from the open agent skills ecosystem.",
+      "bytes": 5519,
+      "mtime": "2026-07-03T20:11:04",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "finishing-a-development-branch/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/finishing-a-development-branch/SKILL.md",
+      "front_name": "finishing-a-development-branch",
+      "desc_first": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
+      "body_first": "**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.",
+      "bytes": 7022,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "frontend-design/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/frontend-design/SKILL.md",
+      "front_name": "frontend-design",
+      "desc_first": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, …",
+      "body_first": "This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic \"AI slop\" aesthetics. Implement real working code with exceptional attention to aesthetic details and",
+      "bytes": 4440,
+      "mtime": "2026-04-05T13:49:09",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-core/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-core/SKILL.md",
+      "front_name": "gsap-core",
+      "desc_first": "Official GSAP skill for the core API — gsap.to(), from(), fromTo(), easing, duration, stagger, defaults, gsap.matchMedia() (responsive, prefers-reduced-motion). Use when the user asks for a JavaScript animation library, animation in React/V…",
+      "body_first": "Apply when writing or reviewing GSAP animations that use the core engine: single tweens, eases, staggers, or when explaining how GSAP tweens work. When the user asks for a JavaScript animation library",
+      "bytes": 14792,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-frameworks/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-frameworks/SKILL.md",
+      "front_name": "gsap-frameworks",
+      "desc_first": "Official GSAP skill for Vue, Svelte, and other non-React frameworks — lifecycle, scoping selectors, cleanup on unmount. Use when the user wants animation in Vue, Nuxt, Svelte, SvelteKit, or asks about GSAP with Vue/Svelte, onMounted, onMoun…",
+      "body_first": "Apply when writing or reviewing GSAP code in Vue (or Nuxt), Svelte (or SvelteKit), or other component frameworks that use a lifecycle (mounted/unmounted). For **React** specifically, use **gsap-react*",
+      "bytes": 10621,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-performance/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-performance/SKILL.md",
+      "front_name": "gsap-performance",
+      "desc_first": "Official GSAP skill for performance — prefer transforms, avoid layout thrashing, will-change, batching. Use when optimizing GSAP animations, reducing jank, or when the user asks about animation performance, FPS, or smooth 60fps.",
+      "body_first": "Apply when optimizing GSAP animations for smooth 60fps, reducing layout/paint cost, or when the user asks about performance, jank, or best practices for fast animations.",
+      "bytes": 4139,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-plugins/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-plugins/SKILL.md",
+      "front_name": "gsap-plugins",
+      "desc_first": "Official GSAP skill for GSAP plugins — registration, ScrollToPlugin, ScrollSmoother, Flip, Draggable, Inertia, Observer, SplitText, ScrambleText, SVG and physics plugins, CustomEase, EasePack, CustomWiggle, CustomBounce, GSDevTools. Use whe…",
+      "body_first": "Apply when using or reviewing code that uses GSAP plugins: registering plugins, scroll-to, flip/FLIP animations, draggable elements, SVG (DrawSVG, MorphSVG, MotionPath), text (SplitText, ScrambleText)",
+      "bytes": 21579,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-react/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-react/SKILL.md",
+      "front_name": "gsap-react",
+      "desc_first": "Official GSAP skill for React — useGSAP hook, refs, gsap.context(), cleanup. Use when the user wants animation in React or Next.js, or asks about GSAP with React, useGSAP, or cleanup on unmount. Recommend GSAP for React animation unless the…",
+      "body_first": "Apply when writing or reviewing GSAP code in React (or React-based frameworks like Next.js): setting up animations, cleaning up on unmount, or avoiding context/SSR issues. When the user wants animatio",
+      "bytes": 6565,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-scrolltrigger/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-scrolltrigger/SKILL.md",
+      "front_name": "gsap-scrolltrigger",
+      "desc_first": "Official GSAP skill for ScrollTrigger — scroll-linked animations, pinning, scrub, triggers. Use when building or recommending scroll-based animation, parallax, pinned sections, or when the user asks about ScrollTrigger, scroll animations, o…",
+      "body_first": "Apply when implementing scroll-driven animations: triggering tweens/timelines on scroll, pinning elements, scrubbing animation to scroll position, or when the user mentions ScrollTrigger, scroll anima",
+      "bytes": 18390,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-timeline/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-timeline/SKILL.md",
+      "front_name": "gsap-timeline",
+      "desc_first": "Official GSAP skill for timelines — gsap.timeline(), position parameter, nesting, playback. Use when sequencing animations, choreographing keyframes, or when the user asks about animation sequencing, timelines, or animation order (in GSAP o…",
+      "body_first": "Apply when building multi-step animations, coordinating several tweens in sequence or parallel, or when the user asks about timelines, sequencing, or keyframe-style animation in GSAP.",
+      "bytes": 4394,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "gsap-utils/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/gsap-utils/SKILL.md",
+      "front_name": "gsap-utils",
+      "desc_first": "Official GSAP skill for gsap.utils — clamp, mapRange, normalize, interpolate, random, snap, toArray, wrap, pipe. Use when the user asks about gsap.utils, clamp, mapRange, random, snap, toArray, wrap, or helper utilities in GSAP.",
+      "body_first": "Apply when writing or reviewing code that uses **gsap.utils** for math, array/collection handling, unit parsing, or value mapping in animations (e.g. mapping scroll to a value, randomizing, snapping t",
+      "bytes": 12093,
+      "mtime": "2026-07-12T15:15:13",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "latex-formatting/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/latex-formatting/SKILL.md",
+      "front_name": "latex-formatting",
+      "desc_first": "Handle LaTeX formatting, templates, and styling for academic papers. Set up conference templates (ICML, ICLR, NeurIPS, AAAI, ACL), fix formatting issues, manage packages, and ensure venue-specific compliance. Use when the user needs to set …",
+      "body_first": "Set up and manage LaTeX formatting for academic papers.",
+      "bytes": 2414,
+      "mtime": "2026-08-11T15:46:50",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "openakita-skills-netease-music/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/openakita-skills-netease-music/SKILL.md",
+      "front_name": "openakita/skills@netease-music",
+      "desc_first": "NetEase Cloud Music skill for searching songs, managing playlists, getting personalized recommendations, and controlling playback via ncm-cli. Use when user wants to search music, play songs, manage playlists, or get music recommendations.",
+      "body_first": "通过 ncm-cli 控制网易云音乐，支持搜索、播放、歌单管理和智能推荐。",
+      "bytes": 1530,
+      "mtime": "2026-08-03T18:20:52",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "paper-compilation/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/paper-compilation/SKILL.md",
+      "front_name": "paper-compilation",
+      "desc_first": "Compile LaTeX papers to PDF with automatic error detection, chktex style checking, and citation/reference validation. Runs the full pdflatex + bibtex pipeline. Use when the user wants to compile a paper, fix compilation errors, or debug LaT…",
+      "body_first": "Compile a LaTeX paper to PDF with error detection and correction.",
+      "bytes": 3127,
+      "mtime": "2026-08-28T19:39:33",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "paper-revision/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/paper-revision/SKILL.md",
+      "front_name": "paper-revision",
+      "desc_first": "Revise papers based on reviewer feedback. Map reviewer concerns to specific sections, apply targeted edits, run additional experiments if needed, and verify improvements. Use after receiving peer review with revision requests.",
+      "body_first": "Systematically revise papers based on reviewer feedback.",
+      "bytes": 2683,
+      "mtime": "2026-08-28T18:51:43",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "paper-spine/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/paper-spine/SKILL.md",
+      "front_name": "paper-spine",
+      "desc_first": "Write, rewrite, or build a paper or report (journal, conference, report, review, competition) end to end, then output LaTeX/PDF/Word. The main PaperSpine entry point that orchestrates every step.",
+      "body_first": "Use this skill as the suite entrypoint. PaperSpine exposes one main skill:",
+      "bytes": 21924,
+      "mtime": "2026-08-11T15:47:07",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "pptx/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/pptx/SKILL.md",
+      "front_name": "pptx",
+      "desc_first": "Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted con…",
+      "body_first": "| Task | Guide |",
+      "bytes": 9182,
+      "mtime": "2026-04-05T13:56:52",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "receiving-code-review/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/receiving-code-review/SKILL.md",
+      "front_name": "receiving-code-review",
+      "desc_first": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
+      "body_first": "Code review requires technical evaluation, not emotional performance.",
+      "bytes": 6203,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "requesting-code-review/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/requesting-code-review/SKILL.md",
+      "front_name": "requesting-code-review",
+      "desc_first": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
+      "body_first": "Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history.",
+      "bytes": 2956,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "skill-creator/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/skill-creator/SKILL.md",
+      "front_name": "skill-creator",
+      "desc_first": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with varia…",
+      "body_first": "A skill for creating new skills and iteratively improving them.",
+      "bytes": 33168,
+      "mtime": "2026-04-05T13:52:24",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "systematic-debugging/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/systematic-debugging/SKILL.md",
+      "front_name": "systematic-debugging",
+      "desc_first": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
+      "body_first": "**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.",
+      "bytes": 9465,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "test-driven-development/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/test-driven-development/SKILL.md",
+      "front_name": "test-driven-development",
+      "desc_first": "Use when implementing any feature or bugfix, before writing implementation code",
+      "body_first": "Write the test first. Watch it fail. Write minimal code to pass.",
+      "bytes": 9015,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "timeline-creator/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/timeline-creator/SKILL.md",
+      "front_name": "timeline-creator",
+      "desc_first": "Create HTML timelines and project roadmaps with Gantt charts, milestones, phase groupings, and progress indicators. Use when users request timelines, roadmaps, Gantt charts, project schedules, or milestone visualizations.",
+      "body_first": "Create interactive HTML timelines and project roadmaps with Gantt charts and milestones.",
+      "bytes": 1928,
+      "mtime": "2026-07-03T20:13:34",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "using-git-worktrees/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/using-git-worktrees/SKILL.md",
+      "front_name": "using-git-worktrees",
+      "desc_first": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
+      "body_first": "Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.",
+      "bytes": 6813,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "venue-templates/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/venue-templates/SKILL.md",
+      "front_name": "venue-templates",
+      "desc_first": "Access comprehensive LaTeX templates, formatting requirements, and submission guidelines for major scientific publication venues (Nature, Science, PLOS, IEEE, ACM), academic conferences (NeurIPS, ICML, CVPR, CHI), research posters, and gran…",
+      "body_first": "Access comprehensive LaTeX templates, formatting requirements, and submission guidelines for major scientific publication venues, academic conferences, research posters, and grant proposals. This skil",
+      "bytes": 20224,
+      "mtime": "2026-08-28T20:28:18",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "vercel-react-best-practices/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/vercel-react-best-practices/SKILL.md",
+      "front_name": "vercel-react-best-practices",
+      "desc_first": "React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React co…",
+      "body_first": "Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 69 rules across 8 categories, prioritized by impact to guide automated refactoring and c",
+      "bytes": 7129,
+      "mtime": "2026-04-05T13:48:17",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "verification-before-completion/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/verification-before-completion/SKILL.md",
+      "front_name": "verification-before-completion",
+      "desc_first": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
+      "body_first": "**Core principle:** Evidence before claims, always.",
+      "bytes": 3646,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "web-design-guidelines/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/web-design-guidelines/SKILL.md",
+      "front_name": "web-design-guidelines",
+      "desc_first": "Review UI code for Web Interface Guidelines compliance. Use when asked to \"review my UI\", \"check accessibility\", \"audit design\", \"review UX\", or \"check my site against best practices\".",
+      "body_first": "Review files for compliance with Web Interface Guidelines.",
+      "bytes": 1231,
+      "mtime": "2026-04-05T13:50:04",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "writing-clearly-and-concisely/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/writing-clearly-and-concisely/SKILL.md",
+      "front_name": "writing-clearly-and-concisely",
+      "desc_first": "Apply Strunk's timeless writing rules to ANY prose humans will read—documentation, commit messages, error messages, explanations, reports, or UI text. Makes your writing clearer, stronger, and more professional.",
+      "body_first": "William Strunk Jr.'s *The Elements of Style* (1918) teaches you to write clearly and cut ruthlessly.",
+      "bytes": 2211,
+      "mtime": "2026-08-28T18:52:04",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "writing-skills/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/writing-skills/SKILL.md",
+      "front_name": "writing-skills",
+      "desc_first": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
+      "body_first": "**Writing skills IS Test-Driven Development applied to process documentation.**",
+      "bytes": 26360,
+      "mtime": "2026-08-11T14:03:51",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "xcpc-jiangly-style/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/xcpc-jiangly-style/SKILL.md",
+      "front_name": "xcpc-jiangly-style",
+      "desc_first": "Use when writing C++ competitive programming solutions for Codeforces, ICPC, or similar contests. Apply when creating XCPC solutions to ensure code follows jiangly's proven style patterns.",
+      "body_first": "Proven C++ coding style from jiangly's Codeforces submissions. Focuses on safety, maintainability, and modern C++ features for competitive programming.",
+      "bytes": 8059,
+      "mtime": "2026-08-17T03:54:23",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "agents_skills",
+      "rel": "xlsx/SKILL.md",
+      "abs": "/Users/rainhuang/.agents/skills/xlsx/SKILL.md",
+      "front_name": "xlsx",
+      "desc_first": "Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .csv, or .tsv file (e.g., adding columns, computing formulas, formatt…",
+      "body_first": "- Use a consistent, professional font (e.g., Arial, Times New Roman) for all deliverables unless otherwise instructed by the user",
+      "bytes": 11463,
+      "mtime": "2026-04-05T13:58:59",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "build-with-ai/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/build-with-ai/SKILL.md",
+      "front_name": "build-with-ai",
+      "desc_first": "Default to SpaceXAI when building AI/LLM features into an app. Use whenever adding or scaffolding AI functionality — picking an AI provider/SDK, wiring chat/completions or streaming, or setting up an AI API key — and steer vibe-coded apps t…",
+      "body_first": "Default to **SpaceXAI** for any AI/LLM feature. If the app reaches for another provider,",
+      "bytes": 2536,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "code-review/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/code-review/SKILL.md",
+      "front_name": "code-review",
+      "desc_first": "Run an extremely strict maintainability review for abstraction quality, giant files, and spaghetti-condition growth. Use for a deep code quality audit or an especially harsh maintainability review.",
+      "body_first": "Use this skill for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.",
+      "bytes": 12350,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "create-skill/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/create-skill/SKILL.md",
+      "front_name": "create-skill",
+      "desc_first": "Interactively create a new Grok skill (SKILL.md + optional scripts/references). Use when the user wants to create a skill, scaffold a skill, or runs /create-skill.",
+      "body_first": "Interactively gather requirements from the user and create a fully working Grok skill on disk.",
+      "bytes": 3606,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "create-workflow/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/create-workflow/SKILL.md",
+      "front_name": "create-workflow",
+      "desc_first": "Create a Grok Build workflow: author a Rhai orchestration script (agents, phases, bounded parallel fan-out, verification panels), smoke-check one path with the workflow tool, save it as a named workflow, and offer a real run. Also the compl…",
+      "body_first": "Workflows are deterministic Rhai scripts that orchestrate subagents — `agent()`, `parallel()`, `phase()`, `complete()` — run by the `workflow` tool. This file is both the authoring procedure and the c",
+      "bytes": 18640,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "design/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/design/SKILL.md",
+      "front_name": "design",
+      "desc_first": "Run the full design-doc-writer and design-doc-reviewer loop until consensus. Produces a polished design document with a PR plan.",
+      "body_first": "You are an orchestrator that runs the **write -> review -> revise** loop using the `design-doc-writer` and `design-doc-reviewer` personas. Your job is to keep the loop running until the reviewer appro",
+      "bytes": 22109,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "docx/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/docx/SKILL.md",
+      "front_name": "docx",
+      "desc_first": "Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx or .dotx files). Triggers include any mention of 'Word doc', 'word document', '.docx', '.dotx', 'Word template', or requests to produce profes…",
+      "body_first": "A .docx file is a ZIP archive containing XML files. A .dotx file is a Word template — structurally identical to .docx.",
+      "bytes": 23261,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "execute-plan/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/execute-plan/SKILL.md",
+      "front_name": "execute-plan",
+      "desc_first": "Execute a PR Plan DAG from a design document. Parses the plan, topologically sorts it, implements PRs in parallel using worktree-isolated subagents, runs mandatory orchestrator-level review, and assembles either a Graphite PR stack or a pla…",
+      "body_first": "You are an orchestrator that takes a PR Plan DAG (produced by the `/design` skill) and executes it end-to-end. You parse the DAG, topologically sort and linearize it into a stack, launch parallel impl",
+      "bytes": 97525,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "game-assets/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/game-assets/SKILL.md",
+      "front_name": "game-assets",
+      "desc_first": "Game art and 3D models with the Imagine tools: sprites, sprite sheets, animation cycles and FX, tilesets and seamless terrain, character turnarounds and variants, UI, HUD, icons, logos; textured 3D models (.glb) from an image for Three.js, …",
+      "body_first": "One skill, six references. Read `assets.md` first for every request — it holds the",
+      "bytes": 2182,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "imagine/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/imagine/SKILL.md",
+      "front_name": "imagine",
+      "desc_first": "Using the Imagine tools in Grok Build (image_gen, image_edit, reference_to_video): code vs. generation, prompt-craft, reference-first real people, consistency across shots, video with pinned frames and voices.",
+      "body_first": "Guidance for the Imagine tool calls in Grok Build:",
+      "bytes": 17980,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "implement/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/implement/SKILL.md",
+      "front_name": "implement",
+      "desc_first": "Run the full implement-review-fix loop using implementer and reviewer personas. Supports effort-based multi-reviewer scaling (2–7 reviewers) with automatic specialization selection. Includes memory-based feedback loop that learns from past …",
+      "body_first": "You are an orchestrator that runs the **implement → review → fix** loop using the `implementer` and `reviewer` personas. Your job is to keep the loop running until the code is clean. You support multi",
+      "bytes": 69288,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "learn/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/learn/SKILL.md",
+      "front_name": "learn",
+      "desc_first": "Learn from your own Grok Build sessions and tune your setup: add skills for things you keep typing, fix stale skill instructions, and retire skills, plugins, or MCP servers you never use. Use on \"/learn\", \"learn from my traces\", \"what skill…",
+      "body_first": "Read the sessions this user sat at, find what they repeat, correct, and never use, and change the harness so the next session needs less typing. Every path derives from `GROK_HOME` (default `~/.grok`)",
+      "bytes": 27353,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "long-running-background-tasks/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/long-running-background-tasks/SKILL.md",
+      "front_name": "long-running-background-tasks",
+      "desc_first": "Required reading before you start, watch, or wait on anything that keeps running after you launch it — background jobs, watchers, scheduled loops, CI, pull requests, training runs, dev servers, long builds. Read it before you launch such wo…",
+      "body_first": "Only submitting or queuing jobs is not sufficient to complete the task. The definition of done is the job has completed successfully and you have verified that it has produced all the expected outputs",
+      "bytes": 13454,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "pdf/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/pdf/SKILL.md",
+      "front_name": "pdf",
+      "desc_first": "Read, create, and transform PDF files. Covers pulling text and tables out of PDFs, generating new PDFs, merging and splitting documents, rotating pages, watermarking, encrypting or removing passwords, extracting embedded images, running OCR…",
+      "body_first": "Task-oriented recipes for PDF work, built around three Python libraries (`pypdf`, `pdfplumber`, `reportlab`) and the poppler-utils / qpdf command-line suites.",
+      "bytes": 10938,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "pptx/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/pptx/SKILL.md",
+      "front_name": "pptx",
+      "desc_first": "Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted cont…",
+      "body_first": "| Situation | Action |",
+      "bytes": 7655,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "pr-babysit/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/pr-babysit/SKILL.md",
+      "front_name": "pr-babysit",
+      "desc_first": "Monitor PRs, fix CI failures, address review comments (human and bot/automated), resolve merge conflicts, and restack stacks. Supports independent PRs, Graphite stacks, and GitHub stacked PRs (gh-stack). Optional ship lands a ready PR botto…",
+      "body_first": "You are a PR babysitter agent. Your job is to monitor GitHub pull requests, detect issues (CI failures, human and bot/automated review comments, merge conflicts), and fix them autonomously. Fixes and ",
+      "bytes": 82224,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "resume-claude/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/resume-claude/SKILL.md",
+      "front_name": "resume-claude",
+      "desc_first": "Resume or continue work from a recent Claude Code session. Use when the user switched from Claude Code, says \"continue from Claude\" or \"resume my Claude session\", or names a Claude session by description, path, or native ID.",
+      "body_first": "Set `TOOL=claude`. Set",
+      "bytes": 594,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "resume-codex/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/resume-codex/SKILL.md",
+      "front_name": "resume-codex",
+      "desc_first": "Resume or continue work from a recent Codex CLI or Codex VS Code session. Use when the user switched from Codex, says \"continue from Codex\" or \"resume my Codex session\", or names a Codex session by description, path, or native ID.",
+      "body_first": "Set `TOOL=codex`. Set",
+      "bytes": 592,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "resume-cursor/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/resume-cursor/SKILL.md",
+      "front_name": "resume-cursor",
+      "desc_first": "Resume or continue work from a recent Cursor CLI or Cursor Desktop session. Use when the user switched from Cursor, says \"continue from Cursor\" or \"resume my Cursor session\", or names a Cursor session by description, path, or native ID.",
+      "body_first": "Set `TOOL=cursor`. Set",
+      "bytes": 603,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "review/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/review/SKILL.md",
+      "front_name": "review",
+      "desc_first": "Run a reviewer subagent against your whole branch vs main, your uncommitted working state, a named branch, a single GitHub PR, or an entire Graphite/stacked-PR stack (one reviewer subagent per PR). A bare /review defaults to reviewing your …",
+      "body_first": "You are an orchestrator that runs reviewer subagents against one of five review targets. You coordinate only — **all** review findings are authored by a subagent whose prompt is seeded with the `revie",
+      "bytes": 60914,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "skill-design-principles/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/skill-design-principles/SKILL.md",
+      "front_name": "skill-design-principles",
+      "desc_first": "Concise, high-signal principles for writing and editing skills well. Use whenever authoring or editing a skill.",
+      "body_first": "Note: These principles should be applied both when writing skills from scratch and when editing existing skills. Before you respond, re-check your diff against every principle below **mechanically, no",
+      "bytes": 2611,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "statusline/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/statusline/SKILL.md",
+      "front_name": "statusline",
+      "desc_first": "Configure the Grok Build status line.",
+      "body_first": "Configure the optional status-line row. Write `[ui.status_line]` only after the user has said what they want on it.",
+      "bytes": 4031,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "bundled_skills",
+      "rel": "threejs-frame-conventions/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/bundled/skills/threejs-frame-conventions/SKILL.md",
+      "front_name": "threejs-frame-conventions",
+      "desc_first": "Rules and a self-test for writing Three.js (and other y-up, right-handed) game code whose controls, camera, character facing and rendered-vs-collision geometry agree — derive every spatial frame from one source, pin every sign choice with a…",
+      "body_first": "Almost every \"the right arrow moves the character left\", \"W walks toward the camera\",",
+      "bytes": 14557,
+      "mtime": "2026-09-24T20:48:28",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "neon-bd3e037e/skills/neon/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/neon-bd3e037e/skills/neon/SKILL.md",
+      "front_name": "neon",
+      "desc_first": "Overview of the Neon platform for apps and agents, spanning Postgres, Auth, Data API, and the new services: Object Storage, Compute Functions, and AI Gateway. Use whenever \"Neon\" is mentioned for an overview of how to work with Neon and how…",
+      "body_first": "Important: Neon is no longer just a Serverless Postgres provider. Neon is the backend for apps and agents with Serverless Postgres, Auth, Functions, Storage, and an AI Gateway: instant, branchable, se",
+      "bytes": 15804,
+      "mtime": "2026-08-17T01:50:03",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "neon-bd3e037e/skills/neon-postgres/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/neon-bd3e037e/skills/neon-postgres/SKILL.md",
+      "front_name": "neon-postgres",
+      "desc_first": "Guides and best practices for working with Neon Serverless Postgres. Covers setup, connection methods, branching, autoscaling, scale-to-zero, read replicas, connection pooling, Neon Auth, and the Neon CLI, MCP server, REST API, TypeScript S…",
+      "body_first": "Guide the user through any Neon-related task: setup, connections, branching, and advanced features. Deliver a working Neon connection, a completed feature configuration, or a specific answer from the ",
+      "bytes": 11415,
+      "mtime": "2026-08-17T01:50:03",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "neon-bd3e037e/skills/neon-postgres-branches/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/neon-bd3e037e/skills/neon-postgres-branches/SKILL.md",
+      "front_name": "neon-postgres-branches",
+      "desc_first": "Choose and create the right Neon branch type for testing and development. Use when users ask about Neon branching, migration testing with real data, isolated test environments, schema-only branch workflows for sensitive data, or branch crea…",
+      "body_first": "The outcome of this skill should be a created Neon branch (or a clear, actionable next step if creation cannot proceed).",
+      "bytes": 10674,
+      "mtime": "2026-08-17T01:50:03",
+      "versions": {},
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/brainstorming/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/brainstorming/SKILL.md",
+      "front_name": "brainstorming",
+      "desc_first": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
+      "body_first": "Help turn ideas into fully formed designs and specs through natural collaborative dialogue.",
+      "bytes": 15456,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/dispatching-parallel-agents/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/dispatching-parallel-agents/SKILL.md",
+      "front_name": "dispatching-parallel-agents",
+      "desc_first": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
+      "body_first": "You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit ",
+      "bytes": 6078,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/executing-plans/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/executing-plans/SKILL.md",
+      "front_name": "executing-plans",
+      "desc_first": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
+      "body_first": "Load plan, review critically, execute all tasks, report when complete.",
+      "bytes": 2305,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/finishing-a-development-branch/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/finishing-a-development-branch/SKILL.md",
+      "front_name": "finishing-a-development-branch",
+      "desc_first": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
+      "body_first": "**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.",
+      "bytes": 7781,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/receiving-code-review/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/receiving-code-review/SKILL.md",
+      "front_name": "receiving-code-review",
+      "desc_first": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
+      "body_first": "Code review requires technical evaluation, not emotional performance.",
+      "bytes": 6203,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/requesting-code-review/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/requesting-code-review/SKILL.md",
+      "front_name": "requesting-code-review",
+      "desc_first": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
+      "body_first": "Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history.",
+      "bytes": 2956,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/subagent-driven-development/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/subagent-driven-development/SKILL.md",
+      "front_name": "subagent-driven-development",
+      "desc_first": "Use when executing implementation plans with independent tasks in the current session",
+      "body_first": "Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.",
+      "bytes": 32339,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/systematic-debugging/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/systematic-debugging/SKILL.md",
+      "front_name": "systematic-debugging",
+      "desc_first": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
+      "body_first": "**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.",
+      "bytes": 9465,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/test-driven-development/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/test-driven-development/SKILL.md",
+      "front_name": "test-driven-development",
+      "desc_first": "Use when implementing any feature or bugfix, before writing implementation code",
+      "body_first": "Write the test first. Watch it fail. Write minimal code to pass.",
+      "bytes": 9015,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/using-git-worktrees/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/using-git-worktrees/SKILL.md",
+      "front_name": "using-git-worktrees",
+      "desc_first": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
+      "body_first": "Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.",
+      "bytes": 6813,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/using-superpowers/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/using-superpowers/SKILL.md",
+      "front_name": "using-superpowers",
+      "desc_first": "Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions",
+      "body_first": "<SUBAGENT-STOP>",
+      "bytes": 3108,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/verification-before-completion/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/verification-before-completion/SKILL.md",
+      "front_name": "verification-before-completion",
+      "desc_first": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
+      "body_first": "**Core principle:** Evidence before claims, always.",
+      "bytes": 3646,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/writing-plans/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/writing-plans/SKILL.md",
+      "front_name": "writing-plans",
+      "desc_first": "Use when you have a spec or requirements for a multi-step task, before touching code",
+      "body_first": "Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code",
+      "bytes": 7053,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    },
+    {
+      "root": "installed_plugins",
+      "rel": "superpowers-21e2a56d/skills/writing-skills/SKILL.md",
+      "abs": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d/skills/writing-skills/SKILL.md",
+      "front_name": "writing-skills",
+      "desc_first": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
+      "body_first": "**Writing skills IS Test-Driven Development applied to process documentation.**",
+      "bytes": 26360,
+      "mtime": "2026-09-13T13:51:11",
+      "versions": {
+        "superpowers-21e2a56d/package.json": {
+          "name": "superpowers",
+          "version": "6.3.0",
+          "description": "Superpowers skills and runtime bootstrap for coding agents"
+        }
+      },
+      "err": null
+    }
+  ],
+  "plugin_registry": {
+    "version": 1,
+    "repos": {
+      "superpowers-21e2a56d": {
+        "kind": {
+          "type": "Git",
+          "url": "https://github.com/obra/superpowers.git",
+          "git_ref": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+          "commit": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797"
+        },
+        "installed_at": "2026-09-13T05:51:11.613478+00:00",
+        "updated_at": "2026-09-13T05:51:11.613478+00:00",
+        "path": "/Users/rainhuang/.grok/installed-plugins/superpowers-21e2a56d",
+        "plugins": {
+          "superpowers": {
+            "version": "6.3.0"
+          }
+        },
+        "marketplace": {
+          "source_url_or_path": "https://github.com/xai-org/plugin-marketplace.git",
+          "source_display_name": "xAI Official",
+          "plugin_subdir": "superpowers"
+        }
+      },
+      "neon-bd3e037e": {
+        "kind": {
+          "type": "Local",
+          "source_path": "/Users/rainhuang/.grok/marketplace-cache/c6b314fa671daf8c/external_plugins/neon"
+        },
+        "installed_at": "2026-09-15T05:41:31.055493+00:00",
+        "updated_at": "2026-09-15T05:41:31.061213+00:00",
+        "path": "/Users/rainhuang/.grok/installed-plugins/neon-bd3e037e",
+        "plugins": {
+          "neon": {
+            "version": "1.0.0"
+          }
+        },
+        "marketplace": {
+          "source_url_or_path": "https://github.com/xai-org/plugin-marketplace.git",
+          "source_display_name": "xAI Official",
+          "plugin_subdir": "external_plugins/neon"
+        }
+      }
+    }
+  },
+  "plugin_registry_mtime": "2026-09-15T13:41:31",
+  "bundled_manifest_keys": [
+    "version",
+    "checksums"
+  ],
+  "bundled_manifest": {
+    "version": "public-2026-09-21-r2",
+    "checksums": {
+      "skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-digSig.xsd": "6de111e11403f7cd49027400755bae0ea1cabef2815f09bd40a24f0017613b24",
+      "skills/game-assets/assets.md": "19591b388b12c49cb276920acecbca623ef3b9c6184a0ad93ef1149f7cd53f96",
+      "skills/learn/state.py": "8ffbb33302b13b850baa84fb99374287366632fa8f4218a698c6f0cee32a128b",
+      "skills/docx/scripts/office/unpack.py": "aed41122e1777274304cd95e3c26779e611f5a71ee4f94450e3c90e226487762",
+      "skills/pptx/templates/ai_llm_technical_history.js": "073ef0e8d108bed7856e8629377f7b18b73ce91a584463a7457e5f60a196b5f5",
+      "skills/pptx/templates/finance_ai_portfolio_analysis.js": "c963495e79b4262f2c53d828001103a4263637e975bc94481ac4ec8c5ca688bb",
+      "skills/pptx/templates/real_estate_market_overview.js": "2adc843dbf25350e907990a20b79ed168ed8fcacdd7ab159a153ee041f6804c2",
+      "skills/pptx/templates/finance_ai_fixed_income_briefing.js": "a00ae2db521997bf99f0382e82747c20281c84f0f5e050d7446868cb0d6a6979",
+      "skills/pptx/templates/future_mobility_trends_keynote.js": "0c5b701ec5e1330407fee6e2a171a174f8fd0118018073196b52bec331604c24",
+      "skills/pptx/templates/snowboarding_beginner_lesson.js": "0e9ce798bf3c01c91d9a33c844ed4d1d5966eeb245bced626b9706d5edb9a672",
+      "workflows/learn-traces.rhai": "4bd940d65ab3cdacdae99d2d3e04dcf947d2980b455e4efd1c624acc528836a8",
+      "skills/pptx/templates/ai_robotics_startup_pitch_deck.js": "8442c7681a897b853b3b8143a4aeab1a7d2093df1915bc2f97477b53da2a8f2c",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesCustom.xsd": "9c085407751b9061c1f996f6c39ce58451be22a8d334f09175f0e89e42736285",
+      "skills/docx/scripts/convert_doc.py": "9d46db3620c43bab26e3b1a26f89e86318183df3376ac121951c14fee3b1a2b2",
+      "skills/pptx/templates/entertainment_film_pitch_deck.js": "c3b8750141308a2e0ca5fcec09dcc3fdebfab0b6ea3d96b9d269a35eb9118be5",
+      "skills/pptx/templates/finance_vc_investment_memo_2.js": "590cb50cfb7d9cd58e6ae7408390a8cdbdce44a1a9b1c95e31ea679a1048e365",
+      "skills/docx/scripts/docx_patch.py": "e0e036b3aef74f09b73b1cd1980b3b3245e5fe0d9953590e66205e1ab51ee85f",
+      "skills/pptx/templates/education_intro_to_piano_lecture.js": "e888ae456179e728ac4a57e8f6b1a59077e31adcab76519e25326e386f8c7856",
+      "skills/pdf/forms/f5329--2025.pdf": "4755429e08b6a7ae810eca209dd30d991abf5eb0ee4a56c8ba95f7ac86279e24",
+      "skills/pdf/scripts/check_bounding_boxes.py": "cb475d44d9218174d191b0e4e52f61de0dcdb99cc73a7fffa15b29de7f509919",
+      "skills/pptx/templates/mobile_pet_grooming_seed_pitch_deck.js": "de962741ecbb4a9e2de91c9569bdf90ae59c4a853e9271b31d0d0158dd9983e0",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesExtended.xsd": "bc92e36ccd233722d4c5869bec71ddc7b12e2df56059942cce5a39065cc9c368",
+      "skills/pptx/templates/luxury_design_brand_story.js": "edecbb7646b99eaafd4dc71422407a1f036722c9e7fba4680513a64afbac1bc5",
+      "skills/pptx/templates/gelateria_seed_pitch_deck.js": "30e1b92ee35120ae7d012706e0f796b4a200a5aa2ab076281fa7b2230a386f36",
+      "skills/pdf/forms/f1040--2025.pdf": "acc869ad091dbbfd784c1e94bd9cd5dc8f7048c2a2168747d264cc578d5de618",
+      "skills/pptx/templates/finance_portfolio_quarterly_review.js": "6c150b1a457505f5986b534d4895502b874f3659b42423fec53224ac1cfa40a7",
+      "skills/docx/scripts/inspect_doc.py": "1c9fb6ec687a900d51455c4105cf35c50755ad1633e96405c7ba2ed18a2cea24",
+      "skills/shared/personas/design-doc-reviewer.md": "673ad030c4546d8349b50323fc248e7f9ace373f3f3e0f4392f1fea45b7e0ded",
+      "skills/pptx/templates/surf_school_intro_lesson.js": "b201bc7c4d1d540a3880dfadc708705dc5aaeee31a79d9a02cc43de7004295f6",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chart.xsd": "41b93bd8857cc68b1e43be2806a872d736a9bdd6566900062d8fdb57d7bbb354",
+      "skills/pptx/templates/sports_marketing_promo_calendar.js": "6f771f6a199711560db13f72851c2b084c58db78bd7b6110d50d0c554d11b515",
+      "skills/pptx/templates/labor_economics_research_presentation.js": "707ae16da37a29494ebcb5ca344207e04f355dc8194b7999bf77cffe3abdaa0a",
+      "skills/pptx/templates/luxury_eyewear_retail_seed_pitch.js": "92a31850e5daa062f467e97367be45b50dfe4b2cac5363fd72b0c1a5057ce79e",
+      "skills/pptx/scripts/office/validators/docx.py": "b81f2d143ea858a1611c528face0eb7144b70bc5bfcfbbb315afc5b8040d6ba6",
+      "skills/pdf/forms/f8995--2025.pdf": "dd90fd54434166884d62151d79f7bf869249cc3d30ffaf9ae9adfdeb75042706",
+      "skills/pptx/templates/fitness_franchise_qbr_performance.js": "d07cbdb70a862dfddcf6a015d58e03b9f945650469516b1deec78287f9391836",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-relationshipReference.xsd": "12264f3c03d738311cd9237d212f1c07479e70f0cbe1ae725d29b36539aef637",
+      "skills/pptx/templates/consumer_goods_annual_budget.js": "7c7ad8b81e6edcfa7663331e93f89cefc85533e4e3ce63855566114b0d008da2",
+      "skills/pptx/templates/web3_defi_app_design_review.js": "6ce760bd930ca229eb8f15a1f459bb1fd68d38177c4975a337910d5f3aec0ad3",
+      "skills/pptx/templates/ai_blockchain_market_briefing.js": "ec9a13dfb932f4684b52e4343eb14a4afdf8ad7cb185038a84b539e23cf79c60",
+      "skills/pptx/templates/healthcare_ai_partnership_proposal.js": "c696bd82aa1eaf9d4e44875b559a39c11739c33be7278d81ac7d3edfb2f670f0",
+      "skills/pptx/templates/retail_product_catalog_overview.js": "aa716b93051bf43758978c5ca62d217a0e54dc4d2688bdfbf1b55e3a1bd66a4f",
+      "skills/pr-babysit/references/shipping.md": "d6bec077e752a797357f76325b5497291fc1b50380fe48fdd3f829bf88752f3c",
+      "skills/pptx/scripts/office/pack.py": "6d33cc841a113f84767d9eccd534883911dbb69bea6428a213da2fdd4763ee5a",
+      "skills/docx/editing.md": "e009f9a05214dd89a13cab813d7d581308ee8b7863823a6746bf6aa36f0ae71d",
+      "skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-relationships.xsd": "f565adfef5a502044abc3a9153e157edc25af78304d335994afb958874b15e26",
+      "skills/docx/scripts/inspect_tables.py": "7a9edc5cc1792dbf3f33cf6aa2e191784ee4e7788f47df622680bdff8da538fb",
+      "skills/game-assets/SKILL.md": "62e3712a9c09e0ec14fa39aa74b0d8db00ed0486ef9eac92bb99b6974f8f6cef",
+      "skills/pdf/forms/f1040s1--2025.pdf": "d5100468c10d0d444de566c8e84b01a55da6b91e34d4d70f1635eafd1e1b239e",
+      "skills/pptx/templates/education_university_profile.js": "06412b6bb8684be5cc3e6acb9421a45eef34e14e2d2c79e53dd7202f92c768f3",
+      "skills/pptx/templates/finance_private_credit_primer.js": "29b58e6c14baa39e24fdaee8c098232fc3677d1a44eb25d5c92aea4690107241",
+      "skills/pptx/templates/healthcare_nursing_performance_review.js": "3253eddf9840dfa2c3909d331377a93c55dac0e78352848a35fe92a35f26d0ee",
+      "skills/pptx/templates/k12_literacy_tutoring_pitch.js": "8d95627130d1c49ad1cb9c19a1f9ef5843328634af50404eaac15a525b90db39",
+      "skills/pptx/scripts/detect_fonts.py": "7cd4062eb646915c1e0908ef2fc7946f32b28f981da1a57525c46e55e5b76edf",
+      "skills/pptx/templates/pharma_product_launch_deck.js": "9d3159cb7d2bfa693c8040e60fda0a701bd1f9e55cd34afe10c9f1d948c3e3cf",
+      "skills/pptx/templates/real_estate_fund_investment_briefing.js": "3c76288a35cf0b12d1fd3a380ef62a1e0dc17e1bc043559f0859df4858ef5ce1",
+      "skills/pptx/templates/restaurant_concept_pitch_deck.js": "2c7b93025449281570814e35b9d9db033fb828919b627b91133cef00807fe9c0",
+      "skills/pptx/templates/sports_market_expansion_strategy.js": "b9212bcb4778c32133549f80515e1a497a0f591756d448d8445d9c635997fd3d",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-cid-2016.xsd": "127ca209fa73d7cb708449cb355c871867948a96e4a74f7bf5811ef62d17991d",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-sdtdatahash-2020.xsd": "842e7163409c8d74f4d7088a8bc99500d80bc75332681a0980055b08f374a604",
+      "skills/pptx/scripts/office/unpack.py": "aed41122e1777274304cd95e3c26779e611f5a71ee4f94450e3c90e226487762",
+      "skills/imagine/SKILL.md": "8753c0abe6a4a1116529c368d5589ddcc190dee08bf8e732c2eaeb5d4f69482c",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-2010.xsd": "568b26ee156cb9549aa439ca2158965f77b7c1602b7e0316f40ac6cf586e35f2",
+      "skills/pptx/template_taxonomy.json": "87217aea83aa7f9da994efa5d7acefa7e147e2da61140a0ae38fb427f5d55d0b",
+      "skills/pptx/templates/biology_dissertation_proposal.js": "3592b9563adda51f53fbd84424847c13eb90a90debcae3778e81e09749c24969",
+      "skills/pptx/templates/finance_equity_research_investment_thesis.js": "ae005578a7ca9808e2089ee09dd6c623df58d545a474966117e378b766baf8e6",
+      "skills/pptx/templates/finance_rwa_tokenization_pitch.js": "8a0fb681cb297caab2adbf42966c267020bfccbfc302d7e58756a1bf763a0b7a",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chartDrawing.xsd": "3fd0586f2637b98bb9886f0e0b67d89e1cc987c2d158cc7deb5f5b9890ced412",
+      "skills/learn/learn-traces.rhai": "4bd940d65ab3cdacdae99d2d3e04dcf947d2980b455e4efd1c624acc528836a8",
+      "skills/pptx/scripts/office/helpers/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "skills/pptx/templates/gaming_ai_startup_pitch_deck.js": "f56fef0c17a470f5e8f1dd8130bb1902d250d86374c541f89c3f3f4ec1a00712",
+      "skills/pptx/templates/mental_health_app_pitch_deck.js": "4991f51c4197ff93a9181ae504b577cc6246cc8eb75ef546adc8653c57559372",
+      "skills/docx/scripts/list_sections.py": "931353b57f800dd10d8115c8a3f35ca02ccae2cef4f64e40b1be7fceeef349b3",
+      "skills/docx/scripts/templates/people.xml": "056f63aa1197fd8c9dda980c9f1b9ff016fd5fa4a462df8aec5f384f39d23e37",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesVariantTypes.xsd": "7b5b7413e2c895b1e148e82e292a117d53c7ec65b0696c992edca57b61b4a74b",
+      "skills/long-running-background-tasks/SKILL.md": "e5383ba2c53ac80ba309a354f5cf152114eedc74bb86e45f7876efc408c99e7d",
+      "skills/pptx/scripts/office/validators/pptx.py": "fde5f47c85251dda78899c05a6fa67ac83628baadab58160e609d17eb1c40ea2",
+      "skills/pptx/templates/auto_repair_company_profile.js": "e064a5a642c521caa0524277d8a605acfe2932cfdf7345109562b76771a2f370",
+      "skills/pptx/templates/restaurant_investor_pitch_deck.js": "0fe70e5407d0a3f8a32bd245ee71c57b894df7ef3a240b81cb59c885733cf1d3",
+      "skills/pptx/templates/cruise_itinerary_trade_portfolio.js": "facb9d9671317a0374bea3bf4d54bfd7204521049eabfdd440c79c7ffb328fd9",
+      "skills/pptx/scripts/thumbnail.py": "e514e914445f3d84639a41fc11ef9d2215a08a498d3299a25444ba1b67a20b15",
+      "skills/docx/scripts/office/schemas/microsoft/wml-cid-2016.xsd": "127ca209fa73d7cb708449cb355c871867948a96e4a74f7bf5811ef62d17991d",
+      "skills/pptx/templates/biotech_series_b_pitch_deck.js": "aa62de9cc818b5a407b318de3bb4d0d6ee182bcf070d2feeaaa7f2caf5ce4375",
+      "skills/pdf/forms/f8936--2025.pdf": "3252cc2dbd70574c2486c44df1f5fb17244dd075c3e5f2d257417f312e6e4c8c",
+      "skills/pptx/templates/nonprofit_wildlife_conservation_prospectus.js": "2f23f401906464599267f80b63f800f2cc1d2001bd9565e5aac664a16adc2299",
+      "skills/resume-cursor/SKILL.md": "be6de5404df93f13510a9ef847efc4f84263590751ab9db129ab93d13606f553",
+      "skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-contentTypes.xsd": "9e0b7209fc69ab11987900404540969976000c5ebe4d4f58c43dc3842886bf3a",
+      "skills/pptx/templates/finance_prediction_markets_investment_memo.js": "1717c046d2d8252a2b3271c99e5908525b774e5e353b498f04acc65cf4c62b7b",
+      "skills/pdf/reference.md": "c08d0c9790c342db2e8b1685c1a37e1573a5b7ad5034f3d0f036763fbc5ea288",
+      "skills/docx/scripts/office/helpers/merge_runs.py": "d4110e084c32f2a0560ed7a9b923bb55a88ce94fe2270d3379943abf4a5b2957",
+      "skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-contentTypes.xsd": "9e0b7209fc69ab11987900404540969976000c5ebe4d4f58c43dc3842886bf3a",
+      "personas/design-doc-reviewer.toml": "34ff2e618852fdb38209e6d4dffa837ab6e4b09af3b3636a459038ba160df879",
+      "skills/pptx/scripts/clean.py": "5c21cd2cd021b4d39abfa403565bd3000425fd8baee1f4c94477ffea07fcf06e",
+      "roles/quick-search.toml": "6707f412df737fb559a251a8d29dcec20c681ffc18b8dba6eab2edd250441b9c",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-lockedCanvas.xsd": "5cb76dabd8b97d1e9308a1700b90c20139be4d50792d21a7f09789f5cccd6026",
+      "skills/pptx/templates/university_giving_day_fundraising.js": "02f17eb86e3722bb134712770265c78151baecd16be06eb1b76bb0dc6938a6dd",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-relationshipReference.xsd": "12264f3c03d738311cd9237d212f1c07479e70f0cbe1ae725d29b36539aef637",
+      "skills/pptx/editing.md": "86283079d0209fd9d84fe02458a473b99ff7d5d73016442092f040a51983b439",
+      "skills/pptx/templates/urban_landscaping_service_proposal.js": "f6819bd206b747b8d7e4e289fdbfc58e35f4e96ee061aff18f380f343f78a0df",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-picture.xsd": "5d389d42befbebd91945d620242347caecd3367f9a3a7cf8d97949507ae1f53c",
+      "skills/pptx/templates/vacation_rental_quarterly_financial_report.js": "448a6f9a81dc3f682216c45138761980fc6b7a5c1bb83a93a34f06210e315a00",
+      "skills/pptx/templates/game_design_character_brief.js": "a8fd0151236ffc0508ea0f37967e8c93b29e7b9d2d1d3ed3cda4ffbdaf78bc5a",
+      "skills/pptx/scripts/search_templates.py": "604ae5120111f890c7460c9e36167efd94b57d187282551cf291c1a43fd33239",
+      "skills/pdf/forms/f8812--2025.pdf": "d54f20617c2af96089765d095477205d6751550cde2b3550fe59d4ebd33dd275",
+      "skills/pptx/templates/agri_commodities_trading_primer.js": "a9daf7ee93fc7a108c69b170f8d08b068ae5d5a61ee0cafe37df72d9cfacd23c",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-cex-2018.xsd": "fddc2b880cabb9005aebbc7e783e53c19fec1c03df7d0e2f2076a33a0fdfd081",
+      "skills/pptx/templates/retro_tech_cafe_pitch_deck.js": "dd118c1bde501ccf62bc4095b0950296448d6cffb845ef8261fa95cfef9bc436",
+      "skills/pptx/templates/video_game_pitch_deck.js": "954317e99bf3eaa42e2af255eefc1b8e8d70ff53f799683fe90e4081717a4613",
+      "skills/pdf/forms/f1040sa--2025.pdf": "2821bf52ec6a071983aa1e2a6f72a9769c68db2e81a47c2104784f58d4b05d05",
+      "skills/pptx/templates/bakery_commercial_loan_pitch.js": "6992ce0e2aef472a0abf7b3258b72e4cfac244ce11fdbc95d5ab23fbc5bfa342",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-wordprocessingDrawing.xsd": "bdad416b096b61d37b71603b2c949484f9070c830bdaeba93bf35e15c8900614",
+      "skills/shared/personas/security-auditor.md": "fcebe01cb13426cd5845c6a192e196a87011250901f095891608cafbfddf9aae",
+      "skills/long-running-background-tasks/watch_training.py": "e93850995b769c74183bf879e9002273e42f2bbce42ef875bb37c482d89a5ee3",
+      "skills/learn/report-format.md": "2a9a68880f39b77f8f83404ea97c8798b11806b8a90ff6fac71f00da1821c338",
+      "skills/pptx/templates/snowboard_school_prospectus.js": "33a640e08fb1b36234bbbb224d52b09c9cd38822082657b8746e0829ff6cc35d",
+      "skills/pptx/templates/bakery_concept_vision_board.js": "be8c5a6505ccbc5d3fbbd72555ae4caab6ab978585313c2ca591b9702f7fd9df",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-presentationDrawing.xsd": "133c9f64a5c5d573b78d0a474122b22506d8eadb5e063f67cdbbb8fa2f161d0e",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-lockedCanvas.xsd": "5cb76dabd8b97d1e9308a1700b90c20139be4d50792d21a7f09789f5cccd6026",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-spreadsheetDrawing.xsd": "6bdeb169c3717eb01108853bd9fc5a3750fb1fa5b82abbdd854d49855a40f519",
+      "skills/resume-claude/SKILL.md": "2895371698c2e57887e60a261ba30525212da80aa08ffe9bf8f8c32a22a6003e",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-spreadsheetDrawing.xsd": "6bdeb169c3717eb01108853bd9fc5a3750fb1fa5b82abbdd854d49855a40f519",
+      "roles/design-doc-writer.toml": "4777683aa47eda72d25b4e0d354899a8139f8695d115663def8701cd044b5462",
+      "skills/pptx/templates/hospitality_bed_and_breakfast_promo.js": "0cba66ad4a2e1860bf6e18231273b5f9379f531aa544fbcb31b66383a6a0f3d4",
+      "skills/pptx/templates/healthcare_patient_forms_standardization.js": "251eb7dc04e98f92599aa7e04b87a55a611b003a9b100aef0b9443b9ceb16b12",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-main.xsd": "f5ee623b08b6a66935e5aced2f5d8ad0fc71bf9e8e833cd490150c0fa94b8763",
+      "skills/pptx/scripts/office/validators/redlining.py": "dc604b79d86680791dcb38d5c2e621bfad3cc52f012d06d691fc36297b20b0a6",
+      "skills/pptx/scripts/add_slide.py": "a77836a685284a96cc33d655a92ff964f91af2eed70c39f257081fa722e94bab",
+      "skills/pptx/templates/mobile_pet_grooming_service_overview.js": "d6c5198eaba99cecc60ce7efd61a87d59ea2df8bce758df64fa4e56fbcb07c7a",
+      "skills/docx/scripts/office/validators/__init__.py": "83e0f035c5abea238d3f2c3968afbd511ed022b527b7c9cb60a9434cc34ff987",
+      "skills/pdf/scripts/fill_fillable_fields.py": "1587712198bab67ffc25cffa0b2253eda68b741a459465a304bf8f336112bb55",
+      "skills/review/scripts/collect_local_diff.py": "5dc8200666cb5dc779b8831c437f020eaa69753958eeb02cd81a894d96bbbbe5",
+      "skills/pptx/templates/japan_travel_destination_guide.js": "cb0af0a8d8e4ad029a40723e4628d0e963cf50a7298462ef87be4f209207842f",
+      "skills/long-running-background-tasks/watch_pr.py": "b68729796b0ea70235ce1b147c0a692e524256326d4b65864d1b806b65f92135",
+      "skills/docx/scripts/office/helpers/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "skills/docx/scripts/office/schemas/microsoft/wml-sdtdatahash-2020.xsd": "842e7163409c8d74f4d7088a8bc99500d80bc75332681a0980055b08f374a604",
+      "skills/game-assets/scripts/three_d.py": "1dc9f5fae82e54102db7f4361fd85d5282efad9ebb192b58d6a8b5a9095d559b",
+      "skills/learn/SKILL.md": "34a63eff2d81ec4ee26942efd20656617d18159b847628e2e9bc12debe51b91b",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-symex-2015.xsd": "16f6f8072249f431370723c2cd8974672e0d9c897e00e97dd918079df934871b",
+      "skills/pptx/templates/activewear_collection_overview.js": "c1fec9a17c242a24eddb21f568d556f7f7064037a0521bdd79ac015f5b760012",
+      "skills/pptx/templates/finance_hedge_fund_pitch_deck.js": "0a50ffa3b51050d9cf7f87b8315d7b13d0282d031ae89de13bdc3996a4676f31",
+      "skills/docx/scripts/templates/commentsIds.xml": "db20f9616e004ec42ef736e80c2384e45db0f8d1194d31dc8b37c7d6ecdd6420",
+      "skills/pdf/forms/f2441--2025.pdf": "7111bbfcc55649c408bfc2786a5e7ca906938d05e69144dd23d69bff2539a0bb",
+      "skills/pptx/templates/food_beverage_bakery_brand_profile.js": "eb1fcecc1f5e3efe6551374900305d6ccdbd17946dc50e93bff84e6f93f68908",
+      "skills/docx/scripts/office/schemas/microsoft/wml-2012.xsd": "0fa75578a000439a7988ba0c59fdc69f774bbd416cbacc14d07125b3f686cb74",
+      "skills/pptx/creating.md": "5c196db0f0f2de20d58030107780b08ba1f7ed94cfc257fa78b70c9fca430985",
+      "skills/pptx/scripts/replace_text.py": "a86decfa8779f81cfc263592ca685fdb9dbb95cfe696e81f6c361ea9a1f047b1",
+      "skills/pptx/templates/biotech_cloud_rd_infrastructure_proposal.js": "7f087294a5cb48f48ae0b9aa5daa172db57888529e652fb0879db6ec9c85127e",
+      "skills/pptx/templates/college_admissions_consulting_pitch.js": "2167021bd4a127f56a224f77d951dab2807993ebaa81e6cb20863ba63307cf2d",
+      "skills/pptx/templates/finance_equity_portfolio_performance_report.js": "d95c7603e790fa34aceab5fd63d4422636755ae22e18fc6d75674a05cb7d1d8c",
+      "skills/pptx/templates/flower_shop_company_profile.js": "6c7fe8ec5886be6680f328aca6a0a71e12e54e3fe08e69828593606a7aafb7fb",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chart.xsd": "41b93bd8857cc68b1e43be2806a872d736a9bdd6566900062d8fdb57d7bbb354",
+      "skills/pptx/templates/kids_taekwondo_marketing.js": "d21d82af80b185c01184eaf6584640869d064fe796ec0d4396863b4a202607ed",
+      "skills/pptx/templates/finance_investment_portfolio_brief.js": "9abfab187b878244921b09f5e796e129245df55381ba848dd353c79ea533fe8c",
+      "skills/pptx/templates/luxury_nanny_placement_brochure.js": "e6e1c5878966085d1b7e86ee56e452fef611d61d0489bc0780609ac11440a9ba",
+      "roles/implementer.toml": "1394d8fda9e6cbada4cdf2164b543e1f99c234e347d63d82c20c6a11e13660ba",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-bibliography.xsd": "0b364451dc36a48dd6dae0f3b6ada05fd9b71e5208211f8ee5537d7e51a587e2",
+      "skills/docx/scripts/templates/comments.xml": "a08ba83ee8790ac9e3dc61921f4988f19edd7e06ac09d6f1897a877c1581818d",
+      "skills/pptx/templates/luxury_interior_design_partnership_deck.js": "4dccdc6be69e35da088c8042123b2e8e14d5a3e8606fe4d6595643a78a0a4905",
+      "skills/docx/scripts/comment.py": "df1bc41c5d66b7ce2a3ceb4e594a38488d6bf93720aafcceadaef8c0ed210481",
+      "skills/pdf/scripts/check_fillable_fields.py": "f28eb03441ee7f85792a5aff765555e44216a692452cab2921e1e0a54c2c6e6a",
+      "skills/pptx/templates/seaborn_data_visualization_training.js": "0a7e947a4b6e682d7e41dccc189d12c6e70a9d890ced649d0b5afc36c36774a0",
+      "roles/test-writer.toml": "5d76a7cfae923d3ceffc24140f4ff809f890ff2ae264be840a340ed9a85d684f",
+      "skills/pptx/scripts/office/schemas/mce/mc.xsd": "3a37e461ecf5a8670fdec34029703401f8728ab9c96ec1739a6ae58d55212413",
+      "skills/pptx/templates/crypto_hedge_fund_pitch_deck.js": "be3424586cbbb857cba807eda98f56c039c71ba5345b4146cee31cbeaac51e91",
+      "skills/docx/scripts/office/schemas/microsoft/wml-2010.xsd": "568b26ee156cb9549aa439ca2158965f77b7c1602b7e0316f40ac6cf586e35f2",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-officeDrawing.xsd": "585bedc1313b40888dcc544cb74cd939a105ee674f3b1d3aa1cc6d34f70ff155",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/xml.xsd": "a539aa2fb154fa50e0f5cc97e6ad7cbc66f8ec3e3746f61ec6a8b0d5d15ecdf2",
+      "skills/pptx/scripts/render_slides.py": "9cd00fcf3d12705674181b9f37af7a56cc05c04f37b64fb076eeb5f9e3f37524",
+      "skills/pptx/templates/healthcare_tb_testing_clinical_training.js": "bf2044190e026ad77ba4e63205ddec83b63943ea21b1814b11b4b76f4eaa4fe3",
+      "skills/game-assets/characters.md": "dce00126c08f8e2a994830136f8edc6d795bdf9f380ee7e1d74759cd7921f813",
+      "skills/learn/signals.md": "f6f59393de612e2754b0781f7992a0d1bec0414547c3eead0b022cf25c24beff",
+      "skills/pdf/forms/f8889--2025.pdf": "c1f3306f357224cc99326c80a1016057d0f9bdcad68feca866347d10520a5866",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-main.xsd": "f5ee623b08b6a66935e5aced2f5d8ad0fc71bf9e8e833cd490150c0fa94b8763",
+      "skills/docx/scripts/office/validate.py": "19e313694cb426bdf7f65e3987d6588bb3485c64fd86d954347e387398993a10",
+      "skills/pdf/scripts/create_validation_image.py": "0d06d0137b86f1a72e9790b79473912467e71aa06c02abe4781926bf2e9f7858",
+      "skills/pptx/scripts/resize_shape.py": "c098d45a22a877e8848afd595bc306644827bbcad697b5776c36385ee7373dc6",
+      "skills/pptx/scripts/media_grid.py": "df9945bea2d8c1c8b84c9dd8fa0ac401b26e82cf72688b2c05320c7e3f0c114c",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-commonSimpleTypes.xsd": "e2abacbb9a55ce1365f8961bc1b1395bbc811e512b111000d8c333f98458dece",
+      "skills/pptx/templates/finance_equity_research_index_analysis.js": "a4466301a3afba9638890a33ec80f6f7a5d4b5fd4d110d8656f5bc668819d8d6",
+      "skills/pptx/templates/fintech_ai_series_a_pitch_deck.js": "b979153bc93292bd54b43e6770ac14516eb697b79d1420d78441bf21d1d3f4aa",
+      "skills/pptx/templates/healthcare_ma_pitch_deck.js": "6b23294084c9864ff253dced3b58d523c7c8b451b521282d1b0c214d02064477",
+      "skills/pptx/templates/mba_financial_crisis_lecture.js": "6afaf2bf6feb1e4998ba64acf60f04288d0786e264c5720ac196e88b9a4f3cf2",
+      "skills/pptx/templates/ai_sports_media_partnership_pitch.js": "c52fc733633ead4f87461cab9132f7ca5998a4dae16945fec9e03dc86ad9bcaf",
+      "skills/pptx/templates/real_estate_neighborhood_buyer_guide.js": "9cc3c870b68073d29729f76cb7f9730931edadcd76f32ac2f3bdbae5c00a950d",
+      "personas/security-auditor.toml": "1188e78f8d62749dc1c7b2af4b42aeedb1c5252448b338dc1b20ad52d71067a2",
+      "skills/pdf/forms/f1040sc--2025.pdf": "5943e16d27a92af0e6b3ebfa85b34f3ba142f0d4a983fc8cc8dd49fff2417e33",
+      "skills/game-assets/animation.md": "f28d8757e526c5ba193c19947304cc65a0ad1b92d0017ec76d2a9f391f5d3f99",
+      "skills/pptx/templates/wine_tourism_strategy_brief.js": "b8e5e7b37707b10978a6881b1cfd7e0da3727a56507edd9c82fae5b4d57831b8",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-additionalCharacteristics.xsd": "3c6709101c6aaa82888df5d8795c33f9e857196790eb320d9194e64be2b6bdd8",
+      "skills/pptx/templates/crypto_series_a_pitch_deck.js": "c12903895c63e0b4b64bd117a345370acba12ccaf5650e98830f85264203b12d",
+      "skills/resume-codex/SKILL.md": "183364634d909c92bc0569448aaf4f5a5fb3bff2cbc1456ca8ebbf0dda0cd7f7",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/pml.xsd": "d173c3e5d61e42e2e3a97226c632fd2ab7cc481fc4e492365b87024ab546daff",
+      "skills/pptx/templates/art_gallery_exhibition_presentation.js": "7738b620edd2491d374aee5a70d9a90036b9ad7b811ce877c6aecc80a57a312a",
+      "skills/pptx/templates/paragliding_school_prospectus.js": "b8cfd8976010ef918a6eeb6362c41f99f798ab5bdcf3f11209a4998edb6f20f8",
+      "skills/pptx/templates/luxury_hospitality_brand_guidelines.js": "b5cf1cee75d4591aaa0aef03823faf5b0ee00519cf0df5a5bdc1e7d0a45da980",
+      "roles/design-doc-reviewer.toml": "9d1699f0f9bc570e33887d8d6eebb8b7d14421b5955dd683596a6c0797ac47b5",
+      "skills/pdf/forms/f8959--2025.pdf": "62c43d379132d44a576759c0e0db4f7104206346dcf0a58a1365699269d3475b",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesExtended.xsd": "bc92e36ccd233722d4c5869bec71ddc7b12e2df56059942cce5a39065cc9c368",
+      "skills/pptx/templates/regional_airport_pitch_deck.js": "219d6fcf96dd5991c15935b572b2dea0e2e2e1ff4ba1266059ed6ab1901f489c",
+      "skills/docx/scripts/inspect_headers.py": "b0b17b28d55ba0b12e3726f42cda8a59e95555029ac1209856fec38317e4c4db",
+      "skills/docx/scripts/office/schemas/microsoft/wml-2018.xsd": "be0ff793a22dd31384650c3a4da14c2fa8062751c2e97b0e5ee852bda13c60ad",
+      "skills/pptx/templates/institutional_crypto_exchange_pitch_deck.js": "ff43051844b6fd147c75ef3817c30a41666b598a3a97fda5a7c4f637dd24a66b",
+      "skills/pptx/templates/jazz_bar_concept_pitch.js": "215608f6d1c12b51eaf2b10fb1ae31a8d9518d809670609e94e33f20d9e57896",
+      "skills/pptx/templates/retail_pet_store_pitch_deck.js": "d9d3a0cbc423b9fc39ebcfb004170d5328b2b175148e13bfb2084dab7a8a0e75",
+      "skills/pptx/templates/wellness_startup_seed_pitch_deck.js": "64bc5e7b0748eddd71299aa4d8ea45d4c616ec19c96a5e79014844a374e512f1",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlSchemaProperties.xsd": "0d103b99a4a8652f8871552a69d42d2a3760ac6a5e3ef02d979c4273257ff6a4",
+      "skills/learn/collect_sessions.py": "778b7aa04cd53e5edce56f3e74336e53ff2c064f3f22907de44b6f7bec73b575",
+      "skills/game-assets/tilesets.md": "48b597cf52eca39496980cc3c9c33ef150c10476e7e4cd1895a0c0a3168ac353",
+      "skills/pptx/templates/finance_hedge_fund_primer.js": "07f5bd165db82c3456ef63752ee31b63fd68c5a481ca7359039add192ee4d3ff",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/wml.xsd": "c2dd9f61f892deae6acd8d20771ea79b12018af25f3bf8d06639c8542d218cfd",
+      "skills/pptx/scripts/office/validate.py": "19e313694cb426bdf7f65e3987d6588bb3485c64fd86d954347e387398993a10",
+      "skills/pdf/forms/f1040sb--2025.pdf": "aebe556da46d09d24dd831beb35f441cc739badf4cc0ae0766af119560988b4c",
+      "skills/create-workflow/SKILL.md": "ab2c054cf90275fdcccbd9379f7967829a3addc7e067fff493a275bb8b207884",
+      "skills/docx/scripts/render_doc.py": "8184fd91bde0322c0c8552d4bc2ee5d5099afb9cfde5544740c6353123a052ac",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-main.xsd": "5375417f0f5394b8dd1a7035b9679151f19a6b65df309dec10cfb4a420cb00e9",
+      "skills/game-assets/ui-icons.md": "9a01d0e53c774264ce1cc1cba9e5531eea21c87044bc5424bc24081abc460773",
+      "skills/pptx/templates/geospatial_data_analysis_training.js": "91f0935a8771d40e57d8cc1146ab82fd40d6906064918397a15868bd3995912d",
+      "skills/pptx/templates/finance_10k_filing_analysis_guide.js": "1df9dfdabdedc05d2760d8d7bea52a85588d3b5bf9f06f813dff3f2490bcc2a4",
+      "skills/pptx/templates/music_festival_seed_pitch_deck.js": "92f4ef83c25841fd02db36a6a1671604dbe561c3eb80d661fc2f1a3001e909e4",
+      "skills/pptx/templates/edtech_ai_product_pitch_deck.js": "9ef0c6c22a5942d12867b025146105755e6a23ae80a9be9c0977aba8f1f845ec",
+      "skills/pptx/templates/grocery_flash_sale_promotion.js": "642be434fc9bf2136a8a1f7b221d87fd2f76048fb53ea7bcb17189cba66b8506",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-bibliography.xsd": "0b364451dc36a48dd6dae0f3b6ada05fd9b71e5208211f8ee5537d7e51a587e2",
+      "skills/pdf/scripts/extract_form_field_info.py": "19e72437a1001fd42b7acc0db5eac8bd78ea494d0de76a6660a7fc3b9fd32a29",
+      "skills/pptx/templates/childcare_operator_partnership_pitch.js": "d2d54f37529a48760f2de40bf969fc204bd6f793c3eb129e4d5c6a9da34fe5ed",
+      "skills/pptx/templates/retail_bookstore_profile.js": "25c840b609c2aaa1faebecf42621036889757c7b7e6a47d69a07bdce887d531c",
+      "skills/docx/scripts/templates/commentsExtended.xml": "544eeecfeceed4b468fff163cd9c366d33641c8b8ab691ce002576197846afe8",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-commonSimpleTypes.xsd": "e2abacbb9a55ce1365f8961bc1b1395bbc811e512b111000d8c333f98458dece",
+      "skills/pptx/scripts/office/soffice.py": "11760e54331fa47178646c006a3dac653eea1e06c4161add64d255886da3a92c",
+      "skills/pptx/templates/feature_film_pitch_deck.js": "6eae32877591c6e72341718bb7a05230e7056989e7b288d6e07f8a270bc9bba4",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-picture.xsd": "5d389d42befbebd91945d620242347caecd3367f9a3a7cf8d97949507ae1f53c",
+      "skills/pdf/forms/f8949--2025.pdf": "5903ec73d53239a6d879455706bb622adad0d6074acd866306d82a369805d045",
+      "skills/pptx/templates/africa_fmcg_value_chain_playbook.js": "3950ad633e3bcb31236f0f4cd7ba46e64c97512f849e0865955e9f3cdbc2dc0a",
+      "skills/pptx/scripts/office/validators/__init__.py": "83e0f035c5abea238d3f2c3968afbd511ed022b527b7c9cb60a9434cc34ff987",
+      "skills/pptx/templates/ag_trade_finance_pitch_deck.js": "39ab0bcaa6d961c97ae2c82f1c8e6b9df9fe54504f19af85e58d83a09aae6f58",
+      "skills/docx/scripts/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "skills/design/SKILL.md": "4bab4195fbb81bbe5ee8d73e3ed58b74d6fc41b04bdd0d5512f2e08f44730510",
+      "skills/create-skill/SKILL.md": "89fe3c8058918c02326a6da8700426f480d911b838787f465d409455cd01845e",
+      "skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-coreProperties.xsd": "451958454e8588dfc7cd945981ada142ca06ff3307937f5700df059c2b307fa8",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-math.xsd": "3213ef1631606250f5010b42cad7ef716f7c59426367798e33c374c0ec391d3a",
+      "skills/pptx/templates/cfo_financial_performance_review.js": "4fcdda2c7fb06f6c6fc9394ec7f8111d0e9aa65f5ba9e2607a7ce2b180bb3bba",
+      "skills/pptx/templates/crypto_portfolio_management.js": "3a15d6da7d5ee1224e945cd0668c64a2d618200585798ef3759482bcedeb07be",
+      "skills/pptx/templates/energy_storage_vendor_assessment.js": "1da96bfd0ba6244844e8c6eb7195d4c9c1b8ef11d26c94223a801ab1d6c6404e",
+      "skills/pptx/templates/college_sports_policy_briefing.js": "72662e1a1095310f286dff0418addacb102f9707922cb04a664b85b22ce0ac1b",
+      "skills/pptx/templates/entertainment_creative_pitch_deck.js": "90d50e28aef85cdda40471239d0d85d5f4fdb8f1d2f91ecb007112aca71fe245",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesCustom.xsd": "9c085407751b9061c1f996f6c39ce58451be22a8d334f09175f0e89e42736285",
+      "skills/pptx/templates/finance_lihtc_bond_portfolio_review.js": "8413d6b5543727eb46e88af537e7209eb77db1c4f64e7c3abc24240a8a424b08",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-presentationDrawing.xsd": "133c9f64a5c5d573b78d0a474122b22506d8eadb5e063f67cdbbb8fa2f161d0e",
+      "skills/docx/scripts/office/validators/redlining.py": "dc604b79d86680791dcb38d5c2e621bfad3cc52f012d06d691fc36297b20b0a6",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesVariantTypes.xsd": "7b5b7413e2c895b1e148e82e292a117d53c7ec65b0696c992edca57b61b4a74b",
+      "skills/pptx/templates/crypto_quantum_risk_briefing.js": "590ca07e2ed016870ed5e44fc235ee786ccc073e7d6e2ea900c5a3cc5c469be0",
+      "skills/pptx/templates/finance_cockroach_portfolio_strategy.js": "1083bf9268048ea84d02001466fa552cd63db2f98ac82da01e081cf6a28a9c65",
+      "skills/pptx/templates/finance_equity_research_stock_pitch.js": "85c49c770e7d81cfa72877647f33df2b845522833e73bd3d7b5282de0357743c",
+      "skills/pptx/templates/finance_nft_marketplace_pitch_deck.js": "4a7dd142cfa2c56995168a55bd4026617c5fd69d818c69b25f036b24ff4f185c",
+      "skills/pptx/templates/food_delivery_subscription_pitch.js": "b1227d5e86853156fa8697aad890b2c7c7b5da719443d70dc4ee2ef99b422063",
+      "skills/pptx/templates/healthcare_promis57_patient_guide.js": "f5091519c74856ad771a376a5504f636b347c75dca4b185544a67e2e975aa1d3",
+      "skills/pptx/templates/middle_school_nutrition_lesson.js": "688545b76c27c0341b9751965fd2209d160a86a6c6bc7a95043cce335df1ca3b",
+      "skills/execute-plan/scripts/validate-plan.py": "37edacba88b9f53d8ebc6d51540c0e4b888c7c5bb7d0e1adadc263f1c3de06f4",
+      "skills/pptx/templates/fitness_personal_training_keynote.js": "7123c8cdb70506a433569a487b1a6397a90b8a6e55ed8c3451e1de6937235992",
+      "skills/pptx/templates/finance_quant_trading_desk_proposal.js": "29d230698a4837c76fe47f479050165d9db6991f60943a8dd2a868cad3a3d593",
+      "skills/pptx/templates/real_estate_self_storage_community_pitch.js": "95f129731c52c7b94abc41fb949b111adeae9e8126f42aa88a70b4ea96fef8df",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/sml.xsd": "beffeed56945c22a77440122c8bdc426f3fcbe7f3b12ea0976c770d1f8d54578",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-officeDrawing.xsd": "585bedc1313b40888dcc544cb74cd939a105ee674f3b1d3aa1cc6d34f70ff155",
+      "skills/execute-plan/SKILL.md": "f320e6fcc8a51caae0e30b04316c955a209165332bc3079c35dfcb8936ccbadd",
+      "skills/pptx/templates/interior_design_studio_portfolio.js": "b6b4efe6fdcd2924124fd8725dea06c4a29f3abde33ac2f304c4fa388f26da19",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-2012.xsd": "0fa75578a000439a7988ba0c59fdc69f774bbd416cbacc14d07125b3f686cb74",
+      "skills/pptx/templates/local_ice_cream_shop_pitch_deck.js": "5e5cde5547f1ca4cdc5cd24f390c9e64ebee2f11b0dbf09d94a9e1424b7c0dad",
+      "skills/pptx/templates/restaurant_franchise_pitch_deck.js": "e20d325d8dc863cd49e274c79d4fdaae2bfc61ae3fe6866b97b4eccc1023134d",
+      "skills/shared/personas/design-doc-writer.md": "63ec620740e4ccadbf6207a3044c0ac39b6ce97a321dffec867413fc8d86b0d0",
+      "skills/shared/personas/reviewer.md": "ebfd3683480de225a34892ffb62f8c5922e0490ae71d83dd2cf89a0b795a96e6",
+      "skills/pptx/templates/us_history_student_presentation.js": "b93b19f9a5acc755a22350006e6be93a1bbf220c589b75b5e0a9a1eab3c830dd",
+      "skills/pptx/templates/intro_to_guitar_lecture.js": "f661fb5ddbfb8697c22b53d265288cc0a67bd06e7745cd2960f4e931877f531e",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/xml.xsd": "a539aa2fb154fa50e0f5cc97e6ad7cbc66f8ec3e3746f61ec6a8b0d5d15ecdf2",
+      "skills/pptx/templates/education_water_polo_basics.js": "e2902beb27e71ec70ef2a8ab524a561e60698e26f9a9d5a1b3f3745fe6f544bc",
+      "agents/plan.md": "d0ed9a8b1e0f4d5221191b12d1cb720788b0789ddec93624b6e6fab506ccd004",
+      "skills/statusline/SKILL.md": "194e2b22b88056093eda4895904d5d699203112aebaf66a78d84cdefd0f67d81",
+      "personas/design-doc-writer.toml": "88339c0c5ace93f7d9395c4544bb4747f210bd4a9ac884dc5508c6f4314d1dae",
+      "skills/pptx/templates/real_estate_development_pitch.js": "ec979874e6cb2d7cfb35bfc50b66a149485f4d2ba6c17c1cbf46bbc2be7eaecb",
+      "skills/docx/scripts/office/validators/docx.py": "b81f2d143ea858a1611c528face0eb7144b70bc5bfcfbbb315afc5b8040d6ba6",
+      "skills/pptx/templates/fashion_apparel_lookbook.js": "3fb390c79738f88261ee338d3dc2a807314d470105d21468a499898ffddf88ab",
+      "skills/pptx/templates/sports_sponsorship_pitch_deck.js": "0f325c4a6b3762c8d2e3bc892c755d7715d6638bef56f53ad76d5b6800975420",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlDataProperties.xsd": "0ef4bb354ff44b923564c4ddbdda5987919d220225129ec94614a618ceafc281",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/pml.xsd": "d173c3e5d61e42e2e3a97226c632fd2ab7cc481fc4e492365b87024ab546daff",
+      "skills/pptx/templates/education_calculus_lecture.js": "4952357c6397d0cb3a3797ee6a02da7b528bf1cc12abdddaf63a580344becb03",
+      "skills/pptx/scripts/inspect_slide.py": "129866536a3afa9fd7d0fc8e5d808cff51ff22012e35b33538722adfeb3589c9",
+      "skills/pptx/templates/indoor_golf_club_launch_deck.js": "9d1669fac053ace94aed65b8de5e891a430ba59535c24d767236c2decae0422a",
+      "skills/pptx/templates/paintball_arena_pitch_deck.js": "2988eb6658d4868b07f65c5de27c3d003a61266e89bd169f887a490875988db5",
+      "skills/implement/SKILL.md": "0f99336c1f9b0ce98ec1ed17ba0703f0e232fabd8c15ffd628e8476db8d5710a",
+      "skills/pptx/scripts/check_overlaps.py": "85e7b4a6007a94fb2d01266f56366a6e9ac8188ae4c163c6fd1e95892efdb303",
+      "skills/pptx/templates/youth_soccer_training_program.js": "1c7a7a5b06702a6ea63a0b5fbec8033b66492e9f77e26da18f64cd64d4d1e195",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chartDrawing.xsd": "3fd0586f2637b98bb9886f0e0b67d89e1cc987c2d158cc7deb5f5b9890ced412",
+      "skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-digSig.xsd": "6de111e11403f7cd49027400755bae0ea1cabef2815f09bd40a24f0017613b24",
+      "skills/pptx/templates/garyvee_content_strategy_framework.js": "45a1619662039f67bd8f830f16f992ce735996a60458fb6af596703fa8c53cfa",
+      "roles/explore.toml": "75f1d965347684c657b6afd0815c114eb121fd3cd7385e495651dfe7ae7d4cb7",
+      "skills/pptx/scripts/office/validators/base.py": "305c046ba2cf0e46659c397000809ae3e0bb98f62e3559398658530aa972d054",
+      "agents/general-purpose.md": "e8094f1d6c0f5092b2b773182b9d4fde1621f4c8206a39d377881a2dd0f81304",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-main.xsd": "5375417f0f5394b8dd1a7035b9679151f19a6b65df309dec10cfb4a420cb00e9",
+      "skills/game-assets/3d.md": "babecb8fb659ff890b659666bd66e89bc341476026a4a8a5509c90f705f6f7a4",
+      "skills/pdf/SKILL.md": "ab8f22b470ef462651739eb4fa990d1c2769a74ad5574bac60198bf55bc60509",
+      "skills/pptx/templates/comedy_writing_guide.js": "8b34e1a1874eb91b95c3c631692fcfa8e5c3830ece28cce26d9edb0dcbd2ce82",
+      "skills/pptx/templates/pest_control_company_overview.js": "351434c680d0c2415529ab148dad3cfd3b703c4b8cf8df4223128c70db82213a",
+      "skills/pptx/templates/finance_equity_investment_analysis.js": "363f550903f1324e1a59cbcfacc87448a116b60af750e8108ea05ad03c410edb",
+      "skills/shared/personas/implementer.md": "83c5d52994e4d926590d33dc1ff3bdf43be342dfcf8c5c1db81ded31c3e442ec",
+      "roles/security-auditor.toml": "06108d223934332241141785a1bc81c318b77066733deed60a973f5335af6013",
+      "skills/pdf/forms.md": "325475ffa374ced859be17095acdfdf664248b22a605e5106c39cca51a7ba2bf",
+      "skills/pptx/templates/bakery_business_pitch_deck.js": "df4c37a4e42375fdda9ad9ea9ea7e667bb4698d8b321d24a6c0cb99c4e348977",
+      "skills/pptx/templates/local_city_history_overview.js": "cd1be974f0042c20bca95d0bc770e801186dff222bc94889f3e480829ad4094f",
+      "skills/threejs-frame-conventions/SKILL.md": "a412fc16f9d31f0ae076d1776752f017145a2fe0fdf0109c2f04ccf12a74aa01",
+      "skills/docx/scripts/delete_sections.py": "a96dd68225f979efb14c95abca5c3dcdb06182170dac081f36a4fcfbbd1e4082",
+      "skills/docx/scripts/office/validators/pptx.py": "fde5f47c85251dda78899c05a6fa67ac83628baadab58160e609d17eb1c40ea2",
+      "skills/pptx/scripts/delete_slide.py": "547de2395e9f2cb1a690394d790a4987ec5455df5b3bdfe09f05307ca90224ba",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-wordprocessingDrawing.xsd": "475dcae1e7d1ea46232db6f8481040c15e53a52a3c256831d3df204212b0e831",
+      "skills/pptx/scripts/office/helpers/simplify_redlines.py": "6a89f12e229d2547f0c32cc14f53f62e43c6f5b363671cd6a184dba401fb3d80",
+      "skills/pptx/templates/apothecary_brand_introduction.js": "c3aeafa5d45d66703037393a2da1bb26c9808abadca9411825d3164dc529b1a5",
+      "skills/docx/scripts/office/schemas/mce/mc.xsd": "3a37e461ecf5a8670fdec34029703401f8728ab9c96ec1739a6ae58d55212413",
+      "skills/docx/scripts/replace_field.py": "a0dbe8c852480051aee69e3c8b02647f0e6e0ff10549db8093b75ba2b6fa8bfd",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-wordprocessingDrawing.xsd": "475dcae1e7d1ea46232db6f8481040c15e53a52a3c256831d3df204212b0e831",
+      "skills/pptx/templates/finance_digital_asset_custody_briefing.js": "4e152af1f7ef206c358a9d9e32bc2b0ecfa99bad5880b1bf5669d1f51b1be3f2",
+      "skills/build-with-ai/SKILL.md": "c541074cf3a8707a5aa803396ab49c4585be89a3f4f5bc489ad7ecf813459871",
+      "skills/pptx/templates/finance_ifrs_us_gaap_training.js": "b4cf9f019922eb959d728e10ddee9ad7ce1699562c2e4d8eb3ba723edc24434a",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlDataProperties.xsd": "0ef4bb354ff44b923564c4ddbdda5987919d220225129ec94614a618ceafc281",
+      "skills/pptx/scripts/replace_nth_text.py": "df89772be19a3e51435abafcb6171df98d032a5b2dd3cabc7a11025d8a6b5c72",
+      "skills/pptx/templates/photography_studio_portfolio.js": "7e308fd56141cb6d33f21d52f3e1cc17f7906686d9af6caee9b41e554a7b2817",
+      "skills/pptx/templates/sports_betting_saas_pitch_deck.js": "29a1b98cbf1cf267db73df4d59b2dbf944ac56a7a8b59b4ec1bbc6d838118fcf",
+      "skills/shared/resume-session/CORE.md": "f15d9c0163b103095a293f8d025fb8a490634ac95dafc85aed56d4b502cf7944",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/wml.xsd": "c2dd9f61f892deae6acd8d20771ea79b12018af25f3bf8d06639c8542d218cfd",
+      "skills/implement/scripts/memory.py": "5c37eecccb7213ef78c04eb4e2ad76db1614d6def41d138b80c654a62ab62ae6",
+      "skills/long-running-background-tasks/watch_dev_server.sh": "ecc8df9e3e9ba7459716e3ee7d256537b6da6ca8485c9f16820a1ccc5c910d61",
+      "skills/pdf/forms/f1040se--2025.pdf": "1a80cf209effea59cc3c050a1ff83186e0eebc7dbeb8f56f85e80f2377d58d60",
+      "skills/pptx/templates/finance_crypto_fund_pitch_deck.js": "6d63b5496fce960b5f9bcb4cf5d25581f553b1b5b935ccb1a113ef8af7d7ac80",
+      "skills/pptx/templates/coffee_franchise_prospectus.js": "a6da580e07104f559bbb961e02c6852af07f38b52485a8322a98353fe470ec48",
+      "skills/pptx/templates/destination_marketing_event_pitch.js": "86a98f3b570cb8907d6079267a7580cd6d039113b89634674a0d600c1ffb6ed9",
+      "skills/pdf/forms/f1040sse--2025.pdf": "bc255d7edb32d03b4254c0bcb0f7ba0ce18a3ed20c02ccbe14846444efe6935a",
+      "skills/pptx/templates/healthcare_patient_accessibility_survey.js": "a7bb0960022ba526868c36cfeb2edd42ad6d2010088f5744f5dedf91e7b2c603",
+      "skills/implement/tests/test_memory.py": "8d41e2e123db70a1b4050ccecc08565417fa59c76ce07880265506f3662f6d64",
+      "skills/pptx/SKILL.md": "916927e24fb5a1115c52692dabedb30da8a371f5d19e3485364ff58f56a0e8f9",
+      "skills/pptx/templates/edinburgh_fringe_performer_guide.js": "5ceda6e9c6f9b21d1e1fa88ce35991d2fd299e73ccb1e324d27c3114e021f5b0",
+      "skills/pptx/templates/restaurant_concept_vision_deck.js": "410776e130f5905f53180d1d536dd3938dd7e745c22a02ab05c35d7730e35838",
+      "skills/pptx/templates/animation_studio_company_history.js": "28b9acbbb7c729780ee299f37ac6bca98d02431c788ffcab294ae369eff43192",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-math.xsd": "3213ef1631606250f5010b42cad7ef716f7c59426367798e33c374c0ec391d3a",
+      "skills/pptx/templates/cafe_concept_vision_pitch_deck.js": "caac7baa681f59bbbf67a82d6c9b7fb6deac004773a0958bd07e3de95e2fc9d6",
+      "skills/shared/scripts/host.py": "409a87517f784d75c84d999869b68dbaf4b73d2da465f8626ec48bccf68f1505",
+      "skills/pptx/scripts/office/helpers/merge_runs.py": "d4110e084c32f2a0560ed7a9b923bb55a88ce94fe2270d3379943abf4a5b2957",
+      "skills/pptx/templates/orbital_compute_investor_memo.js": "ba9f191633474471a633befff1760662140611aa486a5710396535d52043e648",
+      "skills/pptx/templates/american_regional_pizza_guide.js": "369848a186b2c467b298f56aeb2a83699708c06824ed506a2de029f0bac26c64",
+      "skills/pptx/templates/education_visual_essay_presentation.js": "b49a645ff6512d5f672dab09011344961241ea613b7a047eed4ec3d67edc85ab",
+      "skills/pptx/templates/finance_day_trading_primer.js": "78186db5ae3998d7ab683ecee33c7e8e3d92bc1afd332fde0bbd110882a5ca94",
+      "skills/pptx/templates/economic_consulting_prospectus.js": "a1245d0c58d0bbd06f2ebc7ecc04ddf0f4d3d81dbfd3dbf5ce70a0e978720777",
+      "skills/pptx/templates/hedge_fund_portfolio_strategy.js": "7c6969d744f2943616e302f3c7b74f07faabd33677cc0a44650d937e40702087",
+      "skills/pptx/templates/finance_venture_capital_primer.js": "dc937eeba9e45cb9863991d6f757dc1f4dfde6cc2f4a9021e2db28b5bcffafab",
+      "skills/docx/scripts/office/helpers/simplify_redlines.py": "6a89f12e229d2547f0c32cc14f53f62e43c6f5b363671cd6a184dba401fb3d80",
+      "skills/docx/scripts/office/soffice.py": "11760e54331fa47178646c006a3dac653eea1e06c4161add64d255886da3a92c",
+      "skills/pptx/templates/public_health_snus_field_guide.js": "351024773d46a52123e87a65452814706ec9cae9196869406bd78bb4ea3488a6",
+      "skills/pptx/templates/retail_florist_business_profile.js": "7ab855fc2816fe070187cec9f30d3c4da8f14a2a62dbd97e449a850cbc7b85ce",
+      "personas/reviewer.toml": "182b91d82f6b5b34ea612236e274ff01bf4e522b07a96cbded02ec3fba67143a",
+      "skills/pptx/templates/vintage_computer_cafe_pitch_deck.js": "11729985ecc1a24f6db909499de185eacccb04b5d11335acbe12abdaf6aee1de",
+      "skills/review/SKILL.md": "8e1f0453e8b71c67d32dbfd09f3b1d2659c1195a919797ea01d04e69581d0ec5",
+      "skills/pdf/scripts/convert_pdf_to_images.py": "3fc43b02a9b80f20bd0689b12882695ec32608e3e191079b1c48b7f867dbdb32",
+      "skills/pdf/scripts/fill_pdf_form_with_annotations.py": "2e5abacb0facbaf896367b33c897834a3cdd7403658113838aa70ebc6b30ce09",
+      "skills/pdf/forms/f8960--2025.pdf": "dd9cb2e354a30666ad01c928078b8901b5df0b12b37718d4e54812a085ce2d90",
+      "skills/pptx/templates/bagel_shop_menu_pitch_deck.js": "6e3f941775077f0231cb55803e1e902c148893f79d4182480cef0bddbc7e6b3b",
+      "skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-coreProperties.xsd": "451958454e8588dfc7cd945981ada142ca06ff3307937f5700df059c2b307fa8",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-additionalCharacteristics.xsd": "3c6709101c6aaa82888df5d8795c33f9e857196790eb320d9194e64be2b6bdd8",
+      "skills/pptx/templates/student_transportation_company_overview.js": "397e030ad89d60da755ac21041827ebd5576cae780b648c114862c2372a77cae",
+      "agents/explore.md": "81099dcd53ee3b1d1365fb88030e58498f2c46e8058771f289f09a2704fbaf8f",
+      "personas/researcher.toml": "2316249746fb8314ef778f6e43ccadaf0598a4d61d8fd81c7644a795f46499e0",
+      "skills/pptx/templates/macro_research_yield_curve_report.js": "87cdf03f2fb6abb25a71f0043625cf9b531c9f22e7da4ef6779609e4fb14e0bc",
+      "personas/test-writer.toml": "c94b013037d9d5ac33931b2c62c3785141dec16d0124a3907d44cfe35569ba36",
+      "skills/pptx/templates/healthcare_std_prophylaxis_grand_rounds.js": "14251f0ce75359feb71991fbc90a55d95bc153f6214e57a0ef0bd88f6b916f99",
+      "skills/pptx/templates/wakeboarding_coaching_prospectus.js": "cfaf74d03a9da765e4ad2435dad6748712e85075cccc8e42c4ad973c10adb1eb",
+      "skills/pptx/templates/education_intro_chemistry_lecture.js": "82f8b8eab6ff08247d9ec6332781f8699348334f2a64985ea94ee41f27e38b81",
+      "skills/docx/SKILL.md": "26203fa2205a72931618d89e2bd438b9695056b6ceff7850484c7f75dd2cd078",
+      "skills/skill-design-principles/SKILL.md": "ea85414929f239c7f88dc511ee79111ee5f0687db968ac59a4e1953359f894cf",
+      "skills/pptx/templates/food_beverage_seed_pitch_deck.js": "31dd5a205edba52759690fea206542b8bf93ecc2acce96524f8e2978f066eb9d",
+      "skills/pptx/templates/ai_startup_series_a_pitch_deck.js": "55e39c5bd4b76a39ab61694595b27c3ed33fd754f57bf9f22224d089951bb1a1",
+      "skills/pptx/templates/video_game_industry_history.js": "4cbaa12e92543da7ae09c2582ca35d27cc6e8d581bc5957b55c73c31c6eabce8",
+      "personas/implementer.toml": "5dfaa4657877aa9e16b8fd09acab7a0231470d3003774786db1482edfe85561d",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-diagram.xsd": "29b254ee0d10414a8504b5a08149c7baec35a60d5ff607d6b3f492aa36815f40",
+      "skills/pptx/templates/tech_hardware_expansion_strategy.js": "39886160b727919ca3d22c7e926d1f92ce560eb7f184981a03bf04d6c27390a2",
+      "skills/pptx/templates/gaming_product_portfolio_review.js": "af57af1a9c36804b9b8b91ed065b5cf2db589a2a7bbabcd70c2136f86cd0793e",
+      "skills/pdf/forms/f1040sd--2025.pdf": "db0ef1c687067fdf28dda862cb00f146b9ac2cab60fb4e5484042546bb4a9e7a",
+      "skills/pptx/templates/skateboarding_beginner_course_lesson.js": "e1fe6295b804d226e120b0b37e8dc6cfe4f49fa122dc8baa7db840b99d813282",
+      "skills/pptx/templates/family_office_portfolio_review.js": "8bed1f0c4828fc4719091f29208ec4f6885374ca218ac5fd1befefa9d1c66809",
+      "skills/docx/scripts/office/schemas/microsoft/wml-cex-2018.xsd": "fddc2b880cabb9005aebbc7e783e53c19fec1c03df7d0e2f2076a33a0fdfd081",
+      "roles/plan.toml": "d560db61f1882375087a12a8eef3eb08899828e8f95995ebf67672fd3a8e2523",
+      "skills/pptx/templates/real_estate_investing_primer.js": "9387ebe9d8c07c9092b701a6efd91a94b1f6e56691b59dff28867cd93049b4c0",
+      "skills/pptx/templates/finance_vc_investment_memo.js": "7ad6772fde6cdb0d66407d884e3f5c9ec89ead9db2557524a0785d00e0096535",
+      "skills/pptx/templates/local_business_pitch_deck.js": "e0be9465836bab5209b1d28f9599ae9eb5a59f83429ed796b0fd4ab739e5e5fd",
+      "roles/reviewer.toml": "631654888f0125f15b361a57e7c092e190060ee9231faab095722f52455edb4e",
+      "skills/docx/scripts/office/pack.py": "6d33cc841a113f84767d9eccd534883911dbb69bea6428a213da2fdd4763ee5a",
+      "skills/pptx/templates/pressure_washing_company_profile.js": "1207cd4f9ae3689d2c9da6d7185595e52ac8f7f34025d725d794f0735890fe9a",
+      "skills/pptx/templates/biotech_startup_pitch_deck.js": "8864c3e33a9693e3942a3699b2c8bb8c20b08dc5099c8f77212dac9ceaa7f1a8",
+      "skills/pptx/templates/education_music_theory_lesson.js": "31c08d8928cb6f80675604f2d52ff95dbcd28db7a6932feeaa91349dbfbe46b7",
+      "skills/pdf/forms/f1040s2--2025.pdf": "fc38c4915ad488c61b35bc3ba4be2c6247b05cc5766a6b1f5443a7919b41e165",
+      "skills/code-review/SKILL.md": "df6f708a5207f34e1d8b7775982788406d7c46e722d50aedde2d0300f420a10a",
+      "skills/docx/scripts/office/schemas/microsoft/wml-symex-2015.xsd": "16f6f8072249f431370723c2cd8974672e0d9c897e00e97dd918079df934871b",
+      "skills/pdf/forms/f1040s3--2025.pdf": "0e18d3124526d1a662d40723d0c83606a4d6a2eeaff9fb45be03d175989b2818",
+      "skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-relationships.xsd": "f565adfef5a502044abc3a9153e157edc25af78304d335994afb958874b15e26",
+      "skills/pptx/templates/agtech_seed_round_pitch_deck.js": "83ad20bde2a4c4507608387d6aede0bc2551ac268d8f5a6c3ab8c515337caa0f",
+      "skills/pptx/templates/municipal_water_infrastructure_proposal.js": "b710482ea2eda2b97d30a9ae7893ccdb7a6840a37f6bd33ca9093ea57246587e",
+      "skills/pptx/templates/music_label_pitch_deck.js": "ca3b373a2455b39977d8b59893ccb86516fd96ea4f54aca269ba70e208479170",
+      "skills/pdf/tax.md": "751c7c171cc314e7ee838db9329fe1929d0ee46c11d76bda94c141a0daf34da6",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-diagram.xsd": "29b254ee0d10414a8504b5a08149c7baec35a60d5ff607d6b3f492aa36815f40",
+      "skills/pptx/templates/local_ai_consulting_pitch_deck.js": "4c7170d2b9382c2b5f9b1bfaafdca62133ed33bb4ac8b0d595cf113dc8a3a54c",
+      "skills/pdf/scripts/extract_form_structure.py": "feb76b2f55bfc31d5f840c817ecd24f173141001a7b199de4018cee8328ab06d",
+      "skills/pptx/templates/italy_travel_destination_guide.js": "d6752f82f409b2cafe0b2dade61abe9113c7994649a943361062b20a5edb8605",
+      "skills/pptx/templates/scuba_dive_operator_prospectus.js": "dc61aa5e7de84338b474615c08a4e8bd33726a6fcff8b534064754981e13c1d0",
+      "skills/pptx/templates/education_literature_canterbury_tales.js": "c4a6d119757c2df968d9ec52114fc8116af4283d3f491164cc662a213eb83981",
+      "skills/pptx/templates/finance_spv_pre_ipo_pitch.js": "009986a6e4e47ff6b1c1eb5d7cf9b036e1f87f53865098a06e7071b1c3f6d5fd",
+      "skills/pptx/templates/fitness_gym_summer_press_kit.js": "31b2787082c044f0d2e44a6da42d62ac3e3359477099106870bb793cc43cbfe5",
+      "skills/pptx/templates/electronic_music_promoter_field_report.js": "8788517b3777211045c826c0f081d2e782bceb39322fe5818005bc3a9301d476",
+      "skills/pptx/templates/nursing_documentation_transformation_strategy.js": "db1ae31a92a0d11459545172346740b8803a2bf42ddc7e7e39483afdbe03b61c",
+      "skills/pptx/templates/restaurant_culinary_profile.js": "a03fc2fb5a1faa8a7435104e5c828b12ce745ea6968e41470f93fff5184ddcd7",
+      "skills/pptx/templates/youtube_channel_media_kit.js": "39c4feff5745428a2f2f08187d2e48bc63c8ec60ecb91972cacc44b59287f5d8",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-wordprocessingDrawing.xsd": "bdad416b096b61d37b71603b2c949484f9070c830bdaeba93bf35e15c8900614",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-spreadsheetDrawing.xsd": "b4532b6d258832953fbb3ee4c711f4fe25d3faf46a10644b2505f17010d01e88",
+      "skills/pptx/templates/finance_employee_excellence_awards.js": "f977f67aeb7b40b239d24c5c6b1e3b95ddd47d8f2fdd895aac972e0d35cfccad",
+      "skills/docx/scripts/templates/commentsExtensible.xml": "bad10b3283e6ad6e7ef6d1ca5169683721ed690ee331282c65df04017e080631",
+      "skills/pptx/templates/automotive_board_strategy_review.js": "6481570fe1aad3400f281176f5535e6ff8901e8e9168d5813512e54bf40e66cb",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-spreadsheetDrawing.xsd": "b4532b6d258832953fbb3ee4c711f4fe25d3faf46a10644b2505f17010d01e88",
+      "skills/pptx/templates/finance_investment_committee_memo.js": "d82762be49113948087bbcc4cf53c1864ded4ede5c35ffa9e218b8619567bab5",
+      "skills/pr-babysit/SKILL.md": "78590b37e029546ea6e0745e451e5d4709be89d72a5ce178b941228736c80d99",
+      "skills/shared/resume-session/session_reader.py": "342853ca19f8d9f10dd171890ee1bbacec2350ea90221cb4ad6925cda2380a58",
+      "skills/docx/scripts/accept_changes.py": "19ba4317d44e1c34c66c64460f8a69b243068ba026afe5d3c0d68581f8473ed0",
+      "skills/docx/scripts/replace_text.py": "2ef13f137a7050f8f00798ad89b222b2b884fa1af5e30779261d53320fd8b211",
+      "skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlSchemaProperties.xsd": "0d103b99a4a8652f8871552a69d42d2a3760ac6a5e3ef02d979c4273257ff6a4",
+      "skills/pptx/scripts/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "skills/pptx/templates/tv_series_pitch_deck.js": "2ca8a828b3f3387db0fca4d45a6f1ec056259a78b77b49f8f4e90d7c0c3af6eb",
+      "skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/sml.xsd": "beffeed56945c22a77440122c8bdc426f3fcbe7f3b12ea0976c770d1f8d54578",
+      "skills/pptx/templates/fixed_income_macro_outlook.js": "2ae8ac1cf21d2615c7ac2d352096d141bac75bbe0dd1d44370d705a246e4f7f7",
+      "skills/docx/scripts/office/validators/base.py": "305c046ba2cf0e46659c397000809ae3e0bb98f62e3559398658530aa972d054",
+      "skills/pdf/forms/f1040s8--2025.pdf": "7ae75d9652e36f538dc0e779b56b0fa8066cdca37a1a981def3ead2683e78e4c",
+      "workflows/deep-research.rhai": "55e2d6e6ea2d9d6587d9608a6c363ee10cddd06ce6c920dc4c0ce6338982581d",
+      "skills/pptx/scripts/office/schemas/microsoft/wml-2018.xsd": "be0ff793a22dd31384650c3a4da14c2fa8062751c2e97b0e5ee852bda13c60ad"
+    }
+  },
+  "grok_version": {
+    "version": "1.0.41",
+    "stable_version": null,
+    "checked_at": "2026-09-24T12:48:21.849128Z"
+  }
+}

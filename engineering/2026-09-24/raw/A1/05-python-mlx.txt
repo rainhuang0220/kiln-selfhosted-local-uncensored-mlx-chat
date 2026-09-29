@@ -1,0 +1,36 @@
+=== which pythons ===
+/opt/homebrew/bin/python3
+Python 3.14.7
+HOMEBREW_PY3=/opt/homebrew/opt/python@3.14/bin/python3.14
+=== serving python from ps -p 1581 ===
+/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python -m mlx_lm.server --model /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4 --host 127.0.0.1 --port 8081 --max-tokens 32768 --temp 1.0 --top-p 0.95 --top-k 20 --decode-concurrency 1 --prompt-concurrency 1 --prefill-step-size 1024 --prompt-cache-size 4 --prompt-cache-bytes 4G --chat-template-args {"enable_thinking":false,"reasoning_effort":"medium"}
+SERVING_PY=/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python
+=== serving python --version ===
+Python 3.12.12
+=== import mlx mlx_lm via serving python ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'mlx'
+=== pip show via serving python ===
+WARNING: Package(s) not found: huggingface_hub, mlx, mlx-lm, mlx-metal, tokenizers, transformers
+=== brew python3 import ===
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized.
+OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://openmp.llvm.org/
+=== default python3 import ===
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized.
+OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://openmp.llvm.org/
+=== mlx_lm CLI ===
+/opt/homebrew/bin/mlx_lm
+/opt/homebrew/bin/mlx_lm.server
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized.
+OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://openmp.llvm.org/
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized.
+OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://openmp.llvm.org/
+/opt/homebrew/opt/python@3.12/bin/python3.12: No module named mlx_lm
+/opt/homebrew/opt/python@3.12/bin/python3.12: No module named mlx_lm
+mlx NOT_FOUND PackageNotFoundError No package metadata was found for mlx
+mlx-lm NOT_FOUND PackageNotFoundError No package metadata was found for mlx-lm
+mlx-metal NOT_FOUND PackageNotFoundError No package metadata was found for mlx-metal
+transformers NOT_FOUND PackageNotFoundError No package metadata was found for transformers
+tokenizers NOT_FOUND PackageNotFoundError No package metadata was found for tokenizers
+huggingface_hub NOT_FOUND PackageNotFoundError No package metadata was found for huggingface_hub

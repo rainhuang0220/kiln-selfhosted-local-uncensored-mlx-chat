@@ -1,0 +1,1 @@
+asset=index-Bst4Wrrq.js create-user=1 no_self_reg=1

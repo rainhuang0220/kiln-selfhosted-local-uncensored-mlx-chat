@@ -116,8 +116,17 @@ def _patch_t5(dtype: str) -> None:
 
 def _swap_used_gb() -> float:
     import re
+    import shutil
 
-    out = subprocess.check_output(["sysctl", "-n", "vm.swapusage"], text=True)
+    if sys.platform != "darwin":
+        return 0.0
+    exe = shutil.which("sysctl")
+    if not exe:
+        return 0.0
+    try:
+        out = subprocess.check_output([exe, "-n", "vm.swapusage"], text=True, timeout=2)
+    except (FileNotFoundError, subprocess.SubprocessError, OSError):
+        return 0.0
     m = re.search(r"used = ([\d.]+)M", out)
     return round(float(m.group(1)) / 1024.0, 3) if m else 0.0
 

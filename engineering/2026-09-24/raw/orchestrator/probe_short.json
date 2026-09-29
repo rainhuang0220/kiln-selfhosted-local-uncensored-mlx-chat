@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "ttft_s": 24.00506312539801,
+  "total_s": 24.296387541107833,
+  "text": "pong-kiln-baseline",
+  "finish": "stop",
+  "usage": null,
+  "n_chunks": 11
+}

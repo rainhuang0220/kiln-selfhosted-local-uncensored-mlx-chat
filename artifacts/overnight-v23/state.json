@@ -1,0 +1,146 @@
+{
+  "started_at": "2026-09-28T19:30:07Z",
+  "worktree": "/tmp/kiln-night-v23",
+  "parent": "8d4821d",
+  "branch": "night/immersive-v23",
+  "cycle": 7,
+  "best_sum": 10,
+  "best_commit": "ad05349",
+  "last_commit": "ad05349",
+  "scores": [
+    {
+      "cycle": 1,
+      "code": "8d4821d",
+      "sum": 4,
+      "gates": {
+        "G1": 2,
+        "G2": 1,
+        "G3": 0,
+        "G4": 0,
+        "G5": 1,
+        "G6": 0
+      },
+      "hard": [],
+      "patch_commit": "a68b0da"
+    },
+    {
+      "cycle": 2,
+      "code": "a68b0da",
+      "sum": 4,
+      "gates": {
+        "G1": 2,
+        "G2": 1,
+        "G3": 0,
+        "G4": 0,
+        "G5": 1,
+        "G6": 0
+      },
+      "hard": [
+        "mlx dead after P2"
+      ],
+      "patch_commit": "6f12e6a"
+    },
+    {
+      "cycle": 3,
+      "code": "6f12e6a",
+      "sum": 7,
+      "gates": {
+        "G1": 2,
+        "G2": 1,
+        "G3": 0,
+        "G4": 1,
+        "G5": 1,
+        "G6": 2
+      },
+      "hard": []
+    },
+    {
+      "cycle": 4,
+      "code": "68e1b0f",
+      "sum": 10,
+      "gates": {
+        "G1": 2,
+        "G2": 2,
+        "G3": 2,
+        "G4": 1,
+        "G5": 1,
+        "G6": 2
+      },
+      "hard": []
+    },
+    {
+      "cycle": 5,
+      "code": "e21b213",
+      "sum": 9,
+      "gates": {
+        "G1": 2,
+        "G2": 2,
+        "G3": 2,
+        "G4": 0,
+        "G5": 1,
+        "G6": 2
+      },
+      "hard": []
+    },
+    {
+      "cycle": 6,
+      "code": "4964338",
+      "sum": 10,
+      "gates": {
+        "G1": 2,
+        "G2": 2,
+        "G3": 2,
+        "G4": 1,
+        "G5": 1,
+        "G6": 2
+      },
+      "hard": []
+    },
+    {
+      "cycle": 7,
+      "code": "b39869a",
+      "sum": 10,
+      "gates": {
+        "G1": 2,
+        "G2": 2,
+        "G3": 2,
+        "G4": 1,
+        "G5": 1,
+        "G6": 2
+      },
+      "p1_sum": 11,
+      "hard": []
+    }
+  ],
+  "mlx_pid": "57653",
+  "mlx_pid_before": "2329",
+  "api_pid": "92528",
+  "api_pid_before": "13405",
+  "eval_api": "worktree uvicorn on :8797, sqlite /tmp/kiln-night-v23/evaldata/chat.db",
+  "mlx_restarts": 2,
+  "syncs": 2,
+  "no_gain_streak": 3,
+  "stop_reason": "3 consecutive cycles without beating best_sum 10 (cycles 5-7: 9, 10, 10)",
+  "trailer_injected": true,
+  "sync1": {
+    "commit": "120145f",
+    "at": "04:31+08"
+  },
+  "best_commit_note": "ties 68e1b0f at 10; higher P1 (11) and no slot templates",
+  "sync2": {
+    "commit": "16b60a6",
+    "at": "04:53+08"
+  },
+  "pushed": true,
+  "push_blocker": "",
+  "report": [
+    "/tmp/kiln-night-v23/REPORT.md",
+    "artifacts/overnight-v23/REPORT.md"
+  ],
+  "wall_hours": 1.4,
+  "scored_best_commit": "b39869a",
+  "publication_trailers_removed": true,
+  "publication_branch": "feat/immersive-dialogue",
+  "publication_pr": "https://github.com/rainhuang0220/kiln-selfhosted-local-uncensored-mlx-chat/pull/6",
+  "publication_code_tip": "02659cb"
+}

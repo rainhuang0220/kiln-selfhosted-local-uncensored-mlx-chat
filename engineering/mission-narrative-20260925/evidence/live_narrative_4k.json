@@ -1,0 +1,38 @@
+{
+  "layer": "authenticated_api_narrative",
+  "target_visible_chars": 4000,
+  "elapsed_s": 172.66,
+  "visible_char_count": 4711,
+  "han_count": 4166,
+  "raw_char_count": 4779,
+  "job_id": "8b5a6aa6-9447-484d-9509-c52d8ca25689",
+  "finish_reason": "stop",
+  "terminal_state": "completed_stop",
+  "length_trace": {
+    "requested_max_tokens": 1024,
+    "effective_max_tokens": 1024,
+    "generated_tokens": 3072,
+    "visible_char_count": 4711,
+    "han_count": 4166,
+    "finish_reason": "stop",
+    "terminal_state": "completed_stop",
+    "target_visible_chars": 4000,
+    "body_sha256": "c72b0facb7297425688525342f457c16f30ae06f3d8e6d06555aef0eed2a1238",
+    "segments_sha256": "c72b0facb7297425688525342f457c16f30ae06f3d8e6d06555aef0eed2a1238"
+  },
+  "metrics": {
+    "ttft_ms": 3999,
+    "total_latency_ms": 172623,
+    "segments": 3,
+    "visible_char_count": 4711,
+    "han_count": 4166,
+    "target_visible_chars": 4000,
+    "total_model_tokens": 3072
+  },
+  "segment_events": 6,
+  "assistant_message_id": "0e4ea06c-cf0e-44eb-a17c-53633daf42f9",
+  "swapout_pages_delta": 0,
+  "swap_free_mib_before": 551.94,
+  "swap_free_mib_after": 912.06,
+  "pass_ge_4000": true
+}

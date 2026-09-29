@@ -5,6 +5,8 @@ def test_cancel_marks_assistant_cancelled(chat_service):
     async def run():
         agen = chat_service.chat(message="hold", conversation_id=None, stream=True)
         ev = await agen.__anext__()
+        while ev["event"] == "status":
+            ev = await agen.__anext__()
         assert ev["event"] == "meta"
         cid = ev["data"]["conversation_id"]
         await agen.aclose()
@@ -20,7 +22,12 @@ def test_non_stream_connection_error_from_provider(client, fake_provider, chat_s
     async def boom(_request):
         raise ConnectionError("mlx connection refused")
 
+    async def boom_stream(_request):
+        raise ConnectionError("mlx connection refused")
+        yield  # pragma: no cover
+
     fake_provider.complete = boom
+    fake_provider.stream = boom_stream
     r = client.post("/chat", json={"message": "hello", "stream": False})
     assert r.status_code == 502
     err = r.json()["error"]

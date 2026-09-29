@@ -1,0 +1,7 @@
+homepage=200
+auth_status={"required":true,"ok":false,"setup":false,"signup":false,"username":null,"role":null,"ready":true,"exposure":"private"}
+anon_chat=401 anon_chat=401
+health_public=404
+health_local=200
+mlx_listen=127.0.0.1:8081
+mlx_pid=1581

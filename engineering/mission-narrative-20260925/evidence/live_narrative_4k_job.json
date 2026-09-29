@@ -1,0 +1,41 @@
+{
+  "segments": [
+    {
+      "segment_id": "73b7a138-d1e6-42e8-999a-3a8f5f3f616e",
+      "ordinal": 0,
+      "beat_id": "beat-001",
+      "visible_chars": 1565,
+      "han_chars": 1402,
+      "finish_reason": "length",
+      "output_sha256": "0e6164d155aac942ef4110144f63cc1006df4954fd737ea0d13c3921f1228273",
+      "start_offset": 0,
+      "end_offset": 1581
+    },
+    {
+      "segment_id": "42ed679d-89a8-41f8-8beb-a1555116a2f1",
+      "ordinal": 1,
+      "beat_id": "beat-002",
+      "visible_chars": 1599,
+      "han_chars": 1403,
+      "finish_reason": "length",
+      "output_sha256": "614de07a39b222a3259f58d99205c2ea2f098cadc304b9c028f58c8a9bb29aae",
+      "start_offset": 1581,
+      "end_offset": 3204
+    },
+    {
+      "segment_id": "07b304fa-9364-4977-8438-a83f3bf19533",
+      "ordinal": 2,
+      "beat_id": "beat-003",
+      "visible_chars": 1547,
+      "han_chars": 1361,
+      "finish_reason": "length",
+      "output_sha256": "4f2f982d9f09c63e41026b26521fcc9dc0d8dadcf9b31b36e29c1a3b60f0f257",
+      "start_offset": 3204,
+      "end_offset": 4779
+    }
+  ],
+  "body_visible_chars": 4711,
+  "body_sha256": "c72b0facb7297425688525342f457c16f30ae06f3d8e6d06555aef0eed2a1238",
+  "status": "completed",
+  "total_visible_chars": 4711
+}

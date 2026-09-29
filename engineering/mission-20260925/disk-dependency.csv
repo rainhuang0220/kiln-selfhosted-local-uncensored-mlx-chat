@@ -1,0 +1,31 @@
+path,kind,inode,logical_size,referenced_by,decision,reason
+/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4,dir,16777232:34819531,5.3G,PID 1581 --model; LaunchAgent com.kiln.mlx.plist -> Application Support/kiln/start-mlx.sh; kiln/scripts/start-mlx.sh; fetch-model.sh; docker-compose.yml; backend/app/config.py; backend/tests; web/src/stores/chat-store.ts,protect,现网 9B。lsof 没有打开该目录下任何文件，但进程参数和 LaunchAgent 指向它。权重 clone id 等于自身 inode 且 private size 覆盖逻辑大小，不是另一份 clone。保护。
+/Users/rainhuang/Desktop/models/qwen3.8-27b,dir,16777232:34623913,14G,backend/tests/test_tokens.py; backend/tests/conftest.py; backend/tests/test_api.py; benchmarks/run_inference.py; scripts/start-mlx.sh; docs/architecture.md; docs/inference-mlx.md; BENCHMARK.md; clone 对端 /Users/rainhuang/models/qwen3.8-27b,protect,测试和文档仍写 qwen3.8-27b，解析到这棵桌面目录。三个权重分片与 home 那份是 APFS 全量 clone，两边 private size 为 0、refcnt 为 2。删掉不会立刻释放 14G。PID 1581 未加载。保护。
+/Users/rainhuang/models/qwen3.8-27b,dir,16777232:34620056,14G,无 kiln 源码、测试、LaunchAgent 或 PID 1581 路径字符串; clone 对端是桌面 qwen3.8-27b,protect,27 个同名文件里 26 个的 clone id 等于这里的 inode。chat_template.jinja 两边大小不同（9168 与 8952），不是整树副本。身份是 27B 的 clone 源头，不确定，保护。
+/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit,dir,16777232:39763893,5.5G,backend/app/config.py image_zimage_dir; docs/media-manifest.md,protect,按名字找到的现用 Z-Image 目录。无第二份路径。保护。
+/Users/rainhuang/Desktop/models/image-flux2-klein-4b-mflux-4bit,dir,16777232:39763891,4.3G,backend/app/config.py image_flux_dir; docs/media-manifest.md,protect,按名字找到的现用 FLUX.2 目录。保护。
+/Users/rainhuang/Desktop/models/image-flux1-dev-mflux-4bit,dir,16777232:43496342,9.0G,backend/app/config.py image_flux1_dev_dir; web/src/generate.tsx; MODEL.md; backend/app/services/media.py,protect,按名字找到的 FLUX.1 质量档。保护。
+/Users/rainhuang/Desktop/models/image-flux2-klein-4b-uncensored-te,dir,16777232:39763892,16K,运行时代码没有这个路径; 子目录 flux2-klein-4b-uncensored-text-encoder 为空壳,protect,FLUX 相关但几乎没有权重。身份不完整。歧义保护。
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b,dir,16777232:39763894,2.6G,backend/app/config.py video_wan_dit 指向 wan_1.3B_exp_e14.safetensors; docs/media-manifest.md,protect,按名字找到的现用 Wan DiT。1.3B 不是 Qwen3B。保护。
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx,dir,16777232:39893482,12G,backend/app/config.py video_wan_mlx_dir; scripts/wan_bench.py,protect,现用 Wan MLX 权重。保护。
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux,dir,16777232:39763895,11G,backend/app/config.py video_wan_aux_dir; scripts/wan_bench.py,protect,现用 Wan T5/VAE。保护。
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src,dir,16777232:39893481,3.1G,backend/app/services/media_runtime.py staging 路径,protect,代码会在转换时 rmtree 再重建，这仍是引用。与 aux、DiT 没有相同 clone id，private size 覆盖逻辑大小，不能当成不占空间的副本。保护。
+/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct,dir,16777232:34073461,2.9G,kiln 源码和 LaunchAgent 未写该路径; refs/main=989aa7980e4cf806f80c7fef2b1adb7bc71aa306,protect,model_type=qwen2 的纯文本模型。snapshot 只是指向 blobs 的符号链接，nlink=1，不是第二份。按未知学习模型保护。不是 Qwen3B。
+/Users/rainhuang/.cache/huggingface/hub/models--TheCluster--Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4,dir,16777232:34819726,4.0K,HF stub 只剩 refs/main; 权重在桌面 9B 目录,protect,缓存残迹。所有权未逐文件核对。保护。
+/Users/rainhuang/.cache/huggingface/hub/models--choppedgarlic--Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-4bit-MLX,dir,16777232:34620061,4.0K,HF stub 只剩 refs/main; 权重在两棵 27B 目录,protect,没有 blobs。不能据此把 27B 当成可删。保护。
+/Users/rainhuang/.cache/huggingface/hub/models--AITRADER--FLUX1-dev-mlx-4bit,dir,16777232:43496355,4.0K,HF stub 只剩 refs/main,protect,本地 FLUX.1 是另一目录。stub 保护。
+/Users/rainhuang/.cache/huggingface/hub/models--RunPod--FLUX.2-klein-4B-mflux-4bit,dir,16777232:39765110,4.0K,HF stub 只剩 refs/main,protect,本地 FLUX.2 是另一目录。stub 保护。
+/Users/rainhuang/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit,dir,16777232:39765058,4.0K,HF stub 只剩 refs/main,protect,本地 Z-Image 是另一目录。stub 保护。
+/Users/rainhuang/.cache/huggingface/hub/models--ponpoke--flux2-klein-4b-uncensored-text-encoder,dir,16777232:39765034,4.0K,HF stub 只剩 refs/main,protect,对应本地 te 目录几乎为空。两边都保护。
+/Users/rainhuang/.cache/huggingface/hub/models--NSFW-API--NSFW_Wan_1.3b,dir,16777232:39765093,4.0K,HF stub 只剩 refs/main,protect,Wan 缓存残迹。保护。
+/Users/rainhuang/.cache/huggingface/hub/models--Wan-AI--Wan2.1-T2V-1.3B,dir,16777232:39765169,4.0K,HF stub 只剩 refs/main,protect,Wan 缓存残迹。保护。
+/Users/rainhuang/.cache/huggingface/xet,dir,16777232:34073563,9.5M,~/.cache/huggingface/xet,protect,HF xet 缓存。未证明可以整目录删除。保护。
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-4B-MTPLX-Optimized-Speed,dir,16777232:34779249,2.4G,kiln/scripts/start-mtplx.sh; PID 1581 未加载,protect,MTPLX 4B。不是 Qwen3B。保护。
+/Users/rainhuang/.mtplx/models/Youssofal--Qwen3.5-9B-MTPLX-Optimized-Speed,dir,16777232:34773986,8.1G,kiln/scripts/start-mtplx.sh; PID 1581 未加载,protect,另一份 MTPLX 9B，不是现网 mxfp4。保护。
+/Users/rainhuang/.mtplx/session-bank,dir,16777232:34774525,548M,~/.mtplx 布局; 本次 walk 未与权重共享 inode 或 clone id,protect,会话库身份未逐 blob 核对。blobs/3b 这类名字不作为 Qwen3B。保护。
+/Users/rainhuang/.mtplx/logs,dir,16777232:34774538,532K,~/.mtplx 布局,protect,只记名字和大小。未读正文。保护。
+/Users/rainhuang/.mtplx/metrics,dir,16777232:34774532,56K,~/.mtplx 布局,protect,只记名字和大小。未读正文。保护。
+/Users/rainhuang/Desktop/models/.media-venv,dir,16777232:39763897,1.7G,backend/app/config.py media_python; scripts/wan_bench.py,protect,图像和视频运行时。保护。
+/Users/rainhuang/Desktop/models/.mtplx-venv,dir,16777232:34758269,455M,kiln/scripts/start-mtplx.sh,protect,MTPLX 虚拟环境。保护。
+/Users/rainhuang/Desktop/models/.pytest_cache,dir,16777232:34749962,16K,未发现源码、LaunchAgent 或 PID 引用,protect,pytest 缓存，不是已证实可弃的模型副本。歧义保护。
+/Users/rainhuang/Desktop/models/kiln,dir,16777232:34656640,817M,PID 1581 的 cwd，并打开其中 .venv 库,protect,使用中。不是模型副本。保护。

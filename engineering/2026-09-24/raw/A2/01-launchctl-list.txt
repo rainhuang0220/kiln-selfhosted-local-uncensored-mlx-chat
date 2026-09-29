@@ -1,0 +1,23 @@
+# gui domain snapshots. launchctl list columns are PID, last exit status, label.
+# Tabs are written as \t in the repr lines.
+
+## ~20:53 CST first list
+99626\t1\tcom.kiln.web-tunnel
+97755\t143\tcom.kiln.web
+99513\t255\tcom.kiln.mtplx-tunnel
+15068\t-15\tcom.kiln.api
+1581\t-15\tcom.kiln.mlx
+
+## ~20:57 CST launchctl print pids (see 01-launchctl-*.txt)
+# mlx=1581 runs=6 signal=15
+# api=15068 runs=34 signal=15
+# web=97755 runs=4 last_exit=143
+# web-tunnel=99626 runs=1099 last_exit=1
+# mtplx-tunnel=26156 runs=22600 last_exit=255   # pid changed since 20:53
+
+## 21:00 and again 21:06:26 CST list (pids stable across these two)
+29788\t1\tcom.kiln.web-tunnel
+97755\t143\tcom.kiln.web
+29156\t255\tcom.kiln.mtplx-tunnel
+15068\t-15\tcom.kiln.api
+1581\t-15\tcom.kiln.mlx

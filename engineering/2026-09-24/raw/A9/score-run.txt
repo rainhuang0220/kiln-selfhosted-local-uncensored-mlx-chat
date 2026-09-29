@@ -1,0 +1,13 @@
+category                    n  correct accuracy
+code_function_lookup        2        2    1.000
+cross_paragraph             2        2    1.000
+distractor_entities         2        1    0.500
+exact_date_number           2        2    1.000
+fact_near_end               2        2    1.000
+fact_near_middle            2        2    1.000
+fact_near_start             2        2    1.000
+multi_turn_memory           2        2    1.000
+ordered_event_chain         2        2    1.000
+OVERALL                    18       17    0.944
+FAIL	lc-en-distract-01	distractor_entities	exact	got=Q-71	gold=Q-17
+EXIT:1

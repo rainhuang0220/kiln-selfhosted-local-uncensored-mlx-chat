@@ -3,10 +3,16 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import os
 import logging
 import re
 import sqlite3
 import subprocess
+import time
+import uuid
+import httpx
+from pathlib import Path
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -31,19 +37,28 @@ from app.providers.mlx import MlxProvider
 from app.services import accounts
 from app.services.chat import ChatService
 from app.services.chat_lifecycle import parked_http_body
+from app.services.gateway import describe_gateway
 from app.services.media import MediaService
 from app.services.memory import MemoryService
 from app.services.heartbeat import iterate_with_heartbeats
 from app.services.sampling import resolve_sampling
 from app.services.stream_protocol import StreamLedger
 from app.services.models import ModelManager
+from app.services.providers.dzmm import (
+    DzmmProvider, MODELS_URL, model_catalog, parse_character_card, preferred_model, read_token, write_token,
+)
 from app.services.tokens import TokenEstimator
+from app.services.narrative import NarrativeOrchestrator, resume_events
+from app.services.narrative_prompt import export_config, import_config
+from app.services.narrative_schema import StoryBible, SceneState
+from app.services.profiles import normalize_profile
 
 logger = logging.getLogger(__name__)
 
 
 class ChatBody(BaseModel):
     message: str = ""
+    model: str | None = None
     conversation_id: str | None = None
     regenerate: bool = False
     continue_generation: bool = False
@@ -64,6 +79,92 @@ class ChatBody(BaseModel):
     enable_thinking: bool | None = None
     reasoning_effort: str | None = None
     thinking_continuation: bool | None = None
+    evidence: str | None = Field(default=None, max_length=20000)
+    mode: str | None = None
+    target_visible_chars: int | None = Field(default=None, ge=1000, le=100000)
+    segment_chars: int | None = Field(default=None, ge=500, le=8000)
+    character_card_id: str | None = None
+    context_preset_id: str | None = None
+    auto_continue: bool | None = None
+
+
+class CharacterCardBody(BaseModel):
+    name: str = Field(default="未命名角色", min_length=1, max_length=120)
+    description: str = ""
+    personality: str = ""
+    scenario: str = ""
+    speech_style: str = ""
+    taboos: str = ""
+    relationship_to_user: str = ""
+    first_mes: str = ""
+    mes_example: str = ""
+    immutable_json: list[str] | None = None
+
+
+class CharacterCardPatchBody(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = None
+    personality: str | None = None
+    scenario: str | None = None
+    speech_style: str | None = None
+    taboos: str | None = None
+    relationship_to_user: str | None = None
+    first_mes: str | None = None
+    mes_example: str | None = None
+    immutable_json: list[str] | None = None
+
+
+class ContextPresetPreviewBody(BaseModel):
+    text: str = Field(min_length=1, max_length=50000)
+    deep: bool = False
+
+
+class ContextPresetBody(BaseModel):
+    title: str = Field(default="未命名预设", min_length=1, max_length=120)
+    payload: dict[str, Any]
+    source_text: str = Field(default="", max_length=50000)
+    conversation_id: str | None = None
+
+
+class ContextPresetPatchBody(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    payload: dict[str, Any] | None = None
+    source_text: str | None = Field(default=None, max_length=50000)
+    conversation_id: str | None = None
+
+
+class LoreBody(BaseModel):
+    keys: list[str] = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=4000)
+    character_card_id: str | None = None
+    secondary_keys: list[str] | None = None
+    priority: int = 0
+    budget_tokens: int = Field(default=256, ge=32, le=1024)
+    scan_depth_turns: int = Field(default=6, ge=1, le=32)
+    sticky: int = 0
+    cooldown_turns: int = 0
+    enabled: bool = True
+
+
+class NarrativeResumeBody(BaseModel):
+    job_id: str = Field(min_length=8, max_length=64)
+    last_seq: int = Field(default=0, ge=0)
+
+
+class NarrativeContinueBody(BaseModel):
+    job_id: str = Field(min_length=8, max_length=64)
+    assistant_message_id: str | None = Field(default=None, min_length=8, max_length=64)
+    idempotency_key: str = Field(min_length=4, max_length=128)
+    stream: bool = True
+    max_new_segments: int = Field(default=8, ge=1, le=64)
+    segment_max_tokens: int | None = Field(default=None, ge=256, le=8192)
+    interrupt_kind: str = Field(default="network_disconnect", max_length=64)
+
+
+class NarrativeConfigBody(BaseModel):
+    story_bible: dict[str, Any] | None = None
+    scene_state: dict[str, Any] | None = None
+    format: str | None = None
 
 
 class RenameBody(BaseModel):
@@ -105,6 +206,14 @@ class ModelDownloadBody(BaseModel):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*", value):
             raise ValueError("repo_id must be an owner/name Hugging Face repository")
         return value
+
+
+class DzmmTokenBody(BaseModel):
+    api_token: str = Field(default="", max_length=4096)
+
+
+class CardUrlBody(BaseModel):
+    url: str = Field(min_length=20, max_length=300)
 
 
 class GenerateBody(BaseModel):
@@ -242,6 +351,13 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         app.state.media = media_svc
         app.state.chat_lifecycle = media_svc.lifecycle
         app.state.settings = cfg
+        if chat is None:
+            from app.services.readiness_probe import consume_probe_flag
+
+            try:
+                await asyncio.wait_for(consume_probe_flag(app.state.chat), timeout=30)
+            except TimeoutError:
+                app.state.chat.note_inference_timeout("readiness probe timed out")
         try:
             if media is None and chat is None and cfg.pause_chat_for_video:
                 from app.services.media_runtime import _health_ok, restore_mlx
@@ -269,7 +385,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     docs = None if gated else "/docs"
     app = FastAPI(
         title="Kiln",
-        version="0.6.5",
+        version="0.7.0",
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None if gated else "/redoc",
@@ -292,6 +408,7 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         allow_headers=["Authorization", "Content-Type"],
     )
 
+    @app.get("/auth/runtime")
     @app.get("/health")
     async def health(request: Request):
         provider = getattr(request.app.state, "provider", None)
@@ -303,8 +420,41 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         media_svc: MediaService | None = getattr(request.app.state, "media", None)
         chat_life = media_svc.lifecycle.snapshot() if media_svc is not None else None
         chat = getattr(request.app.state, "chat", None)
-        inference = chat.inference_status() if chat is not None else {"ready": reachable}
-        status = "ok" if reachable and inference.get("ready", True) else "degraded"
+        busy = False
+        if chat is not None:
+            busy = bool(getattr(chat, "_busy", None))
+            lock = getattr(chat, "_lock", None)
+            if lock is not None and lock.locked():
+                busy = True
+        if chat is not None:
+            inference = chat.inference_status(busy=busy)
+        else:
+            inference = {
+                "ready": False,
+                "consecutive_timeouts": 0,
+                "last_error": None,
+                "last_verified_at": None,
+                "capability": "UNVERIFIED",
+                "verification_method": None,
+                "evidence_expires_at": None,
+            }
+        capability = str(inference.get("capability") or "UNVERIFIED")
+        if not reachable and capability not in {"DEGRADED", "FAILED"}:
+            status = "degraded"
+        elif capability in {"DEGRADED", "FAILED"} and not busy:
+            status = "degraded"
+        else:
+            status = "ok"
+        chat_state = chat_life.get("state") if isinstance(chat_life, dict) else None
+        gateway = describe_gateway(
+            http_alive=bool(reachable),
+            chat_state=chat_state,
+            inference_capability=capability,
+            busy=busy,
+            last_verified_at=inference.get("last_verified_at"),
+            verification_method=inference.get("verification_method"),
+            evidence_expires_at=inference.get("evidence_expires_at"),
+        )
         return {
             "status": status,
             "provider": {
@@ -313,10 +463,15 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "base_url": base,
                 "http_alive": reachable,
             },
+            "gateway": gateway,
             "inference": {
-                "ready": bool(inference.get("ready")),
+                "ready": capability == "READY",
                 "consecutive_timeouts": inference.get("consecutive_timeouts", 0),
                 "last_error": inference.get("last_error"),
+                "last_verified_at": inference.get("last_verified_at"),
+                "capability": capability,
+                "verification_method": inference.get("verification_method"),
+                "evidence_expires_at": inference.get("evidence_expires_at"),
             },
             "chat": chat_life,
             "model": cfg.model_name,
@@ -326,6 +481,26 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             "max_tokens_cap": cfg.max_tokens_cap,
             "enable_thinking": cfg.enable_thinking,
             "default_profile": cfg.default_profile,
+        }
+
+    @app.get("/readyz")
+    async def readyz(request: Request):
+        """Unauthenticated readiness. Does not generate. Does not claim E2E chat."""
+        provider = getattr(request.app.state, "provider", None)
+        reachable = False
+        if provider is not None:
+            reachable = await provider.health()
+        n = accounts.user_count()
+        private = configured_mode(cfg) == "private"
+        auth_ready = (not private) or n > 0
+        return {
+            "BACKEND_UP": True,
+            "AUTHENTICATION_UP": bool(auth_ready),
+            "MODEL_AVAILABLE": bool(reachable),
+            "END_TO_END_CHAT_UP": "requires_auth",
+            "exposure": "private" if private else "local",
+            "generates": False,
+            "note": "STATIC_UP and PUBLIC_API_UP are assigned by an external probe of the public origin.",
         }
 
     @app.get("/auth/status")
@@ -502,6 +677,55 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     async def global_context(request: Request):
         return request.app.state.chat.global_context()
 
+    @app.get("/models/dzmm/settings")
+    async def dzmm_settings(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        configured = bool(read_token(cfg.sqlite_path))
+        return {"token_configured": configured, "default_model": preferred_model(configured),
+                "wallet": "已配置 Token，余额请看官网" if configured else "未配置 Token"}
+
+    @app.put("/models/dzmm/settings")
+    async def update_dzmm_settings(body: DzmmTokenBody, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        write_token(cfg.sqlite_path, body.api_token)
+        return {"token_configured": bool(body.api_token.strip()),
+                "default_model": preferred_model(bool(body.api_token.strip()))}
+
+    @app.get("/models/dzmm")
+    async def dzmm_models(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        token = read_token(cfg.sqlite_path)
+        prices: dict[str, str] = {}
+        extra_ids: list[str] = []
+        reachable = False
+        if token:
+            try:
+                async with httpx.AsyncClient(timeout=8, trust_env=False) as client:
+                    response = await client.get(MODELS_URL, headers={"Authorization": f"Bearer {token}"})
+                if response.is_success:
+                    reachable = True
+                    for item in response.json().get("data", []):
+                        if not isinstance(item, dict):
+                            continue
+                        model_id = item.get("id")
+                        if isinstance(model_id, str) and model_id.startswith("nalang-apex"):
+                            extra_ids.append(model_id)
+                        # Only show a price when the endpoint explicitly provides one.
+                        price = item.get("price") or item.get("pricing")
+                        if isinstance(model_id, str) and price is not None:
+                            prices[model_id] = str(price)
+            except (httpx.HTTPError, ValueError, TypeError):
+                pass
+        return {"data": model_catalog(prices, extra_ids), "reachable": reachable,
+                "token_configured": bool(token), "default_model": preferred_model(bool(token)),
+                "pricing_note": "估价，以钱包为准"}
+
     @app.get("/models/local")
     async def list_local_models(request: Request):
         denied = _require_owner_role(request)
@@ -618,6 +842,209 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         )
         return {"id": rec.id, "content": rec.content}
 
+    @app.get("/context/cards")
+    @app.get("/cards")
+    async def list_cards(request: Request):
+        from app.services import character_cards as cards_mod
+
+        return {"object": "list", "data": cards_mod.list_cards(owner_id=_owner(request))}
+
+    @app.post("/context/cards")
+    @app.post("/cards")
+    async def create_card(body: CharacterCardBody, request: Request):
+        from app.services import character_cards as cards_mod
+
+        return cards_mod.save_card(body.model_dump(), owner_id=_owner(request))
+
+    def _save_imported_card(payload: dict[str, Any], owner_id: str | None):
+        from app.services import character_cards as cards_mod
+
+        saved = cards_mod.save_card(payload, owner_id=owner_id)
+        directory = Path(cfg.sqlite_path).expanduser().parent / "character-cards"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{saved['id']}.json"
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+        return saved
+
+    @app.post("/context/cards/import")
+    async def import_card(request: Request, filename: str = Query(..., max_length=200)):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        try:
+            payload = parse_character_card(await request.body(), filename)
+            return _save_imported_card(payload, _owner(request))
+        except (ValueError, OSError) as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_card", status=400)
+
+    @app.post("/context/cards/import-url")
+    async def import_card_url(body: CardUrlBody, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        parsed = urlparse(body.url)
+        if parsed.scheme != "https" or parsed.netloc != "www.dzmm.ai" or not re.fullmatch(r"/character/\d+", parsed.path):
+            return error_body("请提供 DZMM 角色页链接", "invalid_request_error", "invalid_card_url", status=400)
+        try:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=False, trust_env=False) as client:
+                response = await client.get(body.url, headers={"Accept": "application/json"})
+            if response.is_success and "json" in response.headers.get("content-type", ""):
+                return _save_imported_card(parse_character_card(response.content, "card.json"), _owner(request))
+        except (httpx.HTTPError, ValueError, OSError):
+            pass
+        return error_body("请导出 JSON/PNG 后导入", "invalid_request_error", "card_export_required", status=400)
+
+    @app.get("/context/cards/library")
+    async def list_imported_cards(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        from app.services import character_cards as cards_mod
+
+        directory = Path(cfg.sqlite_path).expanduser().parent / "character-cards"
+        rows = cards_mod.list_cards(owner_id=_owner(request))
+        for row in rows:
+            try:
+                saved = json.loads((directory / f"{row['id']}.json").read_text())
+                row["tags"] = saved.get("tags") or []
+            except (OSError, ValueError):
+                row["tags"] = []
+        return {"data": rows}
+
+    @app.patch("/context/cards/{card_id}")
+    @app.patch("/cards/{card_id}")
+    async def patch_card(card_id: str, body: CharacterCardPatchBody, request: Request):
+        from app.services import character_cards as cards_mod
+
+        card = cards_mod.patch_card(
+            card_id,
+            body.model_dump(exclude_unset=True),
+            owner_id=_owner(request),
+        )
+        if card is None:
+            return error_body("card not found", "not_found_error", "card_not_found", status=404)
+        return card
+
+    @app.post("/context/presets/preview")
+    async def preview_context_preset(body: ContextPresetPreviewBody):
+        from app.services import context_presets as presets
+        from app.services.context_presets import preview_preset
+
+        try:
+            # Short pastes stay rules-only. Long pastes need the 9B: if it did not
+            # analyze, the Studio gets empty cards and model_ran=false, never a rules roster.
+            if body.deep and len(body.text) >= presets.ALIAS_RESOLVE_MIN_CHARS:
+                if getattr(app.state.chat, "_busy", set()):
+                    draft = presets.model_not_ran_preview(body.text, "busy", "模型正在生成回复。")
+                else:
+                    try:
+                        draft = await presets.extract_preview_preset(body.text, app.state.provider)
+                    except ValueError:
+                        raise
+                    except Exception:
+                        logger.exception("local people extract failed")
+                        draft = presets.model_not_ran_preview(body.text, "model_failed", "本机人物抽取出错。")
+                extract_meta = draft.get("extract") or {}
+                logger.log(
+                    logging.INFO if extract_meta.get("model_ran") else logging.WARNING,
+                    "preset extract mode=%s model_ran=%s windows=%s elapsed=%s errors=%s",
+                    extract_meta.get("mode"), extract_meta.get("model_ran"), extract_meta.get("window_chars"),
+                    extract_meta.get("elapsed_s"), extract_meta.get("errors"),
+                )
+            else:
+                draft = preview_preset(body.text)
+                if body.deep:
+                    draft["extract"] = {"mode": "rules_short", "model_ran": False}
+            from app.services.context_presets import public_studio_payload
+
+            return {"draft": public_studio_payload(draft)}
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
+
+    @app.get("/context/presets")
+    async def list_context_presets(request: Request):
+        from app.services.context_presets import list_presets, studio_record
+
+        return {"object": "list", "data": [studio_record(item) for item in list_presets(owner_id=_owner(request))]}
+
+    @app.post("/context/presets")
+    async def create_context_preset(body: ContextPresetBody, request: Request):
+        from app.services.context_presets import save_preset, studio_record
+
+        try:
+            return studio_record(save_preset(
+                body.title,
+                body.payload,
+                body.source_text,
+                owner_id=_owner(request),
+                conversation_id=body.conversation_id,
+            ))
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
+
+    @app.get("/context/presets/{preset_id}")
+    async def get_context_preset(preset_id: str, request: Request):
+        from app.services.context_presets import get_preset, studio_record
+
+        preset = get_preset(preset_id, owner_id=_owner(request))
+        if preset is None:
+            return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
+        return studio_record(preset)
+
+    @app.patch("/context/presets/{preset_id}")
+    async def patch_context_preset(preset_id: str, body: ContextPresetPatchBody, request: Request):
+        from app.services.context_presets import get_preset, save_preset, studio_record
+
+        current = get_preset(preset_id, owner_id=_owner(request))
+        if current is None:
+            return error_body("preset not found", "not_found_error", "preset_not_found", status=404)
+        try:
+            return studio_record(save_preset(
+                body.title if body.title is not None else current["title"],
+                body.payload if body.payload is not None else current["payload"],
+                body.source_text if body.source_text is not None else current["source_text"],
+                owner_id=_owner(request),
+                preset_id=preset_id,
+                conversation_id=body.conversation_id,
+            ))
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_preset", status=400)
+
+    @app.get("/lore")
+    async def list_lore(request: Request, card_id: str | None = None):
+        from app.services import lorebook as lore_mod
+
+        return {
+            "object": "list",
+            "data": lore_mod.list_entries(
+                owner_id=_owner(request),
+                character_card_id=card_id,
+            ),
+        }
+
+    @app.post("/lore")
+    async def create_lore(body: LoreBody, request: Request):
+        from app.services import lorebook as lore_mod
+
+        try:
+            return lore_mod.save_entry(
+                keys=body.keys,
+                content=body.content,
+                owner_id=_owner(request),
+                character_card_id=body.character_card_id,
+                secondary_keys=body.secondary_keys,
+                priority=body.priority,
+                budget_tokens=body.budget_tokens,
+                scan_depth_turns=body.scan_depth_turns,
+                sticky=body.sticky,
+                cooldown_turns=body.cooldown_turns,
+                enabled=body.enabled,
+            )
+        except ValueError as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_lore", status=400)
+
     @app.get("/memory/{memory_id}")
     async def get_memory(memory_id: str, request: Request):
         rec = request.app.state.chat.memory.get(memory_id, _owner(request))
@@ -664,6 +1091,19 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if parked is not None:
             return parked
         svc: ChatService = request.app.state.chat
+        token = read_token(cfg.sqlite_path) if _is_owner_role(request) else ""
+        selected_model = body.model or preferred_model(bool(token))
+        allowed_models = {row["id"] for row in model_catalog()}
+        if selected_model not in allowed_models and not selected_model.startswith("nalang-apex"):
+            return error_body("unknown chat model", "invalid_request_error", "invalid_model", status=400)
+        if selected_model.startswith("nalang-") and not token:
+            return error_body("DZMM Token required", "invalid_request_error", "missing_token", status=400)
+        cloud_provider = DzmmProvider(token, selected_model) if selected_model.startswith("nalang-") else None
+        profile_key = normalize_profile(body.profile)
+        mode = (body.mode or "").strip().lower()
+        # Immersive / long_form use chat auto-continue + lore/scene fences.
+        # Only an explicit mode=narrative|long_form body flag uses NarrativeOrchestrator.
+        use_narrative = mode in {"narrative", "long_form", "longform"}
 
         def _chat_kwargs(**extra: Any) -> dict[str, Any]:
             return {
@@ -684,22 +1124,81 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "repetition_penalty": body.repetition_penalty,
                 "repetition_context_size": body.repetition_context_size,
                 "max_tokens": body.max_tokens,
-                "enable_thinking": body.enable_thinking,
+                "enable_thinking": False if cloud_provider else body.enable_thinking,
                 "reasoning_effort": body.reasoning_effort,
                 "thinking_continuation": body.thinking_continuation,
+                "evidence": body.evidence,
                 "owner_id": _owner(request),
+                "character_card_id": body.character_card_id,
+                "context_preset_id": body.context_preset_id,
+                "auto_continue": False if cloud_provider else body.auto_continue,
+                "selected_model": selected_model,
+                "provider_override": cloud_provider,
                 **extra,
             }
 
+        async def _iter_chat() -> AsyncIterator[dict[str, Any]]:
+            if use_narrative and not body.continue_generation and not body.regenerate:
+                cancelled = {"v": False}
+
+                def cancel_check() -> bool:
+                    return cancelled["v"]
+
+                from app.services.profiles import resolve_profile
+
+                preset = resolve_profile(profile_key)
+                orch = NarrativeOrchestrator(svc)
+                agen = orch.run(
+                    message=body.message,
+                    conversation_id=body.conversation_id,
+                    owner_id=_owner(request),
+                    target_visible_chars=body.target_visible_chars
+                    or int(preset.get("target_visible_chars") or 10000),
+                    segment_chars=body.segment_chars
+                    or int(preset.get("segment_chars") or 2800),
+                    segment_max_tokens=body.max_tokens
+                    or int(preset.get("segment_max_tokens") or preset.get("max_tokens") or 3072),
+                    temperature=body.temperature,
+                    top_p=body.top_p,
+                    top_k=body.top_k,
+                    system=body.system,
+                    cancel_check=cancel_check,
+                )
+                try:
+                    async for event in agen:
+                        if await request.is_disconnected():
+                            cancelled["v"] = True
+                        yield event
+                finally:
+                    cancelled["v"] = True
+                return
+            try:
+                async for event in svc.chat(**_chat_kwargs(stream=True)):
+                    yield event
+            finally:
+                if cloud_provider:
+                    await cloud_provider.aclose()
+
         async def event_stream() -> AsyncIterator[bytes]:
-            agen = svc.chat(**_chat_kwargs(stream=True))
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                body = dict(data) if isinstance(data, dict) else {"payload": data}
+                body["request_id"] = request_id
+                body["seq"] = seq
+                return body
+
+            agen = _iter_chat()
             stream = iterate_with_heartbeats(agen, cfg.heartbeat_s)
             try:
                 async for event in stream:
                     if await request.is_disconnected():
                         await stream.aclose()
                         return
-                    yield _sse(event["event"], event["data"])
+                    yield _sse(event["event"], stamped(event.get("data")))
                 yield b"data: [DONE]\n\n"
             except (asyncio.CancelledError, GeneratorExit):
                 await stream.aclose()
@@ -707,13 +1206,15 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
             except Exception as exc:  # noqa: BLE001
                 yield _sse(
                     "error",
-                    {
-                        "error": {
-                            "message": str(exc),
-                            "type": "api_error",
-                            "code": "upstream_error",
+                    stamped(
+                        {
+                            "error": {
+                                "message": str(exc),
+                                "type": "api_error",
+                                "code": "upstream_error",
+                            }
                         }
-                    },
+                    ),
                 )
                 yield b"data: [DONE]\n\n"
 
@@ -732,10 +1233,14 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         snapshot = None
         done = None
         err = None
-        async for event in svc.chat(**_chat_kwargs(stream=False)):
+        async for event in _iter_chat():
             name = event["event"]
             if name == "meta":
-                meta = event["data"]
+                # Auto-continue emits meta per segment; keep the first created flag.
+                prev_created = bool((meta or {}).get("created"))
+                meta = dict(event["data"] or {})
+                if prev_created:
+                    meta["created"] = True
             elif name == "snapshot":
                 snapshot = event["data"]
             elif name == "done":
@@ -748,13 +1253,212 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if not meta or not done:
             return error_body("empty generation", "api_error", "upstream_error", status=502)
         return {
-            "conversation_id": meta["conversation_id"],
-            "created": meta["created"],
+            "conversation_id": meta.get("conversation_id") or done.get("conversation_id"),
+            "created": meta.get("created", False),
             "message": done["message"],
             "finish_reason": done["finish_reason"],
-            "model": meta["model"],
+            "model": meta.get("model") or cfg.model_name,
             "usage": done["usage"],
+            "job_id": done.get("job_id") or meta.get("job_id"),
+            "length_trace": done.get("length_trace"),
+            "terminal_state": done.get("terminal_state"),
+            "metrics": done.get("metrics"),
+            "snapshot": snapshot,
             "context": snapshot,
+        }
+
+    @app.get("/narrative/jobs/{job_id}")
+    async def narrative_job(job_id: str, request: Request):
+        from app.services import narrative_store as nstore
+
+        job = nstore.get_job(job_id, owner_id=_owner(request))
+        if job is None:
+            return error_body("job not found", "not_found_error", "job_not_found", status=404)
+        segments = nstore.list_segments(job_id)
+        body = nstore.reassemble_body(job_id)
+        return {
+            "job": {k: job[k] for k in job.keys() if k not in {"bible_json", "plan_json", "scene_json"}},
+            "bible": json.loads(job["bible_json"] or "{}"),
+            "plan": json.loads(job["plan_json"] or "{}"),
+            "scene": json.loads(job["scene_json"] or "{}"),
+            "segments": [
+                {
+                    "segment_id": s["segment_id"],
+                    "ordinal": s["ordinal"],
+                    "beat_id": s["beat_id"],
+                    "visible_chars": s["visible_chars"],
+                    "han_chars": s["han_chars"],
+                    "finish_reason": s["finish_reason"],
+                    "output_sha256": s["output_sha256"],
+                    "start_offset": s["start_offset"],
+                    "end_offset": s["end_offset"],
+                }
+                for s in segments
+            ],
+            "body_visible_chars": len("".join(body.split())),
+            "body_sha256": __import__("hashlib").sha256(body.encode()).hexdigest(),
+        }
+
+    @app.post("/narrative/resume")
+    async def narrative_resume(body: NarrativeResumeBody, request: Request):
+        async def event_stream() -> AsyncIterator[bytes]:
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                out = dict(data) if isinstance(data, dict) else {"payload": data}
+                out["request_id"] = request_id
+                out["seq"] = seq
+                return out
+
+            async for event in resume_events(
+                body.job_id, owner_id=_owner(request), last_seq=body.last_seq
+            ):
+                if await request.is_disconnected():
+                    return
+                yield _sse(event["event"], stamped(event.get("data")))
+            yield b"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @app.post("/narrative/continue")
+    async def narrative_continue(body: NarrativeContinueBody, request: Request):
+        parked = _chat_parked_response(request)
+        if parked is not None:
+            return parked
+        svc: ChatService = request.app.state.chat
+        orch = NarrativeOrchestrator(svc)
+        cancelled = {"v": False}
+        interrupt_box = {"kind": body.interrupt_kind or "network_disconnect"}
+
+        def cancel_check() -> bool:
+            return cancelled["v"]
+
+        async def _iter():
+            agen = orch.continue_job(
+                job_id=body.job_id,
+                owner_id=_owner(request),
+                assistant_message_id=body.assistant_message_id,
+                idempotency_key=body.idempotency_key,
+                segment_max_tokens=body.segment_max_tokens,
+                max_new_segments=body.max_new_segments,
+                cancel_check=cancel_check,
+                interrupt_kind=lambda: interrupt_box["kind"],
+            )
+            try:
+                async for event in agen:
+                    if await request.is_disconnected():
+                        cancelled["v"] = True
+                        interrupt_box["kind"] = "network_disconnect"
+                    yield event
+            finally:
+                cancelled["v"] = True
+
+        async def event_stream() -> AsyncIterator[bytes]:
+            request_id = uuid.uuid4().hex
+            seq = 0
+
+            def stamped(data: Any) -> dict[str, Any]:
+                nonlocal seq
+                seq += 1
+                out = dict(data) if isinstance(data, dict) else {"payload": data}
+                out["request_id"] = request_id
+                out["seq"] = seq
+                return out
+
+            stream = iterate_with_heartbeats(_iter(), cfg.heartbeat_s)
+            try:
+                async for event in stream:
+                    if await request.is_disconnected():
+                        cancelled["v"] = True
+                        interrupt_box["kind"] = "network_disconnect"
+                        await stream.aclose()
+                        return
+                    yield _sse(event["event"], stamped(event.get("data")))
+                yield b"data: [DONE]\n\n"
+            except (asyncio.CancelledError, GeneratorExit):
+                cancelled["v"] = True
+                await stream.aclose()
+                raise
+            except Exception as exc:  # noqa: BLE001
+                yield _sse(
+                    "error",
+                    stamped(
+                        {
+                            "error": {
+                                "message": str(exc),
+                                "type": "api_error",
+                                "code": "upstream_error",
+                            }
+                        }
+                    ),
+                )
+                yield b"data: [DONE]\n\n"
+
+        if body.stream:
+            return StreamingResponse(
+                event_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        done = None
+        err = None
+        meta = None
+        async for event in _iter():
+            if event["event"] == "done":
+                done = event["data"]
+            elif event["event"] == "error":
+                err = event
+            elif event["event"] == "meta":
+                meta = event["data"]
+        if err:
+            return JSONResponse(err["data"], status_code=err.get("status") or 502)
+        if not done:
+            return error_body("empty continue", "api_error", "upstream_error", status=502)
+        return {
+            "job_id": done.get("job_id"),
+            "conversation_id": done.get("conversation_id") or (meta or {}).get("conversation_id"),
+            "message": done["message"],
+            "finish_reason": done.get("finish_reason"),
+            "terminal_state": done.get("terminal_state"),
+            "length_trace": done.get("length_trace"),
+            "idempotent_replay": done.get("idempotent_replay", False),
+            "metrics": done.get("metrics"),
+            "pause_reason": done.get("pause_reason"),
+        }
+
+    @app.post("/narrative/config/export")
+    async def narrative_config_export(body: NarrativeConfigBody, request: Request):
+        _ = request
+        bible = StoryBible.from_dict(body.story_bible or {})
+        scene = SceneState.from_dict(body.scene_state or {})
+        return export_config(bible, scene)
+
+    @app.post("/narrative/config/import")
+    async def narrative_config_import(body: NarrativeConfigBody, request: Request):
+        _ = request
+        bible, scene = import_config(body.model_dump())
+        # creator_notes never auto-promoted into stable contract
+        return {
+            "ok": True,
+            "story_bible": bible.to_dict(),
+            "scene_state": scene.to_dict(),
+            "config_hash": bible.config_hash(),
         }
 
     @app.get("/conversation")

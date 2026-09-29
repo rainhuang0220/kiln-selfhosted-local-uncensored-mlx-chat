@@ -44,6 +44,7 @@ def test_username_password_session(tmp_settings, chat_service):
     accounts.create_user("rain", "correct-horse")
     app = create_app(tmp_settings, chat=chat_service)
     with TestClient(app, base_url=origin) as c:
+        assert c.get("/auth/runtime").status_code == 401
         ok = c.post(
             "/auth/login",
             json={"username": "rain", "password": "correct-horse", "remember_me": False},
@@ -58,6 +59,10 @@ def test_username_password_session(tmp_settings, chat_service):
         assert status.json()["required"] is True
         assert status.json()["ok"] is True
         assert status.json()["username"] == "rain"
+        runtime = c.get("/auth/runtime")
+        assert runtime.status_code == 200
+        assert runtime.json()["provider"]["base_url"] == ""
+        assert runtime.json()["gateway"]["state"] == "AVAILABLE"
 
         chat = c.post(
             "/chat",

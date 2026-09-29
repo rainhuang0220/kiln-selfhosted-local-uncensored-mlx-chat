@@ -1,0 +1,509 @@
+{
+  "set": "compendium-20k-50",
+  "kind": "offline_evidence_retention_only",
+  "n": 50,
+  "evidence_present": 50,
+  "packed_count": 27,
+  "records": [
+    {
+      "id": "L01",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L02",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L03",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L04",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L05",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L06",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L07",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L08",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L09",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L10",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L11",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L12",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21076,
+      "served_tokens": 21076,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L13",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L14",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L15",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L16",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L17",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L18",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21078,
+      "served_tokens": 21078,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L19",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21079,
+      "served_tokens": 21079,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L20",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21080,
+      "served_tokens": 21080,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L21",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21077,
+      "served_tokens": 21077,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L22",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21078,
+      "served_tokens": 21078,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L23",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "full_document",
+      "budget": 32768,
+      "original_tokens": 21079,
+      "served_tokens": 21079,
+      "packed": false,
+      "evidence_present": true
+    },
+    {
+      "id": "L24",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 21074,
+      "served_tokens": 9578,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L25",
+      "corpus_sha256": "8f327ccf9d127f33ffdc8e5007c1d0399e457cbabc8581eb78cd32df300b0c88",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 21075,
+      "served_tokens": 9452,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L26",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 9197,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L27",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20593,
+      "served_tokens": 9310,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L28",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 9354,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L29",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20593,
+      "served_tokens": 9367,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L30",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20593,
+      "served_tokens": 9309,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L31",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20590,
+      "served_tokens": 9270,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L32",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20592,
+      "served_tokens": 9340,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L33",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20592,
+      "served_tokens": 9250,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L34",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20598,
+      "served_tokens": 9409,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L35",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20595,
+      "served_tokens": 9347,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L36",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20590,
+      "served_tokens": 9344,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L37",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 9312,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L38",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20592,
+      "served_tokens": 9264,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L39",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20593,
+      "served_tokens": 9333,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L40",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20592,
+      "served_tokens": 9299,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L41",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20590,
+      "served_tokens": 10191,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L42",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 10192,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L43",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20589,
+      "served_tokens": 9274,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L44",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20588,
+      "served_tokens": 10193,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L45",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20588,
+      "served_tokens": 9188,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L46",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 9308,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L47",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20589,
+      "served_tokens": 10141,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L48",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20592,
+      "served_tokens": 10167,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L49",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20593,
+      "served_tokens": 10144,
+      "packed": true,
+      "evidence_present": true
+    },
+    {
+      "id": "L50",
+      "corpus_sha256": "79e0cc72795c455cbae9f4cda4e0b1bfd70366362cf5a99731bcd0e3e68d0aca",
+      "mode": "default_pack",
+      "budget": 10240,
+      "original_tokens": 20591,
+      "served_tokens": 9288,
+      "packed": true,
+      "evidence_present": true
+    }
+  ]
+}

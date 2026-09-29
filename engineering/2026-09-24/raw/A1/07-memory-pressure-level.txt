@@ -1,0 +1,23 @@
+=== uptime ===
+20:56  up 116 days,  8:19, 5 users, load averages: 3.49 3.37 3.20
+=== memorystatus sysctl ===
+kern.memorystatus_level: 37
+kern.memorystatus_vm_pressure_level: 2
+vm.swapusage: total = 16384.00M  used = 15300.81M  free = 1083.19M  (encrypted)
+=== memory_pressure -Q ===
+The system has 25769803776 (1572864 pages with a page size of 16384).
+System-wide memory free percentage: 37%
+=== page math ===
+free_pages_mib 72.48
+purgeable_mib 0.03
+active_gib 4.303
+inactive_gib 4.244
+speculative_mib 46.02
+wired_gib 3.506
+compressor_occupied_gib 10.999
+compressor_stored_gib 46.736
+memsize_gib 24.000
+usable_gib 23.194
+swap_used_gib 14.989
+swap_total_gib 16.000
+swap_free_gib 1.011

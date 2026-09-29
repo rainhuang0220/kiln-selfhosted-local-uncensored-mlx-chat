@@ -1,0 +1,4 @@
+lsof_lines=76 lsof_err_bytes=0
+model_match_count=1
+fd=txt type=REG name=/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/tokenizers/tokenizers.abi3.so
+type_counts=REG:69,IPv4:2,DIR:1,CHR:1,NPOLICY:1,unix:1

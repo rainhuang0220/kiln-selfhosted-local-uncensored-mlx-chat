@@ -1,0 +1,7 @@
+About to delete 1 repo(s) totalling 3.1G.
+  - model/Qwen/Qwen2.5-1.5B-Instruct (entire repo)
+✓ Dry run: no files were deleted.
+  dry_run: True
+  repos: 1
+  revisions: 1
+  size: 3.1G

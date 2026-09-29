@@ -27,6 +27,7 @@ PUBLIC_EXACT = {
     "/auth/status",
     "/auth/logout",
     "/auth/register",
+    "/readyz",
 }
 PUBLIC_PREFIX = ("/docs", "/redoc", "/openapi.json")
 

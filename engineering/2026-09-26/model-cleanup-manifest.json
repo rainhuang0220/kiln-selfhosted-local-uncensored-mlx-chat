@@ -1,0 +1,33 @@
+{
+  "time": "2026-09-26T15:43:55.996896+08:00",
+  "operation": "delete_regenerable_wan_conversion_staging",
+  "target": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src",
+  "recovery": "Kiln media_runtime._convert_wan recreates stage from protected aux and DiT; all three exact byte comparisons passed",
+  "entries": [
+    {
+      "deleted_copy": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src/Wan2.1_VAE.pth",
+      "recovery_source": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux/Wan2.1_VAE.pth",
+      "bytes": 507609880,
+      "sha256": "38071ab59bd94681c686fa51d75a1968f64e470262043be31f7a094e442fd981",
+      "source_exact_match": true
+    },
+    {
+      "deleted_copy": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src/config.json",
+      "recovery_source": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux/config.json",
+      "bytes": 249,
+      "sha256": "ab37994c43740513f94b3ba6233a784035a67b43c8cde83c8f31aa90468c67ce",
+      "source_exact_match": true
+    },
+    {
+      "deleted_copy": "/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src/diffusion_pytorch_model.safetensors",
+      "recovery_source": "/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b/wan_1.3B_exp_e14.safetensors",
+      "bytes": 2838077328,
+      "sha256": "86daed5f43a68d7be2ca1f0e85d2ac51f3ba7fb735c76fd9574323e18fe40c6c",
+      "source_exact_match": true
+    }
+  ],
+  "free_bytes_before": 410479329280,
+  "free_bytes_after": 413825191936,
+  "delta_free_bytes": 3345862656,
+  "verified_target_absent": true
+}

@@ -326,16 +326,25 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--max-tokens", type=int, default=192)
     parser.add_argument("--profile", default="interactive_dialogue")
+    parser.add_argument(
+        "--turns",
+        type=int,
+        default=0,
+        help="Cap turns per scenario (0 = all). Example: --turns 3",
+    )
     parser.add_argument("--only", default="")
     args = parser.parse_args()
     chosen = [k for k in SCENARIOS if not args.only or k in args.only.split(",")]
     report = {"recorded_at": datetime.now(timezone.utc).isoformat(), "scenarios": {}}
     for key in chosen:
         spec = SCENARIOS[key]
+        turns = list(spec["turns"])
+        if args.turns and args.turns > 0:
+            turns = turns[: args.turns]
         cid = None
         rows = []
         prior = []
-        for i, message in enumerate(spec["turns"], start=1):
+        for i, message in enumerate(turns, start=1):
             body = {
                 "message": message,
                 "stream": True,

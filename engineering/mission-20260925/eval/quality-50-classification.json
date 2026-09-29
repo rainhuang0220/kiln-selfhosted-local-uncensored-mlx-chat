@@ -1,0 +1,370 @@
+{
+  "n": 50,
+  "by_class": {
+    "fact": 17,
+    "numeric": 26,
+    "cross-passage": 3,
+    "refusal": 2,
+    "summary": 2
+  },
+  "rows": [
+    {
+      "id": "L01",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "夜场只允许 ExhibitLight.dim 把东库三号柜降到40勒克斯。"
+    },
+    {
+      "id": "L02",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "冷柜报警阈值写成 ColdChain.probe 不得高于零下18摄氏度。"
+    },
+    {
+      "id": "L03",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "成绩锁定指令是 ScoreLock.publish 在周五18时后拒绝改分。"
+    },
+    {
+      "id": "L04",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "冰雹记录规定 GaugeBoard.sample 每10分钟采样一次且不得漏点。"
+    },
+    {
+      "id": "L05",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "供餐牌规则写明 MenuBoard.publish 当天不刊登花生制品。"
+    },
+    {
+      "id": "L06",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "过刊归位时只允许 ShelfMap.commit 写入已核对的索书号。"
+    },
+    {
+      "id": "L07",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "校次被卡住是因为 ProofQueue.hold 遇到未消的红笔就不放行。"
+    },
+    {
+      "id": "L08",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "限速令要求 DispatchSheet.ack 确认每列司机都已签收。"
+    },
+    {
+      "id": "L09",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "收购过磅后 LotBook.seal 会封存当日均价并禁止回改。"
+    },
+    {
+      "id": "L10",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "变更单规定 DrawingSet.revise 只能替换已经会签的图号。"
+    },
+    {
+      "id": "L11",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "换水记录要求 TankLog.mark 把珊瑚缸盐度记成35.0且不得省略小数。"
+    },
+    {
+      "id": "L12",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "错分件必须经 SortLane.retry 回到人工格口而不是自动复投。"
+    },
+    {
+      "id": "L13",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "谱务规定 ChoirRoster.freeze 在彩排当日中午冻结声部名单。"
+    },
+    {
+      "id": "L14",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "巡坝要求 DamSensor.ack 对3号渗压计的报警逐条确认。"
+    },
+    {
+      "id": "L15",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "烘烤规则是 BatchOven.pause 在芯温未到96摄氏度时不得出炉。"
+    },
+    {
+      "id": "L16",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "修裱完成后 ArchiveBox.seal 只封装已拍照的卷宗。"
+    },
+    {
+      "id": "L17",
+      "source": "longdoc-50",
+      "class": "fact",
+      "task": "verbatim",
+      "gold": "闭馆流程写着 DomeTrack.park 必须把圆顶停在正北才许断电。"
+    },
+    {
+      "id": "L18",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "125匹"
+    },
+    {
+      "id": "L19",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "2.5毫米"
+    },
+    {
+      "id": "L20",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "3小时"
+    },
+    {
+      "id": "L21",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "7人"
+    },
+    {
+      "id": "L22",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "84公斤"
+    },
+    {
+      "id": "L23",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "214张"
+    },
+    {
+      "id": "L24",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "50吨"
+    },
+    {
+      "id": "L25",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "22份"
+    },
+    {
+      "id": "L26",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "245份"
+    },
+    {
+      "id": "L27",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "54人"
+    },
+    {
+      "id": "L28",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "15摄氏度"
+    },
+    {
+      "id": "L29",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "330箱"
+    },
+    {
+      "id": "L30",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "77米"
+    },
+    {
+      "id": "L31",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "54分钟"
+    },
+    {
+      "id": "L32",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "20分钟"
+    },
+    {
+      "id": "L33",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "cross_fact",
+      "gold": "85叶"
+    },
+    {
+      "id": "L34",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "16箱"
+    },
+    {
+      "id": "L35",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "76个"
+    },
+    {
+      "id": "L36",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "11分钟"
+    },
+    {
+      "id": "L37",
+      "source": "longdoc-50",
+      "class": "cross-passage",
+      "task": "multiturn",
+      "gold": "205块"
+    },
+    {
+      "id": "L38",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "7600册"
+    },
+    {
+      "id": "L39",
+      "source": "longdoc-50",
+      "class": "cross-passage",
+      "task": "multiturn",
+      "gold": "28分钟"
+    },
+    {
+      "id": "L40",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "6支"
+    },
+    {
+      "id": "L41",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "17笔"
+    },
+    {
+      "id": "L42",
+      "source": "longdoc-50",
+      "class": "numeric",
+      "task": "multiturn",
+      "gold": "9件"
+    },
+    {
+      "id": "Q-G3-num",
+      "source": "g3-missing",
+      "class": "numeric",
+      "task": "numeric",
+      "gold": "1275",
+      "live_ok": false,
+      "live_output": "1273"
+    },
+    {
+      "id": "Q-G3-cross",
+      "source": "g3-missing",
+      "class": "cross-passage",
+      "task": "cross",
+      "gold": "未批准外包；未拿到合同",
+      "live_ok": true
+    },
+    {
+      "id": "Q-G3-ref",
+      "source": "g3-missing",
+      "class": "refusal",
+      "task": "refusal",
+      "gold": "未记载",
+      "live_ok": true
+    },
+    {
+      "id": "Q-sum-01",
+      "source": "synthetic-rubric",
+      "class": "summary",
+      "task": "summary",
+      "gold": "摘要需覆盖预算128400与未付款44091"
+    },
+    {
+      "id": "Q-sum-02",
+      "source": "synthetic-rubric",
+      "class": "summary",
+      "task": "summary",
+      "gold": "摘要需覆盖缺页187与OrderService.retry=3"
+    },
+    {
+      "id": "Q-ref-01",
+      "source": "behavior-v2",
+      "class": "refusal",
+      "task": "info-insufficient",
+      "gold": "信息不足",
+      "live_ok": true
+    },
+    {
+      "id": "Q-num-01",
+      "source": "behavior-v2",
+      "class": "numeric",
+      "task": "fact",
+      "gold": "42",
+      "live_ok": true
+    },
+    {
+      "id": "Q-num-02",
+      "source": "behavior-v2",
+      "class": "numeric",
+      "task": "fact",
+      "gold": "100",
+      "live_ok": true
+    }
+  ],
+  "note": "Classification ledger for release_report; live scores for longdoc inherited from longdoc-scores.json unless marked live_ok"
+}

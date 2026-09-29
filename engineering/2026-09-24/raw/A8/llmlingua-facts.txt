@@ -1,0 +1,40 @@
+Source: github.com/microsoft/LLMLingua main.
+HEAD at check: 5a4c78ae18ab17a98cf997e8259354e546081d64
+committer date: 2026-09-10T23:36:23Z
+commit subject: Pin GitHub Actions to full-length commit SHAs (PR #257).
+README fetched via `gh api repos/microsoft/LLMLingua/readme` in the same session.
+version.py on that tree: VERSION = 0.2.2. Not an installed version.
+
+Install path stated by README: `pip install llmlingua`.
+Import path: `from llmlingua import PromptCompressor`.
+
+LLMLingua-2 is not the constructor default.
+prompt_compressor.py PromptCompressor.__init__:
+  model_name default = "NousResearch/Llama-2-7b-hf"
+  use_llmlingua2 default = False
+  device_map default = "cuda"
+Docstring example (large, not small):
+  model_name="microsoft/llmlingua-2-xlm-roberta-large-meetingbank", use_llmlingua2=True
+
+README / DOCUMENT.md / Transparency_FAQ.md name the small model explicitly:
+  "Or use LLMLingua-2-small model"
+  model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+  use_llmlingua2=True
+That string is not a constant in prompt_compressor.py (rg found no bert-base-multilingual there).
+
+init_llmlingua2 sets self.max_seq_len = 512.
+__chunk_context leaves 2 tokens for CLS/SEP, so chunks are about 510 tokens.
+chunk_end_tokens default in the documented compress_prompt signature: [".", "\n"].
+
+force_reserve_digit default False (documented signature and __merge_token_to_word).
+Digit-containing tokens are forced to prob 1.0 only when that flag is true.
+Identifiers are not covered by that flag.
+
+README quickstart compressed sample visibly breaks arithmetic tokens
+("1 boxes x00", "12 * 300ters", "5 *5").
+README structured sample merges "11, three, 14, 16 and 28" into "are11,,116 28".
+Return fields shown: compressed_prompt, origin_tokens, compressed_tokens, ratio, saving.
+saving in the sample is a GPT-4 dollar string. Compressor latency is not in that payload.
+
+No local measurement of any compression ratio was run.
+No model file was downloaded. No generation request was sent.

@@ -11,7 +11,8 @@ UID_NUM="$(id -u)"
 NODE="$(command -v node)"
 NPM="$(command -v npm)"
 NODE_DIR="$(dirname "$NODE")"
-PATH_VALUE="${NODE_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+# Include /usr/sbin:/sbin so LaunchAgent children can find sysctl/vm_stat/lsof.
+PATH_VALUE="${NODE_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/sbin:/sbin:/usr/bin:/bin"
 PY="$ROOT/.venv/bin/python"
 
 mkdir -p "$SUPPORT" "$AGENTS"

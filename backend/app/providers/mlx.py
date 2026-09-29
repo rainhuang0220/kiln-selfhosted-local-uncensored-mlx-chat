@@ -46,6 +46,8 @@ class MlxProvider:
                     connect=self.settings.mlx_connect_timeout_s,
                 ),
                 follow_redirects=False,
+                # MLX is allowlisted to loopback; a system proxy can break it.
+                trust_env=False,
             )
         return self._client
 
@@ -75,6 +77,11 @@ class MlxProvider:
             "repetition_penalty": mlx_repetition_penalty(request.repetition_penalty),
             "repetition_context_size": request.repetition_context_size,
         }
+
+    @staticmethod
+    def _logit_bias(request: ChatRequest) -> dict[str, Any]:
+        bias = (request.extra or {}).get("logit_bias")
+        return {"logit_bias": dict(bias)} if bias else {}
 
     def _payload(self, request: ChatRequest, stream: bool) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -142,6 +149,7 @@ class MlxProvider:
                     "prompt": raw_prompt,
                     "max_tokens": request.max_tokens,
                     **self._sampling_fields(request),
+                    **self._logit_bias(request),
                     "stream": False,
                 }
                 resp = await client.post(self.settings.mlx_completions_url(), json=body)
@@ -243,6 +251,7 @@ class MlxProvider:
                 "prompt": raw_prompt,
                 "max_tokens": request.max_tokens,
                 **self._sampling_fields(request),
+                **self._logit_bias(request),
                 "stream": True,
                 "stream_options": {"include_usage": True},
             }

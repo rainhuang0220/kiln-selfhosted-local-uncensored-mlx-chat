@@ -1,0 +1,108 @@
+# eval
+
+## Fixed 20K-token paired set (new, unscored)
+
+`build_compendium.py` deterministically joins the existing 50 semantic stories
+into two sectioned corpora. Each scored item appears in exactly one corpus;
+six sections overlap between corpora as distractors. The production 9B
+tokenizer counts 21,041 tokens / 30,135 characters for corpus 1 and 20,559
+tokens / 29,884 characters for corpus 2. Both are distinct from the 20,000
+character `semantic-20k.txt` speed probe.
+
+`compendium-20k-50.jsonl` freezes the 50 questions, source corpus hashes,
+answer text, evidence quotes, and exact character offsets. Every quote was
+checked against its corpus span. This is an anthology of independent semantic
+sections, not one continuous narrative. It is suitable for paired route
+comparisons and section-specific fact tests; it does not by itself prove
+cross-section global reasoning. No model score has been assigned to this set.
+
+`audit_compendium_routes.py` checks whether the current CPU document packer
+retains each item’s frozen evidence quote under the production tokenizer and
+route budgets. It reports 50/50 retained (27 packed, 23 served in full). This
+is a source coverage check, not a generated answer score. Questions contain
+explicit section IDs, which make this easier than open-ended retrieval.
+
+## Live semantic pilots (MLX PID 1581, temperature 0)
+
+`compendium-pilot-L43.json` records one direct MLX packed-route call: 9,286
+model prompt tokens, 46.799 seconds total, zero new swapout pages. The reply
+identified the correct `8 人`, but the 96-token output limit ended with
+`finish_reason=length`; it cannot be graded as a complete answer.
+
+`compendium-pilot-L01.json` records one direct MLX full-route call: 21,088
+model prompt tokens, 107.473 seconds total, 3,936 new 16-KiB swapout pages.
+The answer included the gold sentence but also the preceding sentence inside
+its purported quote. It therefore fails a strict one-sentence reading, even
+though normalized answer containment is true. Both pilots use different
+questions and corpora, and neither records TTFT, so their times are not a
+paired route speed result. After L01, `vm.swapusage` showed 15,507 MiB used
+and 877 MiB free; long GPU tests were paused.
+
+`compendium-pilot-L01-packed.json` adds an experimental packed run for the
+*same* L01 question and corpus. It used 9,450 model prompt tokens, reported
+zero cached tokens, finished normally in 45.106 seconds, and the immediate
+before/after request sample showed no new swapout pages. A later system sample
+showed Swapouts had climbed by another 146,632 pages since the prior audit;
+the intervening activity was not attributed to this call. The full L01 run
+used 21,088 tokens and 107.473 seconds, so
+this one direct-MLX total-time pair has 55.2% fewer input tokens and a 2.38x
+speed ratio. The full run did not record cache usage, and neither run recorded
+TTFT. Both answers included an unwanted preceding sentence, so both fail a
+strict one-sentence quote. This is not an end-to-end browser benchmark or a
+50-item quality finding. The production router correctly uses full input
+for L01's “逐字” request; the packed run was an experiment only. An offline
+forced-pack audit retained the frozen evidence quote in all 50 items under
+the 10,240-token budget, but generated answer quality is still unmeasured for
+49 items.
+
+`longdoc-50.jsonl` 有 50 行。`behavior-30.jsonl` 有 30 行。校验在仓库根目录执行。
+
+```bash
+python3 - << 'PY'
+import json
+from collections import Counter
+from pathlib import Path
+
+root = Path("engineering/mission-20260925/eval")
+long_lines = (root / "longdoc-50.jsonl").read_text(encoding="utf-8").splitlines()
+beh_lines = (root / "behavior-30.jsonl").read_text(encoding="utf-8").splitlines()
+assert len(long_lines) == 50
+assert len(beh_lines) == 30
+docs = [json.loads(line) for line in long_lines]
+behs = [json.loads(line) for line in beh_lines]
+for doc in docs:
+    assert doc["evidence_quote"] in doc["document"]
+    assert len(doc["evidence_quote"]) < 120
+    assert 800 <= len(doc["document"]) <= 2500
+    han = sum(1 for ch in doc["document"] if "\u4e00" <= ch <= "\u9fff")
+    assert 800 <= han <= 2500
+tasks = Counter(doc["task"] for doc in docs)
+assert min(tasks[name] for name in ("verbatim", "cross_fact", "multiturn")) >= 10
+assert {doc["needs_full_text"] for doc in docs} == {True, False}
+kinds = Counter(row["kind"] for row in behs)
+assert set(kinds) == {"ordinary", "code", "multi_turn", "boundary"}
+assert all(row["expect"] == "comply" for row in behs)
+for row in behs:
+    if row["kind"] == "multi_turn":
+        assert len(row["messages"]) >= 2
+        assert all("role" in msg and "content" in msg for msg in row["messages"])
+print("tasks", dict(tasks))
+print("needs_full_text", dict(Counter(doc["needs_full_text"] for doc in docs)))
+print("kinds", dict(kinds))
+print("PASS")
+PY
+```
+
+计数（2026-09-25，上述命令通过）：
+
+- task：verbatim 17，cross_fact 16，multiturn 17
+- needs_full_text：true 29，false 21
+- kind：ordinary 9，code 8，multi_turn 7，boundary 6
+- lang：zh 17，en 13
+
+`longdoc-scores.json` 是这 50 行在 MLX PID 1581、temperature 0 上的结果，不是更早那套模板题。去掉空格后答案整句出现：28/50。另外 18 题数字对、单位词没写。L14 和 L16 写出了带标识符的分句，少了句首几个字。数字本身错的是 L24（答 60，应为 50）和 L28（答 25，应为 15），检索片段里已经有正确的两个原数。
+
+`behavior-scores.json` 是这 30 条行为题。30 条都有正文，没有一条以拒答套话开头。这不是质量分。
+`behavior-audit.md` 复核了部分内容：B08 时区换算错误，B24 要求三句话却只有两句，B01、B28 等输出明显未写完。旧分数文件没有 `finish_reason`，不能用作完整质量验收。
+
+`semantic-20k.txt` 和上一级 `speed-paths.md` 是另一篇 20000 字，不要和这 50 题的耗时混在一起。

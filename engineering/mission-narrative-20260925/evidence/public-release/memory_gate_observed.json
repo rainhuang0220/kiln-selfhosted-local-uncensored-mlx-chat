@@ -1,0 +1,10 @@
+{
+  "snap": {
+    "swap_free_mib": 835.31,
+    "swapout_pages": 80431077,
+    "pages_free": 3929
+  },
+  "should_pause": true,
+  "reason": "low_pages_free",
+  "phase2": "NOT RUN \u2014 RESOURCE BLOCKED"
+}

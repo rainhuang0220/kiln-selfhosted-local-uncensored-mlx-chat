@@ -1,0 +1,80 @@
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=484
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=382
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=377
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=382
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=487
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=385
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=445
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=151
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+24/Sep/2026 10:35:57 [REDACTED non-HTTP/binary request line] status=400 orig_len=363
+24/Sep/2026 10:35:57 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 10:42:54 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 15:40:38 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 20:00:43 code 400, message Bad request version [payload redacted]
+? [REDACTED non-HTTP/binary request line] status=? orig_len=150
+24/Sep/2026 20:10:14 code 400, message Bad request version [payload redacted]
+24/Sep/2026 20:10:14 [REDACTED non-HTTP/binary request line] status=400 orig_len=374
+127.0.0.1 - - [24/Sep/2026 20:53:17] "GET /v1/models HTTP/1.1" 200 -
+127.0.0.1 - - [24/Sep/2026 20:59:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [24/Sep/2026 20:59:52] "GET /health HTTP/1.1" 200 -

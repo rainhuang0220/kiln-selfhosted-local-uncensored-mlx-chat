@@ -1,0 +1,23 @@
+[
+  {
+    "nonce": "warm1",
+    "ttft_s": 0.6079192091710865,
+    "total_s": 0.8060702923685312,
+    "text": "pong-warm1",
+    "finish": "stop"
+  },
+  {
+    "nonce": "warm2",
+    "ttft_s": 0.40440604090690613,
+    "total_s": 0.6022707079537213,
+    "text": "pong-warm2",
+    "finish": "stop"
+  },
+  {
+    "nonce": "warm1",
+    "ttft_s": 0.29280287493020296,
+    "total_s": 0.4821114158257842,
+    "text": "pong-warm1",
+    "finish": "stop"
+  }
+]

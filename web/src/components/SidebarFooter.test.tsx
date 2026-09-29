@@ -41,6 +41,86 @@ describe("runtimeStatus", () => {
       online: false,
     });
   });
+
+  it("does not call a live port healthy when inference is degraded", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        chat: { state: "running" },
+        gateway: { state: "DEGRADED" },
+      } as never),
+    ).toEqual({
+      title: "生成异常",
+      detail: "端口还在，最近的生成没有完成",
+      online: false,
+    });
+  });
+
+  it("keeps an expired verification distinct from a live model", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "AVAILABLE", inference_capability: "UNVERIFIED", last_verified_at: 1 },
+      } as never),
+    ).toEqual({
+      title: "端口在线",
+      detail: "近期生成尚未验证",
+      online: true,
+    });
+  });
+
+  it("names a failed generator without calling the queue busy", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "DEGRADED", inference_capability: "FAILED" },
+      } as never),
+    ).toEqual({
+      title: "生成失败",
+      detail: "端口还在，生成没有成功",
+      online: false,
+    });
+  });
+
+  it("does not claim a completed generation before one has succeeded", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        chat: { state: "running" },
+        gateway: { state: "AVAILABLE", last_verified_at: null },
+      } as never),
+    ).toEqual({
+      title: "端口在线",
+      detail: "近期生成尚未验证",
+      online: true,
+    });
+  });
+
+  it("says the model is online after a verified generation", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: true },
+        gateway: { state: "AVAILABLE", last_verified_at: 1 },
+      } as never),
+    ).toEqual({
+      title: "模型在线",
+      detail: null,
+      online: true,
+    });
+  });
+
+  it("does not blame the model when the API itself is down", () => {
+    expect(
+      runtimeStatus({
+        provider: { reachable: false },
+        gateway: { state: "API_UNREACHABLE" },
+      } as never),
+    ).toEqual({
+      title: "接口无响应",
+      detail: "不能据此判断模型进程",
+      online: false,
+    });
+  });
 });
 
 describe("SidebarFooter", () => {

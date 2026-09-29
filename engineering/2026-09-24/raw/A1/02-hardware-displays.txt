@@ -1,0 +1,40 @@
+=== system_profiler SPHardwareDataType ===
+2026-09-24 20:53:21.418 system_profiler[19614:92885574] hw.cpufamily: 0x6f5129ac
+Hardware:
+
+    Hardware Overview:
+
+      Model Name: MacBook Pro
+      Model Identifier: Mac16,1
+      Model Number: Z1JR000F7CH/A
+      Chip: Apple M4
+      Total Number of Cores: 10 (4 Performance and 6 Efficiency)
+      Memory: 24 GB
+      System Firmware Version: 18000.120.36
+      OS Loader Version: 18000.120.36
+      Serial Number (system): [redacted]
+      Hardware UUID: [redacted]
+      Provisioning UDID: [redacted]
+      Activation Lock Status: Disabled
+
+=== system_profiler SPDisplaysDataType ===
+Graphics/Displays:
+
+    Apple M4:
+
+      Chipset Model: Apple M4
+      Type: GPU
+      Bus: Built-In
+      Total Number of Cores: 10
+      Vendor: Apple (0x106b)
+      Metal Support: Metal 4
+      Displays:
+        Color LCD:
+          Display Type: Built-in Liquid Retina XDR Display
+          Resolution: 3024 x 1964 Retina
+          Main Display: Yes
+          Mirror: Off
+          Online: Yes
+          Automatically Adjust Brightness: Yes
+          Connection Type: Internal
+

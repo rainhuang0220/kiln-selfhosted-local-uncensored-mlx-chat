@@ -1,0 +1,52 @@
+=== homebrew 3.14 metadata without importing mlx ===
+executable /opt/homebrew/opt/python@3.14/bin/python3.14
+version 3.14.7
+mlx 0.32.1
+mlx-lm 0.31.3
+mlx-metal 0.32.1
+transformers 5.15.0
+tokenizers 0.22.2
+huggingface_hub 1.27.0
+=== homebrew dist-info ===
+purelib=/opt/homebrew/lib/python3.14/site-packages
+/opt/homebrew/lib/python3.14/site-packages/huggingface_hub-1.27.0.dist-info
+/opt/homebrew/lib/python3.14/site-packages/mlx_lm-0.31.3.dist-info
+/opt/homebrew/lib/python3.14/site-packages/mlx_metal-0.32.1.dist-info
+/opt/homebrew/lib/python3.14/site-packages/mlx-0.32.1.dist-info
+/opt/homebrew/lib/python3.14/site-packages/tokenizers-0.22.2.dist-info
+/opt/homebrew/lib/python3.14/site-packages/transformers-5.15.0.dist-info
+=== cellar python3.12 user/system purelib ===
+3.12.12 (main, Oct  9 2025, 11:07:00) [Clang 17.0.0 (clang-1700.6.3.2)]
+/opt/homebrew/lib/python3.12/site-packages
+=== uv pip show if local ===
+/opt/homebrew/bin/uv
+uv 0.10.0 (Homebrew 2026-02-05)
+2:Name: huggingface-hub
+3:Version: 1.28.0
+4:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+5:Requires: click, filelock, fsspec, hf-xet, httpx, packaging, pyyaml, tqdm, typing-extensions
+7:---
+8:Name: mlx
+9:Version: 0.32.1
+10:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+11:Requires: mlx-metal
+13:---
+14:Name: mlx-lm
+15:Version: 0.31.3
+16:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+17:Requires: jinja2, mlx, numpy, protobuf, pyyaml, sentencepiece, transformers
+19:---
+20:Name: mlx-metal
+21:Version: 0.32.1
+22:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+23:Requires:
+25:---
+26:Name: tokenizers
+27:Version: 0.22.2
+28:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+29:Requires: huggingface-hub
+31:---
+32:Name: transformers
+33:Version: 5.15.1
+34:Location: /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages
+35:Requires: huggingface-hub, numpy, packaging, pyyaml, regex, safetensors, tokenizers, tqdm, typer

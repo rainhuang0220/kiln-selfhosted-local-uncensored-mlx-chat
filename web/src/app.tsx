@@ -1,15 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
+import { BookUser, LibraryBig, Menu, PanelLeftClose, PanelLeftOpen, Plus, Quote, Trash2 } from "lucide-react";
 import { AuthGate } from "./components/AuthGate";
 import { SidebarFooter } from "./components/SidebarFooter";
 import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
+import { DzmmSettings } from "./components/DzmmSettings";
+import { ContextPresetStudio } from "./components/ContextPresetStudio";
+import { apiFetch } from "./api/http";
 import { groupConversations } from "./lib/groups";
 import { applyTheme, readThemePref } from "./lib/theme";
 import { formatTokens, formatTokensShort, relativeTime } from "./lib/time";
-import { PROFILE_LABELS, isIncompleteTerminal, terminalCopy } from "./lib/profiles";
+import {
+  DRAFT_MAX_CHARS,
+  PROFILE_HELP,
+  PROFILE_LABELS,
+  PROFILE_PRIMARY,
+  isIncompleteTerminal,
+  normalizePrimaryProfile,
+  terminalCopy,
+} from "./lib/profiles";
+import { serviceBanner } from "./lib/service-banner";
 import { useChatStore } from "./stores/chat-store";
 import type { GenerationProfile } from "./types/chat";
 
@@ -103,6 +115,7 @@ export function App() {
     () => window.localStorage.getItem("kiln.sidebar") === "collapsed",
   );
   const [modelWorkbenchOpen, setModelWorkbenchOpen] = useState(false);
+  const [presetStudioOpen, setPresetStudioOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches,
   );
@@ -214,6 +227,9 @@ export function App() {
           >
             <Plus size={15} /> New chat
           </button>
+          <button className="btn ghost full preset-launch" type="button" onClick={() => { setPresetStudioOpen(true); closeSidebar(); }}>
+            <BookUser size={15} /> 人物与场景预设
+          </button>
           {store.role === "owner" || !store.authRequired ? (
             <button className="btn ghost full model-library-launch" type="button" onClick={() => setModelWorkbenchOpen(true)}>
               <LibraryBig size={15} /> Model library
@@ -301,6 +317,7 @@ export function App() {
             <Menu size={18} />
           </button>
           <h2>{title}</h2>
+          {(store.role === "owner" || !store.authRequired) ? <DzmmSettings /> : null}
           <div className="head-actions">
             {store.activeId ? (
               <button
@@ -461,9 +478,9 @@ export function App() {
             ))
           )}
         </div>
-        {!store.health?.provider.reachable ? (
+        {serviceBanner(store.health) ? (
           <div className="banner" role="status">
-            模型暂时离线。Mac 上的 mlx 由 LaunchAgent 常驻，通常会在一两分钟内自动拉起，请稍后再发。
+            {serviceBanner(store.health)}
           </div>
         ) : null}
         {store.error ? (
@@ -487,17 +504,23 @@ export function App() {
           }}
         >
           <div className="composer">
+            <button type="button" className="composer-preset-launch" onClick={() => setPresetStudioOpen(true)}>
+              <BookUser size={14} />
+              {store.contextPresetTitle ? `已选预设：${store.contextPresetTitle}` : "人物与场景预设"}
+              <span>{store.activeId ? "下个新会话生效" : "新会话生效"}</span>
+            </button>
             <textarea
               value={store.draft}
+              maxLength={DRAFT_MAX_CHARS}
               placeholder={
-                store.health?.provider.reachable
-                  ? isMobile
+                serviceBanner(store.health)
+                  ? "模型暂不可用。看上面的状态说明。"
+                  : isMobile
                     ? "写给窑火。点 Send 发送。"
                     : "Write to the kiln. Enter to send, Shift+Enter for a newline. Drop text files here."
-                  : "模型离线，正在自动重连。加载完成后即可发送。"
               }
               rows={3}
-              onChange={(e) => store.setDraft(e.target.value)}
+              onChange={(e) => store.setDraft(e.target.value.slice(0, DRAFT_MAX_CHARS))}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -509,20 +532,52 @@ export function App() {
             />
             <div className="composer-bar">
               <div className="toggles">
-                <select
-                  value={store.params.profile}
-                  onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
-                  aria-label="Generation profile"
-                >
-                  {(Object.keys(PROFILE_LABELS) as GenerationProfile[]).map((key) => (
-                    <option key={key} value={key}>
-                      {PROFILE_LABELS[key]}
-                    </option>
-                  ))}
-                </select>
+                <div className="profile-picker">
+                  <select
+                    value={
+                      store.params.profile === "reasoning"
+                        ? "reasoning"
+                        : normalizePrimaryProfile(store.params.profile)
+                    }
+                    onChange={(e) => store.setProfile(e.target.value as GenerationProfile)}
+                    aria-label="Generation profile"
+                  >
+                    {PROFILE_PRIMARY.map((key) => (
+                      <option key={key} value={key}>
+                        {PROFILE_LABELS[key]}
+                      </option>
+                    ))}
+                    {store.params.profile === "reasoning" ? (
+                      <option value="reasoning">{PROFILE_LABELS.reasoning}</option>
+                    ) : null}
+                  </select>
+                  <p className="profile-help">
+                    {PROFILE_HELP[
+                      store.params.profile === "reasoning"
+                        ? "immersive"
+                        : normalizePrimaryProfile(store.params.profile)
+                    ] || PROFILE_HELP.immersive}
+                  </p>
+                </div>
                 <details className="advanced">
                   <summary>Advanced</summary>
                   <div className="advanced-grid">
+                    <label>
+                      profile
+                      <select
+                        value={store.params.profile === "reasoning" ? "reasoning" : "primary"}
+                        onChange={(e) => {
+                          if (e.target.value === "reasoning") {
+                            store.setProfile("reasoning");
+                          } else {
+                            store.setProfile(normalizePrimaryProfile(store.params.profile));
+                          }
+                        }}
+                      >
+                        <option value="primary">primary</option>
+                        <option value="reasoning">{PROFILE_LABELS.reasoning}</option>
+                      </select>
+                    </label>
                     <label>
                       <input
                         type="checkbox"
@@ -617,19 +672,24 @@ export function App() {
                   />
                 </label>
               </div>
-              {store.streaming ? (
-                <button className="btn" onClick={() => store.stop()}>
-                  Stop
-                </button>
-              ) : (
-                <button
-                  className="btn primary"
-                  disabled={!store.draft.trim()}
-                  onClick={() => void store.send()}
-                >
-                  Send
-                </button>
-              )}
+              <div className="composer-actions">
+                <span className="draft-counter" aria-live="polite">
+                  {store.draft.length} / {DRAFT_MAX_CHARS}
+                </span>
+                {store.streaming ? (
+                  <button className="btn" onClick={() => store.stop()}>
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    className="btn primary"
+                    disabled={!store.draft.trim()}
+                    onClick={() => void store.send()}
+                  >
+                    Send
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -640,11 +700,25 @@ export function App() {
       <aside className="inspector" id="inspector" aria-label="Context inspector">
         <div className="inspector-head">
           <h3>Context</h3>
-          <span style={{ color: "var(--muted)", fontSize: 12 }}>what the model saw</span>
+          <button type="button" className="btn ghost inspector-preset-launch" onClick={() => setPresetStudioOpen(true)}>
+            <BookUser size={14} /> 人物预设
+          </button>
         </div>
         <Inspector />
       </aside>
       <ModelWorkbench open={modelWorkbenchOpen} onClose={() => setModelWorkbenchOpen(false)} />
+      {presetStudioOpen ? (
+        <ContextPresetStudio
+          onClose={() => setPresetStudioOpen(false)}
+          onStartNewChat={() => {
+            store.stop();
+            void store.openConversation(null);
+            navigate("/");
+            setView("chat");
+            setPresetStudioOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -658,7 +732,10 @@ function ContextChip() {
   const pct = win ? Math.min(100, Math.round((prompt / win) * 100)) : 0;
   const packed = Boolean(occ?.document_pack?.applied);
   const truncated = Boolean(snapshot?.truncation.applied);
-  const online = Boolean(health?.provider.reachable);
+  const gatewayState = health?.gateway?.state;
+  const online = gatewayState
+    ? gatewayState === "AVAILABLE" || gatewayState === "BUSY"
+    : Boolean(health?.provider.reachable);
   const warn = pct > 85 || packed || truncated;
   return (
     <div
@@ -733,10 +810,81 @@ function Inspector() {
   const snapshot = useChatStore((s) => s.snapshot);
   const health = useChatStore((s) => s.health);
   const messages = useChatStore((s) => s.messages);
+  const characterCardId = useChatStore((s) => s.characterCardId);
+  const setCharacterCardId = useChatStore((s) => s.setCharacterCardId);
+  const [cardName, setCardName] = useState("");
+  const [cardPersonality, setCardPersonality] = useState("");
+  const [cardSpeech, setCardSpeech] = useState("");
+  const [cardImmutable, setCardImmutable] = useState("");
+  const [cardScenario, setCardScenario] = useState("");
+  const [cardStatus, setCardStatus] = useState<string | null>(null);
   const last = [...messages].reverse().find((m) => m.role === "assistant");
+
+  async function saveCard() {
+    setCardStatus("saving…");
+    try {
+      const body = {
+        name: cardName || "未命名角色",
+        personality: cardPersonality,
+        speech_style: cardSpeech,
+        scenario: cardScenario,
+        immutable_json: cardImmutable
+          .split(/[\n,，]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      };
+      const res = await apiFetch(characterCardId ? `/context/cards/${characterCardId}` : "/context/cards", {
+        method: characterCardId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setCardStatus("save failed");
+        return;
+      }
+      const card = await res.json();
+      setCharacterCardId(card.id);
+      setCardStatus(`saved ${card.id.slice(0, 8)}`);
+    } catch {
+      setCardStatus("save failed");
+    }
+  }
+
   if (!snapshot) {
     return (
       <div className="inspector-body">
+        <div className="card">
+          <h4>角色卡</h4>
+          <p style={{ margin: "0 0 8px", color: "var(--muted)", fontSize: 12 }}>
+            保存后，新会话会把卡编译进 system（会话内冻结）。
+          </p>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            名称
+            <input value={cardName} onChange={(e) => setCardName(e.target.value)} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            personality
+            <textarea value={cardPersonality} onChange={(e) => setCardPersonality(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            speech / 称谓
+            <textarea value={cardSpeech} onChange={(e) => setCardSpeech(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            immutable（逗号或换行）
+            <textarea value={cardImmutable} onChange={(e) => setCardImmutable(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+            scenario
+            <textarea value={cardScenario} onChange={(e) => setCardScenario(e.target.value)} rows={2} style={{ width: "100%" }} />
+          </label>
+          <button type="button" onClick={() => void saveCard()}>
+            保存角色卡
+          </button>
+          {cardStatus ? (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>{cardStatus}</p>
+          ) : null}
+        </div>
         <div className="card">
           <h4>Waiting</h4>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
@@ -831,6 +979,22 @@ function Inspector() {
         <div className="card">
           <h4>Compressed history</h4>
           <div className="sys">{snapshot.history_summary}</div>
+        </div>
+      ) : null}
+      {(snapshot as { scene_state?: unknown; lore_keys?: string[]; visible_chars?: number }).scene_state ||
+      (snapshot as { lore_keys?: string[] }).lore_keys ? (
+        <div className="card">
+          <h4>Scene / lore</h4>
+          <div className="sys">
+            {JSON.stringify(
+              {
+                lore_keys: (snapshot as { lore_keys?: string[] }).lore_keys,
+                scene_state: (snapshot as { scene_state?: unknown }).scene_state,
+              },
+              null,
+              2,
+            )}
+          </div>
         </div>
       ) : null}
       <div className="card">

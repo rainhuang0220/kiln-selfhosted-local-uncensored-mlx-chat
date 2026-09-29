@@ -1,0 +1,21 @@
+=== date ===
+2026年 9月24日 星期四 20时53分21秒 CST
+=== sw_vers ===
+ProductName:		macOS
+ProductVersion:		26.5
+BuildVersion:		25F71
+=== uname -a ===
+Darwin rainhuangdeMacBook-Pro-7.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:26 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T8132 arm64
+=== sysctl selected ===
+hw.memsize: 25769803776
+hw.memsize_usable: 24904433664
+hw.ncpu: 10
+hw.physicalcpu: 10
+hw.physicalcpu_max: 10
+hw.logicalcpu: 10
+hw.logicalcpu_max: 10
+hw.optional.arm64: 1
+machdep.cpu.brand_string: Apple M4
+=== sysctl pagesize ===
+hw.pagesize: 16384
+vm.pagesize: 16384

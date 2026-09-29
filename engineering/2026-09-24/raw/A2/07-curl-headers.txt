@@ -1,0 +1,37 @@
+date=2026年 9月24日 星期四 21时04分52秒 CST
+(eval):127: command not found: tr
+===== GET http://127.0.0.1:8081/v1/models =====
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.12.12
+Date: Thu, 24 Sep 2026 13:04:52 GMT
+Content-type: application/json
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+Access-Control-Allow-Headers: *
+
+
+curl_exit=0 body_bytes=     148
+(eval):127: command not found: tr
+===== GET http://127.0.0.1:8081/health =====
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.12.12
+Date: Thu, 24 Sep 2026 13:04:52 GMT
+Content-type: application/json
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+Access-Control-Allow-Headers: *
+
+
+curl_exit=0 body_bytes=      16
+(eval):127: command not found: tr
+===== GET http://127.0.0.1:8081/ =====
+HTTP/1.0 404 Not Found
+Server: BaseHTTP/0.6 Python/3.12.12
+Date: Thu, 24 Sep 2026 13:04:52 GMT
+Content-type: application/json
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+Access-Control-Allow-Headers: *
+
+
+curl_exit=0 body_bytes=       9

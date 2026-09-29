@@ -1,0 +1,48 @@
+A3 raw evidence. Read-only. No generation request was sent by this agent.
+Fetched 2026-09-24. Upstream snapshots: raw/A3/upstream-main/server.py and generate.py (mlx-lm main, not the install).
+
+INSTALLED
+- PID 1581 started Fri Sep 11 19:50:33 2026, cwd /Users/rainhuang/Desktop/models/kiln
+- interpreter: /opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python
+- argv: -m mlx_lm.server --model /Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4 --host 127.0.0.1 --port 8081 --max-tokens 32768 --temp 1.0 --top-p 0.95 --top-k 20 --decode-concurrency 1 --prompt-concurrency 1 --prefill-step-size 1024 --prompt-cache-size 4 --prompt-cache-bytes 4G --chat-template-args {"enable_thinking":false,"reasoning_effort":"medium"}
+- packages from kiln/.venv (importlib.metadata + dist-info):
+  mlx 0.32.1  site-packages/mlx-0.32.1.dist-info  + mlx/lib/libmlx.dylib loaded by PID 1581
+  mlx-metal 0.32.1
+  mlx-lm 0.31.3  site-packages/mlx_lm-0.31.3.dist-info  mlx_lm/_version.py __version__ = "0.31.3"
+- mapped .so confirms the venv, not Homebrew site-packages:
+  .../kiln/.venv/lib/python3.12/site-packages/mlx/core.cpython-312-darwin.so
+
+KILN GIT
+- branch ui/account-menu-placement
+- HEAD 0a4322de9a506b54411af2ed10f8c081e73ba003
+- feat/conversational-reliability tip cbbaa6e is the merge-base and an ancestor of HEAD
+- a6a4d2e (2026-09-11 14:18 +0800) is an ancestor of HEAD
+- no nonce / circuit-breaker symbol on either branch (git grep)
+
+LOG /private/tmp/kiln-mlx.err (15MB, still appended by PID 1581)
+- Exception in thread Thread-1 (_generate): IndexError list index out of range: 7
+- every one is POST /v1/completions, stack:
+    server.py:776 batch_generator.insert_segments
+    generate.py:1646 if len(seq[-1]) != 1
+- timestamps 2026-09-11 14:55:00, 15:05:26, 19:40:11, 19:43:53, 19:48:30, 19:49:16, 19:50:01
+- each death is followed by GET /health 200 and then a new "Starting httpd" (process restart)
+- current process log line: 2026-09-11 19:50:34,791 Starting httpd
+- after that line, through the scan: chat access 528x200 and 1x404, /v1/completions 0, thread deaths 0, "There is no Stream" 0
+- last observed chat access line in that scan: 2026-09-24 21:12:12 POST /v1/chat/completions 200
+- the err file is still appended by PID 1581; counts are a snapshot
+- last cache stats seen near 21:00: Prompt Cache: 4 sequences, 0.23 GB (assistant 1 / user 2 / system 1). Count cap full, byte cap (4G) not close.
+- BrokenPipeError ~206, all HTTP-handler write failures, not this IndexError
+
+GITHUB (gh api, 2026-09-24)
+- mlx-lm tags: latest is v0.31.3 (ed1fca4cef). main is 129 commits ahead. No newer release.
+- #1256 OPEN. Created 2026-05-07. Title: server crashes with 'There is no Stream(gpu, 1) in current thread' on sliding-window models (mlx-lm 0.31.3). One comment (vinayvobbili) says the same stream error also hits non-RotatingKVCache models on vllm-mlx worker threads. No fix comment. Related: merged PR #1090 (in the 0.31.3 tag, partial), closed-unmerged PR #1088 and #1182. Later on main, not in the tag: #1775 (2026-08-26, wrap decode loops) and #1840 (2026-09-04, server passes one stream into stream_generate).
+- #1834 OPEN. Created 2026-09-03, updated_at same instant, timeline length 0, no comments, no linked PR. Deadlock in mlx::core::eval_impl condition_variable::wait when prompt cache is full under concurrency. Reporter: mlx 0.32.0 and 0.31.2, mlx-lm 0.31.3. They say 0.31.2 -> 0.32.0 did not fix it. mlx 0.32.1 (2026-08-18) and 0.32.2 (2026-08-25) release notes do not mention this deadlock. Issue filed after 0.32.2 and still open.
+- #1472 CLOSED 2026-09-04. Different death: TypeError NoneType when a batch mixes logits processors. Not the captured IndexError. Fix is on main, not in 0.31.3.
+- #1837 merged 2026-09-11 (f2b0c475b9) "dead generation thread": does NOT stop insert_segments from raising. It wraps _generate, sets _generation_failed, and /health returns 503. Not in 0.31.3.
+- #1791 merged 2026-09-05: /health 503 when the thread is dead. Not in 0.31.3.
+- main generate.py insert_segments (fetched snapshot) still raises if the segment list is empty (ValueError "empty prompt") instead of IndexError. main server.py still calls insert_segments after the exact-hit loop pops every segment, outside the tokenize try. Root crash remains on main; only the aftermath (log + health 503 + generate() raises) changed.
+
+NOT DECLARED
+- PID 1581's thread is not currently dead: post-restart log has completed chat 200s and zero IndexError.
+- #1834 native deadlock was not captured (no sample, cache bytes far under 4G, prompt-concurrency 1).
+- #1256 Stream(gpu) was not captured in this err log. Live model is qwen3_5 hybrid ArraysCache+KVCache, not RotatingKVCache. Server batch path binds the worker default stream.

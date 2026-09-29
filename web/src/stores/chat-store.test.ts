@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiFetch } from "../api/http";
 import { isIncompleteTerminal, terminalCopy } from "../lib/profiles";
 import { useChatStore } from "./chat-store";
@@ -8,6 +8,18 @@ vi.mock("../api/http", () => ({
 }));
 
 const mocked = vi.mocked(apiFetch);
+const savedSelection = new Map<string, string>();
+
+beforeEach(() => {
+  savedSelection.clear();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => savedSelection.get(key) ?? null,
+    setItem: (key: string, value: string) => { savedSelection.set(key, value); },
+    removeItem: (key: string) => { savedSelection.delete(key); },
+  });
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 function sse(body: string): Response {
   return new Response(body, {
@@ -39,14 +51,34 @@ describe("auth privacy", () => {
       authOk: false,
       authChecked: true,
       username: null,
+      activeId: null,
+      streaming: false,
       conversations: [{ id: "c1" } as never],
       messages: [{ id: "m1" } as never],
       draft: "secret",
+      contextPresetId: "private-preset",
+      contextPresetTitle: "私有人物",
+      contextPresetOwner: null,
     });
+  });
+
+  it("reads authenticated runtime health through the public proxy path", async () => {
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "rain" });
+      if (url === "/auth/runtime") {
+        return json({ provider: { reachable: true }, gateway: { state: "AVAILABLE", inference_capability: "UNVERIFIED" } });
+      }
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(mocked.mock.calls.map(([url]) => url)).toEqual(["/auth/status", "/auth/runtime"]);
+    expect(useChatStore.getState().health?.gateway?.inference_capability).toBe("UNVERIFIED");
   });
 
   it("keeps lock as a session-revoke primitive", async () => {
     useChatStore.setState({ username: "rain", authOk: true, draft: "secret" });
+    useChatStore.getState().setContextPreset("p-lock", "锁定前预设");
+    expect(JSON.stringify([...savedSelection.values()])).toContain("p-lock");
     mocked.mockResolvedValue(json({ ok: true, locked: true }));
     await useChatStore.getState().lock();
     expect(mocked.mock.calls[0][0]).toBe("/auth/lock");
@@ -54,6 +86,7 @@ describe("auth privacy", () => {
     expect(useChatStore.getState().lockedUser).toBe("rain");
     expect(useChatStore.getState().authOk).toBe(false);
     expect(useChatStore.getState().draft).toBe("");
+    expect(savedSelection.size).toBe(0);
   });
 
   it("sends remember_me false by default and wipes private state on login failure", async () => {
@@ -64,6 +97,109 @@ describe("auth privacy", () => {
     expect(body.remember_me).toBe(false);
     expect(useChatStore.getState().draft).toBe("");
     expect(useChatStore.getState().conversations).toEqual([]);
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+  });
+
+  it("restores a saved ID only after the current account's list confirms ownership", async () => {
+    useChatStore.setState({ username: "alice", authOk: true });
+    useChatStore.getState().setContextPreset("p-alice", "不应落盘的标题");
+    expect(JSON.stringify([...savedSelection.values()])).toContain("p-alice");
+    expect(JSON.stringify([...savedSelection])).not.toContain("不应落盘的标题");
+    useChatStore.getState().wipePrivateState();
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "alice" });
+      if (url === "/context/presets") return json({ object: "list", data: [{ id: "p-alice", title: "恢复后标题", payload: {}, updated_at: 1 }] });
+      if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(mocked.mock.calls.map(([url]) => url)).toContain("/context/presets");
+    expect(useChatStore.getState().contextPresetId).toBe("p-alice");
+    expect(useChatStore.getState().contextPresetTitle).toBe("恢复后标题");
+  });
+
+  it("discards a stored ID when the authenticated account cannot list it", async () => {
+    useChatStore.setState({ username: "alice", authOk: true });
+    useChatStore.getState().setContextPreset("p-old", "旧预设");
+    useChatStore.getState().wipePrivateState();
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "alice" });
+      if (url === "/context/presets") return json({ object: "list", data: [{ id: "p-other", title: "别人的预设" }] });
+      if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+    expect(savedSelection.size).toBe(0);
+  });
+
+  it("does not restore Alice's selection for Bob and clears it on logout", async () => {
+    useChatStore.setState({ username: "alice", authOk: true });
+    useChatStore.getState().setContextPreset("p-alice", "Alice 的预设");
+    useChatStore.getState().wipePrivateState();
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "bob" });
+      if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
+      if (url === "/auth/logout") return json({ ok: true });
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+    expect(mocked.mock.calls.some(([url]) => url === "/context/presets")).toBe(false);
+    expect(savedSelection.size).toBe(0);
+    useChatStore.getState().setContextPreset("p-bob", "Bob 的预设");
+    await useChatStore.getState().logout();
+    expect(savedSelection.size).toBe(0);
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+  });
+
+  it("clears an in-memory selection on account change when session storage is unavailable", async () => {
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => { throw new Error("storage blocked"); },
+      setItem: () => { throw new Error("storage blocked"); },
+      removeItem: () => { throw new Error("storage blocked"); },
+    });
+    useChatStore.setState({ username: "alice", authOk: true });
+    useChatStore.getState().setContextPreset("p-alice", "Alice 的预设");
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "bob" });
+      if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
+      throw new Error(`unmocked ${url}`);
+    });
+    await useChatStore.getState().loadHealth();
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+    expect(useChatStore.getState().contextPresetTitle).toBeNull();
+  });
+
+  it("waits for the saved ID to be validated before a fast first send", async () => {
+    useChatStore.setState({ username: "alice", authOk: true });
+    useChatStore.getState().setContextPreset("p-alice", "旧标题");
+    useChatStore.getState().wipePrivateState();
+    let releaseList: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseList = resolve; });
+    mocked.mockImplementation(async (url: string) => {
+      if (url === "/auth/status") return json({ required: true, ok: true, username: "alice" });
+      if (url === "/context/presets") {
+        await gate;
+        // Fresh Response per waiter — body can only be read once.
+        return json({ object: "list", data: [{ id: "p-alice", title: "恢复后标题", payload: {} }] });
+      }
+      if (url === "/auth/runtime") return json({ status: "ok", provider: { reachable: true } });
+      if (url === "/chat") return sse('event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n');
+      if (String(url).startsWith("/conversation")) return json({ data: [] });
+      throw new Error(`unmocked ${url}`);
+    });
+    const loading = useChatStore.getState().loadHealth();
+    await vi.waitFor(() => expect(mocked.mock.calls.some(([url]) => url === "/context/presets")).toBe(true));
+    expect(useChatStore.getState().activeId).toBeNull();
+    useChatStore.setState({ draft: "开始" });
+    const sending = useChatStore.getState().send();
+    expect(mocked.mock.calls.filter(([url]) => url === "/chat")).toHaveLength(0);
+    releaseList?.();
+    await Promise.all([loading, sending]);
+    expect(useChatStore.getState().contextPresetId).toBe("p-alice");
+    const body = JSON.parse(String(mocked.mock.calls.find(([url]) => url === "/chat")?.[1]?.body));
+    expect(body.context_preset_id).toBe("p-alice");
   });
 });
 
@@ -79,6 +215,9 @@ describe("chat store generation UI", () => {
       controller: null,
       conversations: [],
       snapshot: null,
+      contextPresetId: null,
+      contextPresetTitle: null,
+      contextPresetOwner: null,
     });
   });
 
@@ -99,6 +238,53 @@ describe("chat store generation UI", () => {
     expect(useChatStore.getState().error).toBeNull();
   });
 
+  it("applies a selected context preset only to a new conversation", async () => {
+    chatThenConversations(
+      'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n' +
+        'event: done\ndata: {"finish_reason":"stop","terminal_state":"completed_stop","incomplete":false,"message":{"content":"好"}}\n\n',
+    );
+    useChatStore.getState().setContextPreset("preset-1", "茶室角色");
+    useChatStore.setState({ draft: "开始" });
+    await useChatStore.getState().send();
+    const first = JSON.parse(String(mocked.mock.calls.find(([url]) => url === "/chat")?.[1]?.body));
+    expect(first.context_preset_id).toBe("preset-1");
+    expect(first.character_card_id).toBeUndefined();
+    expect(useChatStore.getState().activeId).toBe("c1");
+
+    mocked.mockClear();
+    useChatStore.setState({ draft: "继续" });
+    await useChatStore.getState().send();
+    const second = JSON.parse(String(mocked.mock.calls.find(([url]) => url === "/chat")?.[1]?.body));
+    expect(second.context_preset_id).toBeUndefined();
+    expect(useChatStore.getState().contextPresetTitle).toBe("茶室角色");
+  });
+
+  it("switches exclusively between a character card and a context preset", () => {
+    useChatStore.setState({ authRequired: true, authOk: true, username: "alice" });
+    useChatStore.getState().setCharacterCardId("card-1");
+    useChatStore.getState().setContextPreset("preset-1", "茶室角色");
+    expect(useChatStore.getState().characterCardId).toBeNull();
+    expect(JSON.stringify([...savedSelection.values()])).toContain("preset-1");
+    useChatStore.getState().setCharacterCardId("card-2");
+    expect(useChatStore.getState().contextPresetId).toBeNull();
+    expect(savedSelection.size).toBe(0);
+  });
+
+  it("marks a user stop as abort without waiting for a reload", async () => {
+    mocked.mockImplementation(async () => {
+      throw new DOMException("Aborted", "AbortError");
+    });
+    useChatStore.setState({ draft: "停" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.status).toBe("interrupted");
+    expect(asst?.incomplete).toBe(true);
+    expect(asst?.finish_reason).toBe("abort");
+    expect(asst?.terminal_state).toBe("interrupted_user");
+    expect(terminalCopy(asst?.finish_reason, asst?.terminal_state)).toBe("已中断");
+    expect(useChatStore.getState().error).toBeNull();
+  });
+
   it("shows length copy without an error banner and keeps Continue eligible", async () => {
     chatThenConversations(
       'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true}\n\n' +
@@ -113,6 +299,36 @@ describe("chat store generation UI", () => {
     expect(useChatStore.getState().error).toBeNull();
     expect(terminalCopy(asst?.finish_reason, asst?.terminal_state)).toBe("已达到输出上限");
     expect(asst?.finish_reason === "length").toBe(true);
+  });
+
+  it("does not append a duplicate sequence or a frame from another request", async () => {
+    chatThenConversations(
+      'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true,"request_id":"r1","seq":1}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r2","seq":3,"content":"乙"}\n\n' +
+        'event: done\ndata: {"request_id":"r1","seq":3,"finish_reason":"stop","terminal_state":"completed_stop","incomplete":false}\n\n',
+    );
+    useChatStore.setState({ draft: "测序" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.content).toBe("甲");
+    expect(asst?.status).not.toBe("complete");
+  });
+
+  it("keeps a sequence gap from looking like a clean stop", async () => {
+    chatThenConversations(
+      'event: meta\ndata: {"conversation_id":"c1","message_id":"a1","user_message_id":"u1","created":true,"request_id":"r1","seq":1}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":2,"content":"甲"}\n\n' +
+        'event: delta\ndata: {"request_id":"r1","seq":4,"content":"丙"}\n\n' +
+        'event: done\ndata: {"request_id":"r1","seq":5,"finish_reason":"stop","terminal_state":"completed_stop","incomplete":false}\n\n',
+    );
+    useChatStore.setState({ draft: "缺口" });
+    await useChatStore.getState().send();
+    const asst = useChatStore.getState().messages.find((m) => m.role === "assistant");
+    expect(asst?.content).toBe("甲");
+    expect(asst?.status).not.toBe("complete");
+    expect(asst?.terminal_state).toBe("completed_with_transport_error");
   });
 
   it("does not show error copy after a normal stop", async () => {

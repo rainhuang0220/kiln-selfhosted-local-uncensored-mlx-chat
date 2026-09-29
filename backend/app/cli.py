@@ -23,6 +23,22 @@ def create_owner(username: str, password: str) -> None:
     print("legacy null-owner conversations/memories/media assigned to this owner")
 
 
+def create_user(username: str, password: str) -> None:
+    """Local-only account issuance. Do not expose this over the public internet."""
+    init_db(settings.sqlite_path)
+    if accounts.user_count() == 0:
+        raise SystemExit("no owner yet; run create-owner first")
+    try:
+        user = accounts.create_user(username, password)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — surface IntegrityError as username taken
+        if "UNIQUE" in str(exc).upper() or "unique" in str(exc).lower():
+            raise SystemExit("username taken") from exc
+        raise
+    print(f"user created username={user.username} role={user.role}")
+
+
 def create_token(username: str, name: str) -> None:
     init_db(settings.sqlite_path)
     row = accounts.get_conn().execute(
@@ -40,6 +56,11 @@ def main(argv: list[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     owner = sub.add_parser("create-owner", help="create the first owner on this machine")
     owner.add_argument("--username", required=True)
+    user_cmd = sub.add_parser(
+        "create-user",
+        help="create an additional local account (owner-issued; not a public signup)",
+    )
+    user_cmd.add_argument("--username", required=True)
     token = sub.add_parser("create-api-token", help="create a revocable API bearer token")
     token.add_argument("--username", required=True)
     token.add_argument("--name", default="cli")
@@ -54,6 +75,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "create-owner":
         password = os.environ.get("KILN_BOOTSTRAP_PASSWORD") or getpass.getpass("owner password: ")
         create_owner(args.username, password)
+        return
+    if args.cmd == "create-user":
+        password = os.environ.get("KILN_NEW_USER_PASSWORD") or getpass.getpass("user password: ")
+        create_user(args.username, password)
         return
     if args.cmd == "create-api-token":
         create_token(args.username, args.name)

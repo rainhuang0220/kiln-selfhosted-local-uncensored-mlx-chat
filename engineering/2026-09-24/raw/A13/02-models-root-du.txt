@@ -1,0 +1,36 @@
+=== models root listing ===
+total 32
+drwxr-xr-x@  17 rainhuang  staff    544  9月 10 22:59 .
+drwx------@ 596 rainhuang  staff  19072  9月 24 11:32 ..
+-rw-r--r--@   1 rainhuang  staff  14340  9月 15 15:09 .DS_Store
+drwxr-xr-x    8 rainhuang  staff    256  9月  3 19:22 .media-venv
+drwxr-xr-x    7 rainhuang  staff    224  9月  3 17:49 .mtplx-venv
+drwxr-xr-x    6 rainhuang  staff    192  8月 23 01:13 .pytest_cache
+drwxr-xr-x@  12 rainhuang  staff    384  9月 14 01:19 image-flux1-dev-mflux-4bit
+drwxr-xr-x   11 rainhuang  staff    352  9月  3 18:31 image-flux2-klein-4b-mflux-4bit
+drwxr-xr-x    5 rainhuang  staff    160  9月  3 18:31 image-flux2-klein-4b-uncensored-te
+drwxr-xr-x   10 rainhuang  staff    320  9月  3 18:31 image-z-image-turbo-mflux-4bit
+drwxr-xr-x   30 rainhuang  staff    960  9月 24 20:49 kiln
+drwxr-xr-x   15 rainhuang  staff    480  8月 23 17:00 qwen3.5-9b-hauhau-aggressive-mxfp4
+drwxr-xr-x@  15 rainhuang  staff    480  8月 22 19:04 qwen3.8-27b
+drwxr-xr-x    6 rainhuang  staff    192  9月  3 20:05 video-nsfw-wan-1.3b
+drwxr-xr-x    6 rainhuang  staff    192  9月  3 23:29 video-nsfw-wan-1.3b-mlx
+drwxr-xr-x   11 rainhuang  staff    352  9月  3 23:26 video-wan21-t2v-1.3b-aux
+drwxr-xr-x    5 rainhuang  staff    160  9月  3 21:21 video-wan21-t2v-1.3b-nsfw-src
+
+=== top-level du -sh (apparent, read-only) ===
+9.0G	/Users/rainhuang/Desktop/models/image-flux1-dev-mflux-4bit
+4.4G	/Users/rainhuang/Desktop/models/image-flux2-klein-4b-mflux-4bit
+ 16K	/Users/rainhuang/Desktop/models/image-flux2-klein-4b-uncensored-te
+7.4G	/Users/rainhuang/Desktop/models/image-z-image-turbo-mflux-4bit
+813M	/Users/rainhuang/Desktop/models/kiln
+5.3G	/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+ 14G	/Users/rainhuang/Desktop/models/qwen3.8-27b
+2.6G	/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b
+ 12G	/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx
+ 11G	/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux
+3.1G	/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src
+ 16K	/Users/rainhuang/Desktop/models/.DS_Store
+1.7G	/Users/rainhuang/Desktop/models/.media-venv
+455M	/Users/rainhuang/Desktop/models/.mtplx-venv
+ 16K	/Users/rainhuang/Desktop/models/.pytest_cache

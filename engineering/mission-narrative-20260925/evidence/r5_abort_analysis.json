@@ -1,0 +1,18 @@
+{
+  "captured_at": "2026-09-26T02:41:26+0800",
+  "abort_root_cause": {
+    "symptom": "Client aborted near ~18K visible chars during live 20K job; job kept running server-side then finished via ad-hoc continue.",
+    "false_signal": "Policy keyed off cumulative Swapouts delta / memory pressure UI, not free swap.",
+    "machine_state_at_abort_note": "Free swap was still healthy (~830MiB later); cumulative Swapouts always grow.",
+    "fix": "should_pause_for_resources pauses only on low free swap (default <256MiB) or low Pages free (<20000). Swapouts ignored as pause trigger."
+  },
+  "live_snapshot": {
+    "swap_free_mib": 866.12,
+    "swapout_pages": 78954137,
+    "pages_free": 15258,
+    "should_pause": true,
+    "pause_reason": "low_pages_free"
+  },
+  "mlx_not_killed": true,
+  "note": "GPU eval paused while resources tight; MLX PID left running."
+}

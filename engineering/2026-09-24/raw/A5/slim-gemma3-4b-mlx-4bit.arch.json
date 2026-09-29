@@ -1,0 +1,21 @@
+{
+  "source": "copied remote config",
+  "architectures": [
+    "Gemma3ForConditionalGeneration"
+  ],
+  "model_type": "gemma3",
+  "text_model_type": "gemma3_text",
+  "quantization": {
+    "group_size": 64,
+    "bits": 4
+  },
+  "hidden_size": 2560,
+  "intermediate_size": 10240,
+  "num_hidden_layers": 34,
+  "sliding_window": 1024,
+  "rope": {
+    "factor": 8.0,
+    "rope_type": "linear"
+  },
+  "has_vision_config": true
+}

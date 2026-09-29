@@ -1,0 +1,17 @@
+=== python3 test_sse_reassembly.py ===
+ok test_split_utf8_survives_line_buffer
+ok test_string_chunks_do_not_parse_a_partial_line
+ok test_eof_does_not_invent_done
+ok test_finish_plus_done_is_stop_even_with_a_dropped_malformed_frame
+ok test_duplicate_and_out_of_order_ids_append_in_arrival_order
+ok test_tail_stripper_drops_a_diverging_prefix
+ok test_client_reassembly_utf8_duplicate_order_and_crlf
+ok test_disconnect_closes_nested_generators
+ok 8 tests
+
+=== anyio task-group cancel (venv 3.12) ===
+{'provider': False, 'chat': False, 'aclose_done': False, 'saw': 'ping', 'caught': 'GeneratorExit', 'leftover': 2}
+
+=== follow-up: exact aclose-then-reraise x30 (venv 3.12) ===
+30/30 provider finally ran, chat finally ran, aclose completed, leftover tasks 0.
+The single earlier print with provider False / leftover 2 did not reproduce.

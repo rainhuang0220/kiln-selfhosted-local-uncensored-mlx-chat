@@ -1,0 +1,47 @@
+{
+  "tokenizer": "tokenizers.Tokenizer tokenizer.json",
+  "model_dir": "/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4",
+  "cjk_20000": {
+    "chars": 20000,
+    "tokens": 13464,
+    "tokenize_s": 0.008169374894350767,
+    "chars_per_token": 1.4854426619132501
+  },
+  "cjk_repeat_ce_20000": {
+    "chars": 20000,
+    "tokens": 20000,
+    "tokenize_s": 0.009044208098202944
+  },
+  "english_probes": [
+    {
+      "words": 200,
+      "chars": 5222,
+      "tokens": 2023
+    },
+    {
+      "words": 800,
+      "chars": 21237,
+      "tokens": 8438
+    },
+    {
+      "words": 1600,
+      "chars": 43185,
+      "tokens": 17586
+    },
+    {
+      "words": 3200,
+      "chars": 87492,
+      "tokens": 36293
+    },
+    {
+      "words": 4000,
+      "chars": 109642,
+      "tokens": 45643
+    },
+    {
+      "words": 6400,
+      "chars": 176095,
+      "tokens": 73696
+    }
+  ]
+}

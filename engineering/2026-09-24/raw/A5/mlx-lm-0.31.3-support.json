@@ -1,0 +1,28 @@
+{
+  "mlx_lm_version": "0.31.3",
+  "locations": [
+    "/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm",
+    "/opt/homebrew/lib/python3.14/site-packages/mlx_lm"
+  ],
+  "server_python": "kiln .venv python 3.12; python 3.14 is installed but start-mlx.sh refuses it",
+  "quant_modes_in_mlx.nn.layers.quantized._defaults_for_mode": [
+    "affine",
+    "mxfp4",
+    "nvfp4",
+    "mxfp8"
+  ],
+  "missing_mode_defaults_to": "affine",
+  "model_modules_relevant": [
+    "qwen2",
+    "qwen3",
+    "qwen3_5",
+    "qwen3_next",
+    "gemma3",
+    "gemma4",
+    "llama",
+    "mistral3",
+    "ministral3"
+  ],
+  "qwen3_5_sanitize": "drops keys starting with vision_tower or model.visual; drops mtp.* inside language sanitize",
+  "not_loaded": true
+}

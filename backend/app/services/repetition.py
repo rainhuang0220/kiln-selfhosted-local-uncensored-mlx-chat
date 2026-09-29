@@ -132,8 +132,140 @@ def score_repetition(text: str) -> RepetitionReport:
     )
 
 
-def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 8) -> str | None:
-    """Return the looping sentence if it appears consecutively >= min_repeats times."""
+# A closing parenthesis ends a 括号 action line; those recur verbatim in paragraph cycles.
+_TERMINATORS = "。！？!?…）)"
+_CLOSERS = "”」』\"'"
+
+
+def repeated_sentence_start(text: str, *, min_chars: int = 16, prior: str = "") -> int | None:
+    """Start of the just-finished sentence if it already appears earlier in text.
+
+    Catches multi-paragraph cycles that never repeat back-to-back. Short
+    refrains (a quoted line under min_chars) are allowed to recur. ``prior`` is
+    the previous reply: a turn that re-types its sentences is looping too.
+    """
+    end = len(text.rstrip())
+    k = end
+    while k > 0 and text[k - 1] in _CLOSERS:
+        k -= 1
+    if k == 0 or text[k - 1] not in _TERMINATORS:
+        return None
+    j = k - 1
+    while j > 0 and text[j - 1] in _TERMINATORS:
+        j -= 1
+    while j > 0 and text[j - 1] not in _TERMINATORS and text[j - 1] != "\n":
+        j -= 1
+    start = j
+    while start < end and (text[start].isspace() or text[start] in "”」』"):
+        start += 1
+    sentence = text[start:end]
+    if len(_WS.sub("", sentence)) < min_chars:
+        return None
+    if text.find(sentence, 0, start) != -1 or (prior and sentence in prior):
+        return start
+    return None
+
+
+_PUNCT = re.compile(r"[\s，,。！？!?…（）()“”「」『』、；;：:—\-*]+")
+
+
+def _sentence_spans(text: str) -> list[tuple[int, str]]:
+    spans, begin = [], 0
+    for i, ch in enumerate(text):
+        if ch not in _TERMINATORS and ch != "\n":
+            continue
+        if i + 1 < len(text) and text[i + 1] in _TERMINATORS:
+            continue
+        piece = text[begin : i + 1]
+        core = _PUNCT.sub("", piece)
+        if core:
+            spans.append((begin + len(piece) - len(piece.lstrip()), core))
+        begin = i + 1
+    return spans
+
+
+def repeated_line_start(text: str, *, prior: str = "", min_core: int = 6) -> int | None:
+    """Start of the just-finished line if the same line, punctuation aside, came before.
+
+    Short 括号 and quoted lines (「只要一声，我就在。」) sit under the 16-char sentence
+    floor but still cycle as a block; ``prior`` is the previous reply.
+    """
+    end = len(text.rstrip())
+    k = end
+    while k > 0 and text[k - 1] in _CLOSERS:
+        k -= 1
+    if k == 0 or text[k - 1] not in _TERMINATORS:
+        return None
+    start = text.rfind("\n", 0, end) + 1
+    core = _PUNCT.sub("", text[start:end])
+    if len(core) < min_core:
+        return None
+    earlier = {_PUNCT.sub("", line) for line in text[:start].split("\n")}
+    if prior:
+        earlier |= {_PUNCT.sub("", line) for line in prior.split("\n")}
+    return start if core in earlier else None
+
+
+def refrain_run_start(
+    text: str, *, window: int = 6, hits: int = 3, gram: int = 4, min_chars: int = 8
+) -> int | None:
+    """Cut index when one short phrase recurs in ``hits`` of the last ``window`` sentences.
+
+    Catches slot-filled templates (「手臂也放松一下」「背部也放松一下」…) and option
+    menus whose lines differ in one word, so no whole sentence ever repeats. The
+    first sentence of the run is kept; the cut lands on the second.
+    """
+    body = text.rstrip()
+    if not body or body[-1] not in _TERMINATORS:
+        return None
+    spans = [s for s in _sentence_spans(body) if len(s[1]) >= min_chars]
+    if len(spans) < window:
+        return None
+    tail = spans[-window:]
+    grams = [{core[i : i + gram] for i in range(len(core) - gram + 1)} for _, core in tail]
+    for piece in grams[-1]:
+        idx = [k for k, found in enumerate(grams) if piece in found]
+        if len(idx) >= hits:
+            return tail[idx[1]][0]
+    return None
+
+
+def _trigrams(text: str) -> set[str]:
+    compact = _WS.sub("", text)
+    return {compact[i : i + 3] for i in range(len(compact) - 2)}
+
+
+def tail_window_loop(text: str, *, window: int = 400, threshold: float = 0.45) -> int | None:
+    """Cut index when the last ``window`` chars mostly re-say the ``window`` before them.
+
+    Catches cycles built from short questions and 括号 lines that never repeat one
+    ≥16-char sentence back-to-back. Ordinary prose stays under ~0.2 trigram Jaccard.
+    """
+    if len(text) < 2 * window:
+        return None
+    before, after = _trigrams(text[-2 * window : -window]), _trigrams(text[-window:])
+    if not before or not after:
+        return None
+    if len(before & after) / len(before | after) < threshold:
+        return None
+    cut = len(text) - window
+    for i in range(cut - 1, -1, -1):
+        if text[i] in _TERMINATORS or text[i] == "\n":
+            cut = i + 1
+            break
+    # The window before is already loop material; peel sentences said earlier.
+    head = text[:cut].rstrip()
+    while (start := repeated_sentence_start(head, min_chars=2)) is not None:
+        head = head[:start].rstrip()
+    return len(head)
+
+
+def hard_self_loop(text: str, *, min_repeats: int = 3, min_chars: int = 40) -> str | None:
+    """Return the looping sentence if it appears consecutively >= min_repeats times.
+
+    Short 文爱 sensory clauses (breath / contact deepening under ``min_chars``)
+    are allowed to recur; three consecutive full sentences still trip the guard.
+    """
     norms_and_raw = [(_norm(s), s.strip()) for s in _sentences(text)]
     if len(norms_and_raw) < min_repeats:
         # Also catch an unterminated tail that reprints the same clause.

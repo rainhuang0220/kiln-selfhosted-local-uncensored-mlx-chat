@@ -5,9 +5,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+app = ["data/*.json"]
+
 [project]
 name = "kiln-backend"
-version = "0.6.5"
+version = "0.7.0"
 description = "Kiln BFF — local Qwen chat orchestrator"
 requires-python = ">=3.11,<3.14"
 dependencies = [

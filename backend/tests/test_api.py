@@ -26,6 +26,8 @@ def test_low_effort_cuts_long_thinking(tmp_settings, fake_provider, client):
             "enable_thinking": True,
             "reasoning_effort": "low",
             "max_tokens": 64,
+            "profile": "reasoning",
+            "auto_continue": False,
         },
     ) as r:
         text = "".join(r.iter_text())
@@ -43,13 +45,24 @@ def test_health(client):
     assert body["model"] == "qwen3.5-9b-hauhau-aggressive-mxfp4"
     assert body["practical_prompt_budget"] >= 32768
     assert body["default_max_tokens"] >= 1024
-    assert body["default_max_tokens"] <= 2048
+    assert body["default_max_tokens"] <= 8192
     assert body["enable_thinking"] is False
-    assert body["default_profile"] == "interactive_dialogue"
+    assert body["default_profile"] == "immersive"
     assert body["max_tokens_cap"] >= 32768
     assert body["provider"]["http_alive"] is True
-    assert body["inference"]["ready"] is True
-    assert body["inference"]["consecutive_timeouts"] == 0
+
+
+def test_readyz_does_not_claim_e2e_chat(client, fake_provider):
+    before = len(fake_provider.calls)
+    r = client.get("/readyz")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["BACKEND_UP"] is True
+    assert "AUTHENTICATION_UP" in body
+    assert body["MODEL_AVAILABLE"] is True
+    assert body["END_TO_END_CHAT_UP"] == "requires_auth"
+    assert body["generates"] is False
+    assert len(fake_provider.calls) == before
 
 
 def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):
@@ -67,13 +80,31 @@ def test_chat_thinking_uses_qwen_sampling_preset(client, fake_provider):
 def test_chat_non_thinking_uses_qwen_sampling_preset(client, fake_provider):
     r = client.post(
         "/chat",
-        json={"message": "ping", "stream": False, "enable_thinking": False, "max_tokens": 16},
+        json={
+            "message": "ping",
+            "stream": False,
+            "enable_thinking": False,
+            "max_tokens": 16,
+            "profile": "interactive_dialogue",
+        },
     )
     assert r.status_code == 200, r.text
     req = fake_provider.calls[-1]
     assert req.temperature == 0.7
     assert req.top_p == 0.8
     assert req.top_k == 20
+
+
+def test_chat_immersive_default_uses_immersive_sampling(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "ping", "stream": False, "enable_thinking": False, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    req = fake_provider.calls[-1]
+    assert req.temperature == 0.78
+    assert req.top_p == 0.9
+    assert req.top_k == 40
 
 
 def test_ten_thousand_chars_reach_the_model(client, fake_provider):
@@ -114,19 +145,88 @@ def test_huge_file_is_packed_into_budget(tmp_settings, chat_service, fake_provid
         assert r.status_code == 200, r.text
     user = fake_provider.calls[-1].messages[-1]["content"]
     assert user.startswith("请摘要。")
-    assert "<document packed=\"true\"" in user
+    assert '<document routed="true"' in user or '<document packed="true"' in user
+    assert "unique-needle-xyz" in user
     pack = r.json()["context"]["occupancy"]["document_pack"]
     assert pack["applied"] is True
     assert pack["original_tokens"] > pack["kept_tokens"]
+    route = pack.get("context_route") or {}
+    assert route.get("silent_truncation") is False
+    assert route.get("archive_sha256")
+    assert route.get("original_chars", 0) > route.get("served_chars", 0)
+    assert route.get("mode") in {"retrieval", "compression"}
+
+
+def test_short_chat_keeps_verbatim_route_metadata(client, fake_provider):
+    r = client.post(
+        "/chat",
+        json={"message": "只回复 ping", "stream": False, "max_tokens": 16},
+    )
+    assert r.status_code == 200, r.text
+    assert fake_provider.calls[-1].messages[-1]["content"] == "只回复 ping"
+    pack = r.json()["context"]["occupancy"].get("document_pack") or {}
+    assert pack.get("applied") is False
+    route = pack.get("context_route") or {}
+    assert route.get("mode") == "verbatim"
+    assert route.get("silent_truncation") is False
+    assert len(route.get("archive_sha256") or "") == 64
+
+
+def test_full_document_request_uses_practical_budget_without_packing(client, fake_provider):
+    document = "窑" * 20_000
+    message = "请完整阅读原文，回答末尾问题。\n# File: ledger.txt\n" + document
+    r = client.post(
+        "/chat",
+        json={"message": message, "stream": False, "max_tokens": 64},
+    )
+    assert r.status_code == 200, r.text
+    sent = fake_provider.calls[-1].messages[-1]["content"]
+    assert sent == message
+    occupancy = r.json()["context"]["occupancy"]
+    assert occupancy["effective_window_tokens"] == 32768
+    assert not (occupancy.get("document_pack") or {}).get("applied")
+
+
+def test_full_text_paste_without_file_marker_is_not_packed(client, fake_provider):
+    message = "请阅读全文后回答。\n" + ("窑" * 20_000)
+    r = client.post("/chat", json={"message": message, "stream": False, "max_tokens": 64})
+    assert r.status_code == 200
+    assert fake_provider.calls[-1].messages[-1]["content"] == message
+
+
+def test_full_document_over_practical_budget_errors_instead_of_packing(
+    tmp_settings, chat_service, fake_provider
+):
+    from app.main import create_app
+    from tests.conftest import local_http_client
+
+    tmp_settings.practical_prompt_budget = 800
+    message = "请完整阅读原文。\n# File: ledger.txt\n" + ("窑" * 2_000)
+    with local_http_client(create_app(tmp_settings, chat=chat_service)) as client:
+        r = client.post(
+            "/chat", json={"message": message, "stream": False, "max_tokens": 64}
+        )
+    assert r.status_code == 413
+    assert r.json()["error"]["code"] == "context_overflow"
+    assert fake_provider.calls == []
 
 
 def test_chat_non_stream_roundtrip(client):
-    r = client.post("/chat", json={"message": "hello kiln", "stream": False})
+    r = client.post(
+        "/chat",
+        json={
+            "message": "hello kiln",
+            "stream": False,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+        },
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["created"] is True
     assert body["message"]["role"] == "assistant"
     assert "echo:hello kiln" in body["message"]["content"]
+    assert "answer_check" not in body["message"]
     assert body["usage"]["prompt_tokens"] == 12
     cid = body["conversation_id"]
 
@@ -137,6 +237,10 @@ def test_chat_non_stream_roundtrip(client):
 
     detail = client.get(f"/conversation/{cid}")
     assert detail.status_code == 200
+    stored_assistant = next(
+        m for m in detail.json()["messages"] if m["role"] == "assistant"
+    )
+    assert "answer_check" not in stored_assistant
     roles = [m["role"] for m in detail.json()["messages"]]
     assert "system" not in roles
     assert roles[0] == "user"
@@ -161,8 +265,71 @@ def test_chat_non_stream_roundtrip(client):
     assert len(user_msgs) == 2
 
 
+def test_evidence_corrects_only_when_the_measurement_is_named(client):
+    checked = client.post(
+        "/chat",
+        json={
+            "message": "当日处理水量比外排达标水量多多少吨",
+            "stream": False,
+            "max_tokens": 16,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+            "evidence": "去年同日的处理水量是700吨。当日处理水量是640吨。外排达标水量是590吨。",
+        },
+    )
+    assert checked.status_code == 200, checked.text
+    corrected = checked.json()["message"]
+    assert corrected["content"] == "50吨"
+    assert corrected["answer_check"]["applied"] is True
+    assert corrected["answer_check"]["reason"] == "evidence_difference"
+    assert corrected["answer_check"]["original"].startswith("echo:")
+
+    refused = client.post(
+        "/chat",
+        json={
+            "message": "合同编号是多少",
+            "stream": False,
+            "max_tokens": 16,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+            "evidence": "这里没有合同编号。",
+        },
+    )
+    assert refused.status_code == 200, refused.text
+    untouched = refused.json()["message"]
+    assert untouched["content"].startswith("echo:")
+    assert untouched["answer_check"]["applied"] is False
+    assert untouched["answer_check"]["reason"] == "insufficient_evidence"
+
+    stored = client.get(
+        f"/conversation/{checked.json()['conversation_id']}"
+    ).json()["messages"]
+    saved = next(m for m in stored if m["role"] == "assistant")
+    assert saved["content"] == "50吨"
+    assert saved["answer_check"]["original"].startswith("echo:")
+    assert saved["answer_check"]["reason"] == "evidence_difference"
+    assert saved["answer_check"]["applied"] is True
+
+    refused_saved = client.get(
+        f"/conversation/{refused.json()['conversation_id']}"
+    ).json()["messages"]
+    kept = next(m for m in refused_saved if m["role"] == "assistant")
+    assert kept["content"].startswith("echo:")
+    assert kept["answer_check"]["applied"] is False
+    assert kept["answer_check"]["reason"] == "insufficient_evidence"
+    assert kept["answer_check"]["original"] == kept["content"]
+
+
 def test_delete_message_removes_a_complete_turn(client):
-    created = client.post("/chat", json={"message": "remove this turn", "stream": False})
+    created = client.post(
+        "/chat",
+        json={
+            "message": "remove this turn",
+            "stream": False,
+            "profile": "interactive_dialogue",
+            "auto_continue": False,
+        },
+    )
     assert created.status_code == 200, created.text
     conversation_id = created.json()["conversation_id"]
     messages = client.get(f"/conversation/{conversation_id}").json()["messages"]
@@ -184,6 +351,33 @@ def test_chat_stream_sse(client):
     assert "event: delta" in text
     assert "event: done" in text
     assert "echo:stream me" in text
+
+
+def test_chat_stream_sse_has_one_request_id_and_monotonic_seq(client):
+    import json
+
+    with client.stream("POST", "/chat", json={"message": "stream me", "stream": True}) as r:
+        assert r.status_code == 200
+        text = "".join(r.iter_text())
+    seqs = []
+    ids = set()
+    for block in text.split("\n\n"):
+        for line in block.split("\n"):
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            raw = line[len("data: ") :]
+            if raw == "[DONE]":
+                continue
+            body = json.loads(raw)
+            if not isinstance(body, dict):
+                continue
+            assert "request_id" in body
+            assert isinstance(body.get("seq"), int)
+            seqs.append(body["seq"])
+            ids.add(body["request_id"])
+    assert seqs
+    assert seqs == list(range(1, len(seqs) + 1))
+    assert len(ids) == 1
 
 
 def test_conversation_search(client):
@@ -211,6 +405,8 @@ def test_cancel_marks_assistant_cancelled(chat_service):
     async def run():
         agen = chat_service.chat(message="hold", conversation_id=None, stream=True)
         ev = await agen.__anext__()
+        while ev["event"] == "status":
+            ev = await agen.__anext__()
         assert ev["event"] == "meta"
         cid = ev["data"]["conversation_id"]
         await agen.aclose()

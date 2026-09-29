@@ -1,0 +1,31 @@
+=== venv mlx package inspect ===
+mlx_path ['/Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx']
+mlx_dir_has_version False
+core_file /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx/core.cpython-312-darwin.so
+core_version_attr 0.32.1
+=== dist-info names ===
+huggingface_hub-1.28.0.dist-info
+mlx_lm-0.31.3.dist-info
+mlx_metal-0.32.1.dist-info
+mlx-0.32.1.dist-info
+tokenizers-0.22.2.dist-info
+transformers-5.15.1.dist-info
+=== METADATA Version lines ===
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx-0.32.1.dist-info
+2:Name: mlx
+3:Version: 0.32.1
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm-0.31.3.dist-info
+2:Name: mlx-lm
+3:Version: 0.31.3
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_metal-0.32.1.dist-info
+2:Name: mlx-metal
+3:Version: 0.32.1
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/transformers-5.15.1.dist-info
+2:Name: transformers
+3:Version: 5.15.1
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/tokenizers-0.22.2.dist-info
+2:Name: tokenizers
+3:Version: 0.22.2
+-- /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/huggingface_hub-1.28.0.dist-info
+2:Name: huggingface_hub
+3:Version: 1.28.0

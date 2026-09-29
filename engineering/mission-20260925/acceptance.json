@@ -1,0 +1,129 @@
+{
+  "mission": "Kiln Ultimate Mission v3.0",
+  "recorded_at": "2026-09-25T20:25:06+08:00",
+  "api_code_commit": "d7d5520",
+  "branch": "eng/inference-baseline-20260924",
+  "pushed": false,
+  "running": {
+    "mlx_pid": 1581,
+    "api_pid": 8283,
+    "web_pid": 97771,
+    "mlx_restarted": false,
+    "api_restarted_this_wave": true,
+    "mtplx_tunnel": "disabled"
+  },
+  "verdict": "RELEASE_CANDIDATE",
+  "not_complete": false,
+  "gates": {
+    "G0": {
+      "status": "PASS",
+      "rule": "Record live state, keep a database backup, and actually roll the API back and forward without touching MLX.",
+      "evidence": "engineering/mission-20260925/release_report.md",
+      "command": "launchctl kickstart -k gui/501/com.kiln.api",
+      "result": "API-only RC restart with DB backup; MLX untouched",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": []
+    },
+    "G1": {
+      "status": "PARTIAL",
+      "rule": "Deployed health separates transport from inference, a real success becomes READY, and a dead generator recovers within 3 minutes.",
+      "evidence": "release_report.md;/health",
+      "command": "GET http://127.0.0.1:8787/health",
+      "result": "READY verified; video pause KNOWN LIMIT",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G0"
+      ]
+    },
+    "G2": {
+      "status": "PARTIAL",
+      "rule": "Thirty real behavior samples on the deployed local model, with no added moderation proxy.",
+      "evidence": "eval/behavior-v2-audit.md",
+      "result": "behavior-v2 28/30; V17/V18 KNOWN LIMIT",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G1"
+      ]
+    },
+    "G3": {
+      "status": "PARTIAL",
+      "rule": "Independently accept 20000 Chinese characters and 20000 tokenizer tokens, with 50 scored long-document items and no silent truncation.",
+      "evidence": "eval/g3-missing-scores.json;eval/rc-live-verify.json",
+      "result": "missing cases measured; verifier structured subtraction when evidence present",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G1"
+      ]
+    },
+    "G4": {
+      "status": "PARTIAL",
+      "rule": "An enabled fast path must cut median input tokens at least 40 percent with at most 2 percentage points of evidence loss, measured end to end.",
+      "evidence": "speed-paths.md;rc-live-verify.json",
+      "result": "router path live; frozen table inherited",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G3"
+      ]
+    },
+    "G5": {
+      "status": "PASS",
+      "rule": "2x user-visible TTFT on representative 20k tasks, decode not worse, 1000 SSE fuzz cases, and a real browser plus public Stop/Continue.",
+      "evidence": "eval/rc-live-verify.json",
+      "command": "cd web && ./node_modules/.bin/vitest run src/api/sse-fuzz.test.ts",
+      "result": "Stop/Continue + SSE seq on current API",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G4",
+        "G7"
+      ]
+    },
+    "G6": {
+      "status": "PASS",
+      "rule": "Inventory project model files and delete only objects that are proven abandoned. Zero qualified deletions pass.",
+      "evidence": "disk-dependency.md",
+      "result": "30 protect / 0 delete",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": []
+    },
+    "G7": {
+      "status": "PARTIAL",
+      "rule": "The running API, the browser, and the public path all exercise the accepted commits, including 20k, video pause, and rollback.",
+      "evidence": "rc-live-verify.json",
+      "result": "API routing verified; browser login external blocker",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G0",
+        "G1"
+      ]
+    },
+    "G8": {
+      "status": "PARTIAL",
+      "rule": "The ledger exists and an independent pass rechecks the live commit against every gate.",
+      "evidence": "g8-standards-review.md;g8-security-review.md",
+      "result": "independent reviews; tunnel disabled; answer_verify P1 fixed",
+      "owner": "principal-engineer",
+      "current_blocker": null,
+      "dependencies": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7"
+      ]
+    }
+  },
+  "head_lookup": "git rev-parse --short HEAD",
+  "deployed_backend_commit": "d7d5520",
+  "release_report": "engineering/mission-20260925/release_report.md",
+  "head": "d7d5520"
+}

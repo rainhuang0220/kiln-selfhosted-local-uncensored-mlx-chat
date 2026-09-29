@@ -114,7 +114,8 @@ CREATE TABLE IF NOT EXISTS memories (
   memory_type             TEXT NOT NULL
                           CHECK (memory_type IN (
                             'fact', 'preference', 'user_profile',
-                            'episode', 'tool_result'
+                            'episode', 'tool_result',
+                            'body_state', 'clothing', 'inventory', 'speech'
                           )),
   key                     TEXT,
   content                 TEXT NOT NULL,

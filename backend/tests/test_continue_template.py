@@ -157,7 +157,48 @@ def test_completion_prompt_avoids_used_prefix():
     ids = tok.encode(native, add_special_tokens=False)
     assert first != second
     assert tok.encode(first, add_special_tokens=False) == ids[:-1]
-    assert tok.encode(second, add_special_tokens=False) == ids[:-2]
+    # ids[:-2] is `first` minus its last token: the key mlx-lm cached for the first hop.
+    assert tok.encode(second, add_special_tokens=False) == ids[:-3]
+
+
+def test_guard_cut_prefix_skips_the_finished_hop_cache_key():
+    """Loop guard cut the next hop back to where hop j ended on length.
+
+    mlx-lm 0.31.3 stored hop j as its prompt plus generated tokens minus the
+    last one, i.e. native(before + hop_text) minus one token. The API never
+    sent that string, so the mutated prefix must drop past it.
+    """
+    _require_model()
+    from transformers import AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(str(MODEL), trust_remote_code=True)
+    est = TokenEstimator(str(MODEL))
+    user = {"role": "user", "content": "继续"}
+    before = "雨停了，钥匙还在。"
+    hop_text = "她把铜钥匙放回柜台，指尖在木纹上停了一下。"
+    repeat = "雨停了，钥匙还在。"
+    sent_j, _ = est.continuation_completion_prompt(
+        [user, {"role": "assistant", "content": before}], enable_thinking=False
+    )
+    pre_strip = _native([user, {"role": "assistant", "content": before + hop_text + repeat}], False)
+    cut = [user, {"role": "assistant", "content": before + hop_text}]
+    native = _native(cut, False)
+    native_ids = tok.encode(native, add_special_tokens=False)
+    mlx_key = native_ids[:-1]
+
+    got, tail = est.continuation_completion_prompt(
+        cut, enable_thinking=False, used_prompts=[sent_j], mutated=True
+    )
+    got_ids = tok.encode(got, add_special_tokens=False)
+    assert got != native
+    assert got != pre_strip
+    assert got_ids != mlx_key
+    assert got_ids != tok.encode(sent_j, add_special_tokens=False)
+    assert got_ids == native_ids[:-2]
+    assert tail == tok.decode(native_ids[-2:], skip_special_tokens=False)
+
+    plain, _ = est.continuation_completion_prompt(cut, enable_thinking=False, used_prompts=[sent_j])
+    assert tok.encode(plain, add_special_tokens=False) == native_ids[:-1]
 
 
 def test_mid_think_uses_official_generation_prefix():

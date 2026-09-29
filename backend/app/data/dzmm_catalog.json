@@ -1,0 +1,13 @@
+{
+  "as_of": "2026-09-29",
+  "rating_note": "本站评分",
+  "pricing_note": "估价，以钱包为准",
+  "models": [
+    {"id": "nalang-turbo-0826", "label": "免费档 · 以官网当日配额为准", "quality": "★★★☆☆", "speed": "★★★★★", "long_card": "★★☆☆", "quota": "以官网当日配额为准"},
+    {"id": "nalang-medium-0826", "label": "积分档", "quality": "★★★★☆", "speed": "★★★★☆", "long_card": "★★★☆☆", "quota": "积分"},
+    {"id": "nalang-xl-0826", "label": "推荐付费 / 文爱更好", "quality": "★★★★★", "speed": "★★★☆☆", "long_card": "★★★★☆", "quota": "积分"},
+    {"id": "nalang-max-0826", "label": "积分档 · 更强", "quality": "★★★★★", "speed": "★★☆☆", "long_card": "★★★★★", "quota": "积分"},
+    {"id": "local:9b", "label": "本机 · 免费", "quality": "★★☆☆", "speed": "★★★★☆", "long_card": "★☆☆☆☆", "quota": "无限"},
+    {"id": "local:27b", "label": "本机 · 较慢", "quality": "★★★☆☆", "speed": "★★☆☆", "long_card": "★★☆☆", "quota": "无限"}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "narrative-fixture-v1",
+  "lang": "zh-CN",
+  "adults_only": true,
+  "target_visible_chars": 20000,
+  "characters": [
+    {"name": "阿远", "aliases": ["远哥"], "age": "adult", "role": "渔人"},
+    {"name": "阿清", "aliases": ["清姐"], "age": "adult", "role": "织网人"}
+  ],
+  "invariants": [
+    "阿远是渔人不是商人",
+    "阿清会织网",
+    "故事发生在北方渔村",
+    "不替用户作决定或代写用户动作",
+    "POV 保持第三人称有限"
+  ],
+  "forbidden_failures": [
+    "identity_swap",
+    "timeline_break",
+    "user_agency_theft",
+    "uncontrolled_repetition",
+    "pov_flip"
+  ],
+  "source": "synthetic non-sensitive fixture for automated probes"
+}

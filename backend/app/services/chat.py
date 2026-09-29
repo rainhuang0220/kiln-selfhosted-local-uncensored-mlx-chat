@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import sqlite3
 import time
@@ -11,18 +12,83 @@ from app.config import Settings
 from app.db import get_conn
 from app.providers.base import ChatChunk, ChatProvider, ChatRequest
 from app.services.continuation import (
+    EchoSuppressor,
     TailStripper,
     continue_assistant_message,
     strip_regenerated_tail,
 )
 from app.services.dialogue_context import DialogueState, build_dialogue_context
 from app.services.history import truncate_messages
-from app.services.ingest import pack_user_message
+from app.services.inference_watch import InferenceWatch
+from app.services.answer_verify import verify_answer
+from app.services.context_route import extractive_compress, route_document
+from app.services.ingest import pack_user_message, requests_full_document, split_query_and_body
+from app.services.auto_continue import (
+    count_output_chars,
+    counts_against_continue_budget,
+    drop_last_sentence,
+    fill_hop_tokens,
+    hard_provider_call_cap,
+    runon_start,
+    should_auto_continue,
+    trim_to_sentence,
+)
+from app.services.character_cards import compile_card_system, get_card
+from app.services.context_presets import (
+    chat_frame_from_simple,
+    get_preset,
+    preview_preset,
+    reference_context_for_mention,
+    style_bank_for_preset,
+)
+from app.services.context_compiler import route_context
+from app.services.generation_errors import (
+    BETWEEN_TOKEN_IDLE_S,
+    FIRST_TOKEN_IDLE_S,
+    GENERATION_IDLE,
+    PROVIDER_BUSY,
+    user_generation_error,
+)
+from app.services.fact_extractor import (
+    extract_atoms,
+    extract_facts,
+    must_keep_fence,
+    pack_user_side_fences,
+    pins_absent_from_prose,
+)
+from app.services.literary_system import IMMERSIVE_SYSTEM
+from app.services import lorebook as lorebook_mod
 from app.services.memory import MemoryService
+from app.services.memory_provider import MemoryRecord
 from app.services.profiles import resolve_profile
-from app.services.repetition import hard_self_loop
+from app.services.scene_state_store import SceneStateStore
+from app.services.style_bank import (
+    OffstageStreamFilter,
+    StyleBank,
+    evict_offstage,
+    ingest_history,
+    mentions,
+    split_style_corpus,
+)
+from app.services.scene_graph import (
+    SceneGraph,
+    absorb_history,
+    beat_advanced,
+    describe_repair,
+    graph_owned_pin,
+    next_beat_hint,
+    violation_start,
+)
+from app.services.repetition import (
+    hard_self_loop,
+    refrain_run_start,
+    repeated_line_start,
+    repeated_sentence_start,
+    tail_window_loop,
+)
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
+from app.services.providers.dzmm import DzmmQuotaError, card_from_context
 from app.services.thinking import (
     normalize_effort,
     remap_assistant_for_history,
@@ -33,8 +99,42 @@ from app.services.thinking import (
 from app.services.tokens import TokenEstimator
 
 
+IMMERSIVE_PROFILE_NAMES = {"immersive", "long_form", "narrative", "multi_scenario"}
+# Depth-0 director brief on the user-side fence; immersive only, ≤280 chars.
+IMMERSIVE_AUTHOR_NOTE = (
+    "<author_note>\n"
+    "1. 身体、衣着层次、姿势、接触点以 scene_state 为准：脱掉的不会自己穿回，没走动就还在原地。\n"
+    "2. 先接住用户最后一个身体动作，再往前推一拍：写动作和感官——触感、温度、湿度、呼吸、声音。\n"
+    "3. 不黑屏，不写“后来”，不复述上一段，不跳出角色解释。\n"
+    "4. must_keep 里的每一项都必须落进正文。\n"
+    "</author_note>"
+)
+STYLE_AUTHOR_LINE = (
+    "5. 括号/风格参考里的人名事件不要写进当前场面。\n"
+    "6. 背景和幻想参考只提供已确认事实、偏好或写法；当前角色与场景仍以 active_context 和 scene_state 为准。\n"
+    "7. 参考情节此刻未发生，勿复述参考正文。\n"
+)
+# Turn-boundary tokens suppressed while an auto-continue hop fills toward the floor.
+FILL_HOP_BANNED_TOKENS = ("<|endoftext|>", "<|im_end|>", "<|im_start|>", "<think>")
+
+
 def now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _public_message(row: sqlite3.Row) -> dict[str, Any]:
+    item = dict(row)
+    raw = item.pop("metadata_json", None)
+    if not raw:
+        return item
+    try:
+        meta = json.loads(raw)
+    except json.JSONDecodeError:
+        return item
+    check = meta.get("answer_check") if isinstance(meta, dict) else None
+    if isinstance(check, dict):
+        item["answer_check"] = check
+    return item
 
 
 def new_id() -> str:
@@ -64,8 +164,7 @@ class ChatService:
             self.memory.settings = settings
         self._lock = asyncio.Lock()
         self._busy: set[str] = set()
-        self._timeouts = 0
-        self._last_inference_error: str | None = None
+        self.watch = InferenceWatch()
 
     def _conn(self) -> sqlite3.Connection:
         return get_conn()
@@ -138,7 +237,8 @@ class ChatService:
         messages = conn.execute(
             """
             SELECT id, role, content, reasoning, status, prompt_tokens, completion_tokens,
-                   cached_tokens, total_tokens, finish_reason, error, created_at
+                   cached_tokens, total_tokens, finish_reason, error, created_at,
+                   metadata_json
             FROM messages
             WHERE conversation_id=?
             ORDER BY seq ASC
@@ -146,7 +246,7 @@ class ChatService:
             (conversation_id,),
         ).fetchall()
         data = dict(row)
-        data["messages"] = [dict(m) for m in messages]
+        data["messages"] = [_public_message(m) for m in messages]
         data["system"] = data.get("system_prompt")
         return data
 
@@ -311,20 +411,26 @@ class ChatService:
         conn.commit()
         return cur.rowcount > 0
 
-    def note_inference_success(self) -> None:
-        self._timeouts = 0
-        self._last_inference_error = None
+    def note_inference_success(self, method: str = "user_generation") -> None:
+        self.watch.note_success(method)
 
     def note_inference_timeout(self, message: str | None = None) -> None:
-        self._timeouts += 1
-        self._last_inference_error = message or "mlx timeout"
+        self.watch.note_timeout(message)
 
-    def inference_status(self) -> dict[str, Any]:
-        ready = self._timeouts < 3
+    def note_inference_failure(self, message: str | None = None) -> None:
+        self.watch.note_failure(message)
+
+    def inference_status(self, *, busy: bool = False) -> dict[str, Any]:
+        snap = self.watch.snapshot()
+        capability = self.watch.capability(busy=busy)
         return {
-            "ready": ready,
-            "consecutive_timeouts": self._timeouts,
-            "last_error": self._last_inference_error,
+            "ready": capability == "READY",
+            "consecutive_timeouts": snap["consecutive_timeouts"],
+            "last_error": snap["last_error"],
+            "last_verified_at": snap["last_verified_at"],
+            "capability": capability,
+            "verification_method": snap["verification_method"],
+            "evidence_expires_at": snap["evidence_expires_at"],
         }
 
     def global_context(self) -> dict[str, Any]:
@@ -498,6 +604,16 @@ class ChatService:
         )
         self._conn().commit()
 
+    def _remember_turn_prompt(
+        self, conversation_id: str, messages: list[dict[str, Any]], *, enable_thinking: bool
+    ) -> None:
+        """mlx-lm caches the message's first chat-completions prompt; later Continues must avoid it."""
+        try:
+            prompt = self.tokenizer.apply_chat_template(messages, enable_thinking=enable_thinking)
+        except RuntimeError:
+            return
+        self._remember_continue_prompt(conversation_id, prompt)
+
     def _clear_continue_prompts(self, conversation_id: str) -> None:
         data = self._conversation_settings(conversation_id)
         if not data.get("continue_completion_prompts"):
@@ -522,19 +638,59 @@ class ChatService:
         prior_summary: str | None = None,
         prompt_budget: int | None = None,
         prompt_soft_target: int | None = None,
+        profile_name: str | None = None,
+        min_recent_turns: int | None = None,
+        keep_pins: bool = False,
+        repair: list[str] | None = None,
+        beat_hint: str | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         estimate = self.tokenizer.count_text
         budget = prompt_budget or self.settings.practical_prompt_budget
+        style: StyleBank | None = None
+        offstage: set[str] = set()
+        # Split 风格参考 parentheses for every profile so Interactive cannot dump
+        # the raw corpus. Compact <style_bank> fence stays immersive-only.
+        history, style, offstage = self._ingest_style(conversation_id, history)
+        if not keep_pins:
+            style = None
+        latest_user_content = next(
+            (m.get("content") or "" for m in reversed(history) if m.get("role") == "user"),
+            "",
+        )
+        full_document = requests_full_document(latest_user_content)
+        if full_document:
+            budget = self.settings.practical_prompt_budget
+        recent_min = min_recent_turns if min_recent_turns is not None else (
+            8
+            if (profile_name or "")
+            in {"immersive", "long_form", "narrative", "multi_scenario"}
+            else 4
+        )
+        graph: SceneGraph | None = None
+        if keep_pins:
+            try:
+                record = SceneStateStore().get(conversation_id)
+                graph = SceneGraph.from_dict(record.graph if record else None)
+            except Exception:
+                graph = SceneGraph()
         built = build_dialogue_context(
             history,
             budget=budget,
             estimate=estimate,
             prior_state=prior_state,
             prior_summary=prior_summary,
-            recent_turn_target=8,
-            min_recent_turns=4,
+            recent_turn_target=max(8, recent_min),
+            min_recent_turns=recent_min,
             fold_every_turns=4,
+            graph=graph,
         )
+        if graph is not None:
+            absorb_history(graph, [m for m in history if m.get("role") != "system"])
+            evict_offstage(graph, offstage)
+            try:
+                SceneStateStore().save_graph(conversation_id, graph)
+            except Exception:
+                pass
         kept, dropped, truncated = truncate_messages(
             built.messages, budget=budget, estimate=estimate, reserved_output=0
         )
@@ -549,10 +705,26 @@ class ChatService:
         memories = self.memory.retrieve(
             conversation_id,
             last_user,
-            256,
+            512,
             owner_id=owner_id,
         )
-        fence = self.memory.fence(memories)
+        mem_fence = self.memory.fence(memories)
+        if keep_pins:
+            fence, pins, scene, lore_hits = self._scene_pin_fence(
+                kept,
+                last_user,
+                built,
+                conversation_id=conversation_id,
+                owner_id=owner_id,
+                mem_fence=mem_fence,
+                graph=graph,
+                repair=repair,
+                beat_hint=beat_hint,
+                style=style,
+                offstage=offstage,
+            )
+        else:
+            fence, pins, scene, lore_hits = mem_fence, [], None, []
         sent: list[dict[str, Any]] = []
         system_text = ""
         last_user_idx = None
@@ -586,25 +758,197 @@ class ChatService:
         document_pack = None
         if last_user_idx is not None:
             others = [m for i, m in enumerate(sent) if i != last_user_idx]
-            used = self.tokenizer.count_messages(others) if others else 0
+            if others and any(m.get("role") == "user" for m in others):
+                used = self.tokenizer.count_messages(others)
+            else:
+                # System-only (or empty) prefixes cannot go through Qwen chat_template —
+                # it raises "No user query found in messages."
+                used = sum(estimate(m.get("content") or "") for m in others)
             room = max(256, budget - used)
-            packed = pack_user_message(sent[last_user_idx]["content"] or "", room, estimate)
-            if packed.applied:
-                sent[last_user_idx]["content"] = packed.text
+            original = sent[last_user_idx]["content"] or ""
+            query, body = split_query_and_body(original)
+            target = body if query else original
+            question = query or (original.split("\n", 1)[0][:200] if original else "")
+            query_cost = (estimate(query) + 8) if query else 0
+            room_for_body = max(64, room - query_cost)
+
+            if full_document:
+                packed = pack_user_message(original, room, estimate)
+                if packed.applied:
+                    raise ValueError("full document exceeds practical context budget")
                 document_pack = {
-                    "applied": True,
+                    "applied": False,
                     "original_tokens": packed.original_tokens,
                     "kept_tokens": packed.kept_tokens,
                     "chunks_total": packed.chunks_total,
                     "chunks_kept": packed.chunks_kept,
+                    "context_route": {
+                        "mode": "verbatim",
+                        "archive_sha256": hashlib.sha256(target.encode("utf-8")).hexdigest(),
+                        "original_chars": len(target),
+                        "served_chars": len(target),
+                        "silent_truncation": False,
+                        "fallback_reason": None,
+                        "citations": [],
+                    },
                 }
+            else:
+                target_tokens = estimate(target) if target else 0
+                if target_tokens <= room_for_body:
+                    document_pack = {
+                        "applied": False,
+                        "original_tokens": target_tokens,
+                        "kept_tokens": target_tokens,
+                        "chunks_total": 1,
+                        "chunks_kept": 1,
+                        "context_route": {
+                            "mode": "verbatim",
+                            "archive_sha256": hashlib.sha256(target.encode("utf-8")).hexdigest(),
+                            "original_chars": len(target),
+                            "served_chars": len(target),
+                            "silent_truncation": False,
+                            "fallback_reason": None,
+                            "citations": [],
+                        },
+                    }
+                else:
+                    max_chars = max(400, min(len(target), room_for_body * 3))
+
+                    def _compress(src: str) -> str:
+                        return extractive_compress(
+                            src, question=question, max_chars=max_chars
+                        )
+
+                    routed = route_document(
+                        text=target,
+                        question=question,
+                        token_budget=room_for_body,
+                        count_tokens=estimate,
+                        reserved_output=0,
+                        compressor=_compress,
+                    )
+                    if routed.mode == "verbatim_exceeds_budget" or not routed.model_text:
+                        # Verbatim asked but over budget, or empty route: fall back to marked pack.
+                        packed = pack_user_message(original, room, estimate)
+                        if packed.applied:
+                            sent[last_user_idx]["content"] = packed.text
+                        document_pack = {
+                            "applied": packed.applied,
+                            "original_tokens": packed.original_tokens,
+                            "kept_tokens": packed.kept_tokens,
+                            "chunks_total": packed.chunks_total,
+                            "chunks_kept": packed.chunks_kept,
+                            "context_route": {
+                                "mode": routed.mode,
+                                "archive_sha256": routed.archive.sha256,
+                                "original_chars": routed.original_chars,
+                                "served_chars": packed.kept_tokens if packed.applied else routed.served_chars,
+                                "silent_truncation": False,
+                                "fallback_reason": routed.fallback_reason
+                                or (
+                                    "verbatim_exceeds_budget"
+                                    if routed.mode == "verbatim_exceeds_budget"
+                                    else "empty_route"
+                                ),
+                                "citations": [
+                                    {
+                                        "start": c.start,
+                                        "end": c.end,
+                                        "chunk_id": c.chunk_id,
+                                    }
+                                    for c in routed.citations
+                                ],
+                            },
+                        }
+                    else:
+                        wrapper = (
+                            f'<document routed="true" mode="{routed.mode}" '
+                            f'original_sha256="{routed.archive.sha256}" '
+                            f'original_chars="{routed.original_chars}" '
+                            f'served_chars="{routed.served_chars}" '
+                            f'silent_truncation="false"'
+                            + (
+                                f' fallback="{routed.fallback_reason}"'
+                                if routed.fallback_reason
+                                else ""
+                            )
+                            + f">\n{routed.model_text}\n</document>"
+                        )
+                        sent[last_user_idx]["content"] = (
+                            f"{query}\n\n{wrapper}".strip() if query else wrapper
+                        )
+                        document_pack = {
+                            "applied": True,
+                            "original_tokens": routed.original_tokens,
+                            "kept_tokens": routed.served_tokens,
+                            "chunks_total": max(1, len(routed.citations)),
+                            "chunks_kept": max(1, len(routed.citations)),
+                            "context_route": {
+                                "mode": routed.mode,
+                                "archive_sha256": routed.archive.sha256,
+                                "original_chars": routed.original_chars,
+                                "served_chars": routed.served_chars,
+                                "silent_truncation": routed.silent_truncation,
+                                "fallback_reason": routed.fallback_reason,
+                                "citations": [
+                                    {
+                                        "start": c.start,
+                                        "end": c.end,
+                                        "chunk_id": c.chunk_id,
+                                    }
+                                    for c in routed.citations
+                                ],
+                            },
+                        }
+
+        frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
+        if isinstance(frame, dict):
+            current_cast = [
+                item for item in frame.get("characters") or []
+                if item.get("scope") == "active" and item.get("name")
+            ][:8]
+            if isinstance(frame.get("context_ir"), dict) and frame["context_ir"].get("version") == 2:
+                routed = route_context(
+                    frame["context_ir"], last_user,
+                    active_names=[item["name"] for item in current_cast],
+                )
+                fence = f"{routed.fence}\n\n{fence}" if fence else routed.fence
+            else:
+                active_lines = ["<active_context>", "Only this frame describes the current scene; reference people and events remain offstage."]
+                if frame.get("active_scene"):
+                    active_lines.append(f"current_scene: {frame['active_scene']}")
+                if frame.get("user_persona"):
+                    active_lines.append(f"user_persona: {frame['user_persona']}")
+                if frame.get("background_facts"):
+                    active_lines.append("confirmed_background: " + "；".join(frame["background_facts"]))
+                if frame.get("preferences"):
+                    active_lines.append("explicit_preferences: " + "；".join(frame["preferences"]))
+                if current_cast:
+                    active_lines.append("current_cast: " + "；".join(
+                        f"{item['name']}（{item.get('role') or '在场人物'}；{item.get('notes') or '无补充'}）"
+                        for item in current_cast
+                    ))
+                active_lines.append("</active_context>")
+                active_fence = "\n".join(active_lines)
+                fence = f"{active_fence}\n\n{fence}" if fence else active_fence
+                reference_fence = reference_context_for_mention(frame, last_user)
+                if reference_fence:
+                    fence = f"{fence}\n\n{reference_fence}"
 
         if fence and last_user_idx is not None:
-            sent[last_user_idx]["content"] = (
-                fence + "\n\n" + (sent[last_user_idx].get("content") or "")
+            # Keep fences as their own user message so they are not mistaken for user lines.
+            sent.insert(
+                last_user_idx,
+                {"role": "user", "content": fence, "id": "context-fences"},
             )
+            last_user_idx += 1
+        elif fence and sent:
+            insert_at = 1 if sent and sent[0].get("role") == "system" else 0
+            sent.insert(insert_at, {"role": "user", "content": fence, "id": "context-fences"})
 
         prompt_tokens = self.tokenizer.count_messages(sent)
+        if full_document and prompt_tokens > budget:
+            raise ValueError("full document exceeds practical context budget")
         snapshot = {
             "effective_system_prompt": system_text,
             "sent_messages": sent,
@@ -612,6 +956,9 @@ class ChatService:
             "compressed": built.compressed,
             "history_summary": built.summary,
             "dialogue_state": built.state.__dict__,
+            "scene_state": (scene.to_dict() if scene else built.state.__dict__),
+            "lore_keys": [h.get("key") for h in lore_hits],
+            "keep_pins": list(pins),
             "dropped_message_ids": dropped or built.dropped_ids,
             "memory_ids": [m.id for m in memories],
             "occupancy": {
@@ -631,8 +978,192 @@ class ChatService:
             },
         }
         snapshot["dialogue_state_obj"] = built.state
+        snapshot["scene_graph_obj"] = graph
+        # A named-reference question may say the name aloud without placing
+        # that person in the scene graph. The stream filter only allows names
+        # the user explicitly mentioned in this turn.
+        snapshot["offstage_names"] = {name for name in offstage if name not in latest_user_content}
         snapshot["history_summary"] = built.summary
         return sent, snapshot
+
+    def _ingest_style(
+        self, conversation_id: str, history: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], StyleBank, set[str]]:
+        """User turns reduced to their live directive; the StyleBank persisted next to graph_json."""
+        history, bank, live_texts = ingest_history(history)
+        try:
+            store = SceneStateStore()
+            record = store.get(conversation_id)
+            stored = StyleBank.from_dict(record.style if record else None)
+            before = stored.to_dict()
+            stored.update(bank)
+            if stored.to_dict() != before:
+                store.save_style(conversation_id, stored.to_dict())
+            bank = stored
+        except Exception:
+            pass
+        return history, bank, bank.offstage_scene(live_texts)
+
+    def _scene_pin_fence(
+        self,
+        kept: list[dict[str, Any]],
+        last_user: str,
+        built: Any,
+        *,
+        conversation_id: str,
+        owner_id: str | None,
+        mem_fence: str | None,
+        graph: SceneGraph | None = None,
+        repair: list[str] | None = None,
+        beat_hint: str | None = None,
+        style: StyleBank | None = None,
+        offstage: set[str] | None = None,
+    ) -> tuple[str | None, list[str], Any, list[dict[str, Any]]]:
+        """User-side fence for keep_pins profiles: pins, lore, scene state, memory, author note."""
+        lore_hits: list[dict[str, Any]] = []
+        lore_fence = None
+        scene_fence = None
+        scene = None
+        try:
+            scan_texts = [
+                m.get("content") or ""
+                for m in kept
+                if m.get("role") in {"user", "assistant"} and m.get("id") != "dialogue-context"
+            ][-12:]
+            scan_texts.append(last_user)
+            lore_hits = lorebook_mod.activate(
+                lorebook_mod.list_entries(
+                    owner_id=owner_id,
+                    character_card_id=self._conversation_settings(conversation_id).get("character_card_id"),
+                    active_only=True,
+                ),
+                scan_texts,
+                budget_tokens=768,
+            )
+            lore_fence = lorebook_mod.fence(lore_hits)
+        except Exception:
+            lore_hits = []
+            lore_fence = None
+        prev_assistant = next(
+            (
+                m.get("content") or ""
+                for m in reversed(kept)
+                if m.get("role") == "assistant"
+            ),
+            "",
+        )
+        turn_facts = extract_facts(last_user + "\n" + prev_assistant)
+        keep_pins = extract_atoms(last_user, prev_assistant=prev_assistant)
+        try:
+            scene = SceneStateStore().get(conversation_id)
+            if scene is None and built.state:
+                # ephemeral render from dialogue state when not yet persisted
+                from app.services.scene_state_store import SceneStateRecord
+
+                scene = SceneStateRecord(
+                    conversation_id=conversation_id,
+                    location=built.state.location,
+                    scene=built.state.scene,
+                    participants=list(built.state.participants),
+                    clothing=list(getattr(built.state, "clothing", []) or []),
+                    body_state=list(getattr(built.state, "body_state", []) or []),
+                    relationship=built.state.relationship,
+                    inventory=list(getattr(built.state, "inventory", []) or []),
+                    open_threads=list(built.state.open_threads),
+                    user_preferences=list(built.state.user_preferences),
+                    character_goals=list(built.state.character_goals),
+                    recent_actions=list(built.state.recent_actions),
+                    forbidden_patterns=list(getattr(built.state, "forbidden_patterns", []) or []),
+                )
+            # Pin current-turn keywords into the fence before generation
+            # (no "地点：" label required for objects like 铜钥匙).
+            from app.services.scene_state_store import SceneStateRecord, _uniq
+
+            if scene is None and (
+                turn_facts.inventory or turn_facts.locations or turn_facts.time_agreements
+            ):
+                scene = SceneStateRecord(conversation_id=conversation_id)
+            if scene is not None:
+                if turn_facts.inventory:
+                    scene.inventory = _uniq([*list(scene.inventory), *turn_facts.inventory])
+                if turn_facts.body_marks:
+                    scene.body_state = _uniq(
+                        [*list(scene.body_state), *turn_facts.body_marks]
+                    )
+                if turn_facts.locations and not scene.location:
+                    preferred = next(
+                        (
+                            loc
+                            for loc in turn_facts.locations
+                            if loc in {"旧书店", "卧室", "厨房", "咖啡馆", "巷口"}
+                        ),
+                        turn_facts.locations[0],
+                    )
+                    scene.location = preferred
+                if turn_facts.time_agreements:
+                    scene.open_threads = _uniq(
+                        [
+                            *list(scene.open_threads),
+                            *[f"约定：{t}" for t in turn_facts.time_agreements],
+                        ]
+                    )
+                if offstage:
+                    scene.participants = [p for p in scene.participants if not mentions(p, offstage)]
+            scene_fence = scene.fence(budget_tokens=400) if scene else None
+        except Exception:
+            scene_fence = None
+            scene = None
+        if scene is not None:
+            if scene.location and f"地点：{scene.location}" not in keep_pins:
+                keep_pins = [*keep_pins, f"地点：{scene.location}"]
+            for item in scene.inventory:
+                line = f"物件：{item}"
+                if item and line not in keep_pins and not any(
+                    p.startswith("物件：") and item in p for p in keep_pins
+                ):
+                    keep_pins.append(line)
+        keep_pins.extend(
+            h.get("key") for h in lore_hits if h.get("key") and h.get("key") not in keep_pins
+        )
+        if graph is not None and not graph.is_empty():
+            keep_pins = [p for p in keep_pins if not graph_owned_pin(p)]
+        if offstage:
+            keep_pins = [p for p in keep_pins if not mentions(p, offstage)]
+        keep_pins = keep_pins[:12]
+        keep_fence = must_keep_fence(keep_pins)
+        # Prefer must_keep → lore → scene_state; truncate lore, never the user turn.
+        fence = pack_user_side_fences(
+            must_keep=keep_fence,
+            lore=lore_fence,
+            scene_state=scene_fence,
+            memory=mem_fence,
+            budget_chars=1200,
+        )
+        note = IMMERSIVE_AUTHOR_NOTE
+        # Bound IR supplies its own short live-scene pin.
+        has_ir = False
+        try:
+            frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
+            has_ir = isinstance(frame, dict) and isinstance(frame.get("context_ir"), dict) and frame["context_ir"].get("version") == 2
+        except Exception:
+            has_ir = False
+        if has_ir:
+            note = ""
+        style_fence = None if has_ir else (style.fence() if style is not None else None)
+        if style_fence:
+            fence = f"{fence}\n\n{style_fence}" if fence else style_fence
+            note = note.replace("</author_note>", f"{STYLE_AUTHOR_LINE}</author_note>")
+        if note:
+            fence = f"{fence}\n\n{note}" if fence else note
+        lines = describe_repair(repair or [])
+        if lines:
+            fence += "\n\n<repair>\n上一段漏掉或写错了，接着往下写时补上：\n"
+            fence += "\n".join(f"- {line}" for line in lines) + "\n</repair>"
+        if beat_hint:
+            fence += f"\n\n<next_beat>\n{beat_hint}\n</next_beat>"
+        slot_pins = graph.repair_atoms() if graph is not None else []
+        pins = [p for p in [*keep_pins, *slot_pins] if not mentions(p, offstage or ())]
+        return fence, pins, scene, lore_hits
 
     def _save_snapshot(
         self, conversation_id: str, snapshot: dict[str, Any], params: dict[str, Any]
@@ -694,6 +1225,7 @@ class ChatService:
         started_ms: int,
         user_preview: str,
         is_new: bool,
+        answer_check: dict[str, Any] | None = None,
     ) -> None:
         ts = now_ms()
         total = prompt_tokens + completion_tokens
@@ -720,6 +1252,28 @@ class ChatService:
                 assistant_id,
             ),
         )
+        if answer_check is not None:
+            existing = conn.execute(
+                "SELECT metadata_json FROM messages WHERE id=?",
+                (assistant_id,),
+            ).fetchone()
+            meta: dict[str, Any] = {}
+            if existing and existing["metadata_json"]:
+                try:
+                    loaded = json.loads(existing["metadata_json"])
+                except json.JSONDecodeError:
+                    loaded = {}
+                if isinstance(loaded, dict):
+                    meta = loaded
+            meta["answer_check"] = {
+                "original": answer_check.get("original", ""),
+                "reason": answer_check.get("reason", ""),
+                "applied": bool(answer_check.get("applied")),
+            }
+            conn.execute(
+                "UPDATE messages SET metadata_json=? WHERE id=?",
+                (json.dumps(meta, ensure_ascii=False), assistant_id),
+            )
         run_id = new_id()
         conn.execute(
             """
@@ -818,8 +1372,18 @@ class ChatService:
         reasoning_effort: str | None = None,
         thinking_continuation: bool | None = None,
         owner_id: str | None = None,
+        evidence: str | None = None,
+        auto_continue: bool | None = None,
+        character_card_id: str | None = None,
+        context_preset_id: str | None = None,
+        selected_model: str | None = None,
+        provider_override: Any | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
+        active_provider = provider_override or self.provider
+        cloud_mode = provider_override is not None
+        model_id = selected_model or s.model_name
+        fallback_used = False
         text = (message or "").strip()
         skip_user_insert = False
         resume_assistant = False
@@ -1000,7 +1564,110 @@ class ChatService:
             if thinking_continuation is None
             else thinking_continuation
         )
-        system_prompt = (system if system is not None else s.default_system) or ""
+        selected_preset = None
+        if context_preset_id and not conversation_id:
+            selected_preset = get_preset(context_preset_id, owner_id=owner_id)
+            if selected_preset is None:
+                yield {
+                    "event": "error",
+                    "data": {"error": {"message": "preset not found", "type": "not_found_error", "code": "preset_not_found"}},
+                    "status": 404,
+                }
+                return
+        inline_draft = None
+        inline_frame = None
+        if (
+            not conversation_id
+            and selected_preset is None
+            and not context_preset_id
+            and not character_card_id
+            and preset["profile"] in IMMERSIVE_PROFILE_NAMES
+            and 800 <= len(text) <= 50000
+            and not requests_full_document(text)
+        ):
+            query, source = split_query_and_body(text)
+            scene_request = (
+                query
+                and any(cue in query for cue in ("按这个设定", "按此设定", "进入场景", "扮演", "开始当前场景"))
+                and not any(cue in query for cue in ("总结", "分析", "提取", "列出", "翻译", "比较", "对比"))
+            )
+            if not query or scene_request:
+                split = split_style_corpus(source)
+                # A mixed character bible carries an avatar claim in the
+                # reference body; a style-only sample stays on StyleBank.
+                if len(split.corpus) >= 500 and "你是" in split.live and "我叫" in split.corpus:
+                    try:
+                        inline_draft = preview_preset(source)
+                        if len(inline_draft.get("characters") or []) >= 4:
+                            inline_frame = chat_frame_from_simple(inline_draft, source_text=source)
+                    except ValueError:
+                        inline_draft = None
+        card = get_card(character_card_id, owner_id=owner_id) if character_card_id else None
+        if selected_preset is not None:
+            frame = chat_frame_from_simple(
+                selected_preset["payload"],
+                source_text=selected_preset.get("source_text") or "",
+            )
+            card = {**frame.get("active_character", {}), **(card or {}),
+                    "scenario": frame.get("active_scene") or ""}
+        elif inline_frame is not None:
+            card = {**inline_frame.get("active_character", {}), "scenario": inline_frame.get("active_scene") or ""}
+        if system is not None:
+            system_prompt = system or ""
+        elif card is not None:
+            system_prompt = compile_card_system(
+                card,
+                grounded_context=selected_preset is not None or inline_frame is not None,
+            )
+        elif preset["profile"] in {"immersive", "long_form"}:
+            system_prompt = (s.default_system or "").strip() or IMMERSIVE_SYSTEM.strip()
+        else:
+            system_prompt = (s.default_system or "") or ""
+
+        auto_max = int(preset.get("auto_continue_max") or 0)
+        min_output_chars = int(preset.get("min_output_chars") or 0)
+        # A compiled document has no live action to extend yet. Wait for the
+        # user to steer the next beat instead of forcing the profile's long floor.
+        if (selected_preset is not None or inline_frame is not None) and auto_continue is None:
+            min_output_chars = 0
+        # Soft total completion tokens across auto-continue hops (immersive: 12288).
+        completion_soft_cap = int(preset.get("completion_soft_cap") or 0)
+        if auto_continue is None:
+            enable_auto = auto_max > 0 and min_output_chars > 0
+        else:
+            enable_auto = bool(auto_continue) and auto_max > 0
+        if cloud_mode:
+            enable_auto = False
+        auto_count = 0
+        pin_repair_count = 0
+        pin_repair_budget = 512
+        pin_repair_pending = False
+        repair_slots: list[str] = []
+        turn_keep_pins: list[str] = []
+        turn_graph: SceneGraph | None = None
+        stub_hops = 0
+        beat_hops = 0
+        stub_streak = 0
+        guard_hits = 0
+        completion_tokens_acc = 0
+        immersive_turn = preset["profile"] in IMMERSIVE_PROFILE_NAMES
+        hop_logit_bias: dict[str, float] = {}
+        fill_hop = False
+        fill_hop_count = 0
+        guard_trim: str | None = None
+        # A paragraph cycle across the tail window ends the turn; another fill hop re-enters it.
+        loop_stop = False
+        deflect_ids: set[int] = set()
+        stall_count = 0
+        prefix_mutated = False
+        hop_mutated = False
+        hop_start_len = 0
+        pin_hop = False
+        echo = EchoSuppressor("")
+        provider_calls = 0
+        provider_call_cap = hard_provider_call_cap(auto_max)
+        turn_live_texts: list[str] = []
+
         params = {
             "profile": preset["profile"],
             **sampled,
@@ -1014,9 +1681,24 @@ class ChatService:
                 medium=s.thinking_budget_medium,
                 xhigh=s.thinking_budget_xhigh,
             ),
+            "min_output_chars": min_output_chars,
+            "auto_continue_max": auto_max,
+            "completion_soft_cap": completion_soft_cap or None,
+            "character_card_id": character_card_id,
+            "context_preset_id": context_preset_id if selected_preset is not None else None,
+            "context_preset_snapshot": (
+                chat_frame_from_simple(
+                    selected_preset["payload"],
+                    source_text=selected_preset.get("source_text") or "",
+                )
+                if selected_preset is not None
+                else inline_frame
+            ),
+            "selected_model": model_id,
         }
 
         created = False
+        conversation_created = False
         if conversation_id:
             existing = self.get_conversation(conversation_id, owner_id=owner_id)
             if existing is None:
@@ -1033,11 +1715,43 @@ class ChatService:
                 }
                 return
             cid = conversation_id
+            bound = self._conversation_settings(cid)
+            if context_preset_id and context_preset_id != bound.get("context_preset_id"):
+                yield {
+                    "event": "error",
+                    "data": {"error": {"message": "a conversation cannot switch context presets", "type": "invalid_request_error", "code": "preset_switch_not_allowed"}},
+                    "status": 409,
+                }
+                return
+            params["context_preset_id"] = bound.get("context_preset_id")
+            params["context_preset_snapshot"] = bound.get("context_preset_snapshot")
+            params["character_card_id"] = bound.get("character_card_id")
+            if cloud_mode and bound.get("character_card_id"):
+                card = get_card(bound["character_card_id"], owner_id=owner_id)
         else:
             cid = self._create_conversation(
-                system_prompt, s.model_name, json.dumps(params), owner_id=owner_id
+                system_prompt, model_id, json.dumps(params), owner_id=owner_id
             )
             created = True
+            conversation_created = True
+            if selected_preset is not None or inline_frame is not None:
+                frame = params["context_preset_snapshot"] or {}
+                graph = SceneGraph()
+                graph.merge(frame.get("active_scene") or frame.get("current_scene") or "")
+                actor_name = (frame.get("active_character") or {}).get("name")
+                if actor_name:
+                    graph.member(actor_name, create=True)
+                for member in frame.get("characters") or []:
+                    if member.get("scope") == "active" and member.get("name"):
+                        graph.member(member["name"], create=True)
+                SceneStateStore().save_graph(cid, graph)
+                SceneStateStore().save_style(
+                    cid,
+                    style_bank_for_preset(
+                        selected_preset["payload"] if selected_preset is not None else inline_draft,
+                        source_text=(selected_preset.get("source_text") or "") if selected_preset is not None else text,
+                    ).to_dict(),
+                )
 
         conflict = None
         async with self._lock:
@@ -1061,11 +1775,19 @@ class ChatService:
             }
             return
 
+        # Flush activity immediately so the composer never sits blank while
+        # prompt packing / StyleBank ingest runs (must stay rules-only, tens of ms).
+        yield {
+            "event": "status",
+            "data": {"stage": "准备场景", "eta_s": 2},
+        }
+
         started = now_ms()
         user_id = ""
         assistant_id = ""
         snapshot_id = ""
         content_buf = resume_content
+        answer_check: dict[str, Any] | None = None
         reasoning_buf = resume_reasoning
         prompt_tokens = 0
         completion_tokens = 0
@@ -1086,6 +1808,20 @@ class ChatService:
             extra: dict[str, Any] = {
                 "used_continue_prompts": self._used_continue_prompts(cid),
             }
+            if hop_logit_bias:
+                extra["logit_bias"] = dict(hop_logit_bias)
+            if cloud_mode:
+                frame = params.get("context_preset_snapshot") or {}
+                source = (selected_preset or {}).get("source_text") or ""
+                if not source and params.get("context_preset_id"):
+                    bound_preset = get_preset(params["context_preset_id"], owner_id=owner_id)
+                    source = (bound_preset or {}).get("source_text") or ""
+                if frame or card:
+                    if card:
+                        frame = {**frame, "active_character": {**(frame.get("active_character") or {}), **card}}
+                    extra["dzmm_card"] = card_from_context(
+                        frame or {"active_character": card or {}}, source, text
+                    )
             if resume_assistant and (resume_content or resume_reasoning):
                 if resume_content:
                     asst = continue_assistant_message(resume_content, resume_reasoning)
@@ -1093,6 +1829,7 @@ class ChatService:
                         [*messages, asst],
                         enable_thinking=enable_thinking,
                         used_prompts=extra["used_continue_prompts"],
+                        mutated=hop_mutated,
                     )
                 else:
                     prompt, continue_tail = self.tokenizer.mid_think_completion_prompt(
@@ -1126,10 +1863,44 @@ class ChatService:
         think_max = 0
         tail_stripper = TailStripper("")
 
+        stream_filter = OffstageStreamFilter()
+
         async def consume_stream(agen):
             nonlocal content_buf, reasoning_buf, prompt_tokens, completion_tokens, cached_tokens, usage_source, think_cut
+            nonlocal guard_trim, prefix_mutated, guard_hits, status, error, loop_stop
+            agen_iter = agen.__aiter__()
+            last_token_ms = now_ms()
+            stream_open = False
             try:
-                async for chunk in agen:
+                while True:
+                    # Shared 9B may still be decoding a preview; give the first token longer.
+                    idle_limit_s = BETWEEN_TOKEN_IDLE_S if ledger.had_output else FIRST_TOKEN_IDLE_S
+                    try:
+                        chunk = await asyncio.wait_for(agen_iter.__anext__(), timeout=idle_limit_s)
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        if not ledger.had_output:
+                            status = "error"
+                            error = GENERATION_IDLE if stream_open else PROVIDER_BUSY
+                            ledger.exception = TimeoutError(error)
+                            yield {
+                                "event": "error",
+                                "data": {
+                                    "error": {
+                                        "message": error,
+                                        "type": "api_error",
+                                        "code": "generation_idle_timeout" if stream_open else "provider_busy",
+                                    }
+                                },
+                            }
+                            break
+                        yield {
+                            "event": "status",
+                            "data": {"stage": "正在写…", "eta_s": idle_limit_s},
+                        }
+                        continue
+                    stream_open = True
                     if chunk.wire_done:
                         ledger.observe_done_wire()
                         continue
@@ -1140,9 +1911,26 @@ class ChatService:
                         ledger.http_eof = True
                         continue
                     if chunk.keepalive:
+                        # Keepalives alone must not hide a dead generate thread.
+                        if not ledger.had_output and (now_ms() - last_token_ms) >= int(FIRST_TOKEN_IDLE_S * 1000):
+                            status = "error"
+                            error = GENERATION_IDLE
+                            ledger.exception = TimeoutError(error)
+                            yield {
+                                "event": "error",
+                                "data": {
+                                    "error": {
+                                        "message": GENERATION_IDLE,
+                                        "type": "api_error",
+                                        "code": "generation_idle_timeout",
+                                    }
+                                },
+                            }
+                            break
                         yield {"event": "ping", "data": {"keepalive": chunk.keepalive}}
                         continue
                     now = now_ms()
+                    last_token_ms = now
                     if chunk.delta_reasoning:
                         reasoning_buf += chunk.delta_reasoning
                         ledger.had_output = True
@@ -1159,7 +1947,7 @@ class ChatService:
                             think_cut = True
                             break
                     if chunk.delta_content:
-                        visible = tail_stripper.feed(chunk.delta_content)
+                        visible = echo.feed(tail_stripper.feed(chunk.delta_content))
                         if visible:
                             content_buf += visible
                             ledger.had_output = True
@@ -1167,9 +1955,50 @@ class ChatService:
                                 ledger.first_any_ms = now
                             if ledger.first_visible_ms is None:
                                 ledger.first_visible_ms = now
-                            yield {"event": "delta", "data": {"content": visible}}
+                            safe = stream_filter.feed(visible)
+                            if safe:
+                                yield {"event": "delta", "data": {"content": safe}}
                             if hard_self_loop(content_buf):
                                 ledger.repetition_guard = True
+                                break
+                            cut = runon_start(content_buf) if immersive_turn else None
+                            if cut is not None:
+                                content_buf = content_buf[:cut].rstrip()
+                                guard_trim = "runon"
+                                guard_hits += 1
+                                prefix_mutated = True
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
+                                break
+                            window_at = tail_window_loop(content_buf) if immersive_turn else None
+                            if window_at is not None:
+                                content_buf = content_buf[:window_at].rstrip()
+                                guard_trim = "window_loop"
+                                guard_hits += 1
+                                loop_stop = True
+                                prefix_mutated = True
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
+                                break
+                            loop_at = None
+                            if immersive_turn:
+                                loop_at = repeated_sentence_start(content_buf, prior=prev_reply)
+                                if loop_at is None:
+                                    loop_at = repeated_line_start(content_buf, prior=prev_reply)
+                                if loop_at is None:
+                                    loop_at = refrain_run_start(content_buf)
+                            if loop_at is not None:
+                                lookup = getattr(self.tokenizer, "first_token", None)
+                                first = lookup(content_buf[loop_at:]) if lookup else None
+                                # A one-glyph token (我/她) is too common to ban for a whole hop.
+                                if first and len(first[1].strip()) >= 2:
+                                    deflect_ids.add(first[0])
+                                content_buf = content_buf[:loop_at].rstrip()
+                                guard_trim = "loop"
+                                guard_hits += 1
+                                prefix_mutated = True
+                                ledger.observe_finish("stop")
+                                ledger.provider_protocol_closed = True
                                 break
                     if chunk.finish_reason:
                         ledger.observe_finish(chunk.finish_reason)
@@ -1181,259 +2010,559 @@ class ChatService:
                         usage_source = "upstream"
                     if chunk.cached_tokens is not None:
                         cached_tokens = chunk.cached_tokens
+                held = echo.flush()
+                if held:
+                    content_buf += held
+                    safe = stream_filter.feed(held)
+                    if safe:
+                        yield {"event": "delta", "data": {"content": safe}}
             finally:
                 closer = getattr(agen, "aclose", None)
                 if closer is not None:
                     await closer()
 
-        try:
-            if skip_user_insert:
-                hist = self._load_history(cid)
-                last_u = next((m for m in reversed(hist) if m.get("role") == "user"), None)
-                user_id = (last_u or {}).get("id") or ""
-            else:
-                user_id, _ = self._insert_message(cid, "user", text)
-            if resume_assistant and resume_assistant_id:
-                assistant_id = resume_assistant_id
-                self._conn().execute(
-                    "UPDATE messages SET status='streaming', updated_at=? WHERE id=?",
-                    (now_ms(), assistant_id),
-                )
-                self._conn().commit()
-                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
-            else:
-                assistant_id, _ = self._insert_message(
-                    cid, "assistant", "", status="streaming"
-                )
-                history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
-            prior_state, prior_summary = self._load_dialogue_meta(cid)
-            sent, snapshot_meta = self._build_payload(
-                history,
-                max_tokens=max_tokens,
-                enable_thinking=enable_thinking,
-                reasoning_effort=effort,
-                conversation_id=cid,
-                owner_id=owner_id,
-                prior_state=prior_state,
-                prior_summary=prior_summary,
-                prompt_budget=preset.get("prompt_budget"),
-                prompt_soft_target=preset.get("prompt_soft_target"),
-            )
-            occupancy = snapshot_meta["occupancy"]
-            prompt_tokens = occupancy["prompt_tokens"]
-            if (
-                occupancy["prompt_tokens"] + max_tokens > s.context_window
-                and s.overflow_policy == "error"
-            ):
-                status = "error"
-                error = "prompt exceeds practical context budget"
-                ledger.exception = RuntimeError(error)
-                return
+        sent: list[dict[str, Any]] = []
+        do_auto = False
+        user_cancelled = False
+        while True:
+            hop_mutated, prefix_mutated = prefix_mutated, False
+            if auto_count > 0 or pin_repair_count > 0:
+                resume_assistant = True
+                resume_assistant_id = assistant_id
+                resume_content = content_buf or ""
+                resume_reasoning = reasoning_buf or ""
+                skip_user_insert = True
+                created = False
+                ledger = StreamLedger(started_ms=now_ms())
+                terminal = TerminalState.UNKNOWN_TERMINAL
+                finish = None
+                error = None
+                answer_check = None
+                # keep content_buf / reasoning_buf; continuation appends
+            hop_start_len = len(content_buf or "")
+            hop_guard_start = guard_hits
+            provider_calls += 1
+            unique_hop_chars = 0
+            guard_aborted = False
+            if not turn_live_texts:
+                turn_live_texts = [split_style_corpus(text or "").live]
 
-            snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
-            if not resume_assistant:
-                self._clear_continue_prompts(cid)
-            self._save_dialogue_meta(
-                cid,
-                state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
-                summary=snapshot_meta.get("history_summary"),
-                params=params,
-            )
-            yield {
-                "event": "meta",
-                "data": {
-                    "conversation_id": cid,
-                    "created": created,
-                    "user_message_id": user_id,
-                    "message_id": assistant_id,
-                    "model": s.model_name,
-                },
-            }
-            yield {
-                "event": "snapshot",
-                "data": {
-                    "request_id": snapshot_id,
-                    "conversation_id": cid,
-                    "model": s.model_name,
-                    "params": params,
-                    "effective_system_prompt": snapshot_meta["effective_system_prompt"],
-                    "sent_messages": snapshot_meta["sent_messages"],
-                    "occupancy": occupancy,
-                    "history_summary": snapshot_meta.get("history_summary"),
-                    "dialogue_state": snapshot_meta.get("dialogue_state"),
-                    "truncation": {
-                        "applied": snapshot_meta["truncated"],
-                        "policy": "fold_turns" if snapshot_meta["truncated"] else "none",
-                        "dropped_message_ids": snapshot_meta["dropped_message_ids"],
-                    },
-                },
-            }
-
-            think_budget = thinking_budget_for(
-                effort,
-                low=s.thinking_budget_low,
-                medium=s.thinking_budget_medium,
-                xhigh=s.thinking_budget_xhigh,
-            )
-            think_max, leftover_min = thinking_token_split(max_tokens, think_budget)
-            req = make_req(sent, max_tokens)
-            tail_stripper = TailStripper(continue_tail)
-
-            if not stream:
-                first_max = max_tokens
-                if use_think_cut and think_budget and enable_thinking:
-                    first_max = think_max
-                first_req = make_req(sent, first_max)
-                if (first_req.extra or {}).get("raw_prompt"):
-                    self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
-                result = await self.provider.complete(first_req)
-                extra_content = result.content or ""
-                if resume_assistant:
-                    extra_content = strip_regenerated_tail(extra_content, continue_tail)
-                content_buf = (resume_content + extra_content) if resume_assistant else extra_content
-                extra_reason = result.reasoning or ""
-                reasoning_buf = (
-                    (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
-                )
-                if not reasoning_buf and content_buf:
-                    content_buf, reasoning_buf = split_thinking(content_buf)
-                if (
-                    use_think_cut
-                    and think_budget
-                    and enable_thinking
-                    and not result.content
-                    and hasattr(self.provider, "complete_after_think")
-                ):
-                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
-                    extra = await self.provider.complete_after_think(
-                        first_req, reasoning_buf, leftover
+            try:
+                if skip_user_insert:
+                    hist = self._load_history(cid)
+                    last_u = next((m for m in reversed(hist) if m.get("role") == "user"), None)
+                    user_id = (last_u or {}).get("id") or ""
+                else:
+                    user_id, _ = self._insert_message(cid, "user", text)
+                if resume_assistant and resume_assistant_id:
+                    assistant_id = resume_assistant_id
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', updated_at=? WHERE id=?",
+                        (now_ms(), assistant_id),
                     )
-                    think_prompt = (first_req.extra or {}).get("raw_prompt") or ""
-                    if think_prompt:
-                        self._remember_continue_prompt(cid, think_prompt)
-                    extra_visible = extra.content or ""
-                    if resume_assistant:
-                        extra_visible = strip_regenerated_tail(extra_visible, continue_tail)
-                    content_buf = (resume_content + extra_visible) if resume_assistant else extra_visible
-                    result = extra
-                ledger.observe_finish(result.finish_reason)
-                ledger.observe_done_wire()
-                ledger.had_output = bool(content_buf or reasoning_buf)
-                if result.prompt_tokens is not None:
-                    prompt_tokens = result.prompt_tokens
-                    usage_source = result.usage_source
-                if result.completion_tokens:
-                    completion_tokens = result.completion_tokens
-                cached_tokens = result.cached_tokens
-                if content_buf:
-                    yield {"event": "delta", "data": {"content": content_buf}}
-                if reasoning_buf:
-                    yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
-            else:
-                if (req.extra or {}).get("raw_prompt"):
-                    self._remember_continue_prompt(cid, req.extra["raw_prompt"])
-                async for event in consume_stream(self.provider.stream(req)):
-                    yield event
+                    self._conn().commit()
+                    history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+                else:
+                    assistant_id, _ = self._insert_message(
+                        cid, "assistant", "", status="streaming"
+                    )
+                    history = [m for m in self._load_history(cid) if m["id"] != assistant_id]
+                prev_reply = ""
+                if immersive_turn:
+                    prev_reply = next(
+                        (m.get("content") or "" for m in reversed(history) if m.get("role") == "assistant"),
+                        "",
+                    )
+                echo = EchoSuppressor("" if resume_assistant else prev_reply)
+                prior_state, prior_summary = self._load_dialogue_meta(cid)
+                beat_hint = None
                 if (
-                    think_cut
-                    and not content_buf
-                    and hasattr(self.provider, "stream_after_think")
+                    immersive_turn
+                    and auto_count > 0
+                    and not pin_repair_pending
+                    and 0 < count_output_chars(content_buf or "") < min_output_chars
                 ):
-                    leftover = max(leftover_min, max_tokens - self.tokenizer.count_text(reasoning_buf))
-                    async for event in consume_stream(
-                        self.provider.stream_after_think(req, reasoning_buf, leftover)
+                    beat_hint = next_beat_hint(content_buf or "", turn_graph)
+                sent, snapshot_meta = self._build_payload(
+                    history,
+                    max_tokens=max_tokens,
+                    enable_thinking=enable_thinking,
+                    reasoning_effort=effort,
+                    conversation_id=cid,
+                    owner_id=owner_id,
+                    prior_state=prior_state,
+                    prior_summary=prior_summary,
+                    prompt_budget=preset.get("prompt_budget"),
+                    prompt_soft_target=preset.get("prompt_soft_target"),
+                    profile_name=preset.get("profile"),
+                    keep_pins=bool(preset.get("keep_pins")),
+                    repair=repair_slots if pin_repair_pending else None,
+                    beat_hint=beat_hint,
+                )
+                stream_filter.set_names(snapshot_meta.get("offstage_names") or ())
+                occupancy = snapshot_meta["occupancy"]
+                prompt_tokens = occupancy["prompt_tokens"]
+                if snapshot_meta.get("keep_pins"):
+                    turn_keep_pins = list(snapshot_meta.get("keep_pins") or [])
+                turn_graph = snapshot_meta.get("scene_graph_obj") or turn_graph
+                if (
+                    occupancy["prompt_tokens"] + max_tokens > s.context_window
+                    and s.overflow_policy == "error"
+                ):
+                    status = "error"
+                    error = "prompt exceeds practical context budget"
+                    ledger.exception = RuntimeError(error)
+                    break
+
+                snapshot_id = self._save_snapshot(cid, snapshot_meta, params)
+                if not resume_assistant:
+                    self._clear_continue_prompts(cid)
+                self._save_dialogue_meta(
+                    cid,
+                    state=snapshot_meta.get("dialogue_state_obj") or DialogueState(),
+                    summary=snapshot_meta.get("history_summary"),
+                    params=params,
+                )
+                yield {
+                    "event": "meta",
+                    "data": {
+                        "conversation_id": cid,
+                        "created": created,
+                        "user_message_id": user_id,
+                        "message_id": assistant_id,
+                        "model": model_id,
+                    },
+                }
+                yield {
+                    "event": "snapshot",
+                    "data": {
+                        "request_id": snapshot_id,
+                        "conversation_id": cid,
+                        "model": model_id,
+                        "params": params,
+                        "effective_system_prompt": snapshot_meta["effective_system_prompt"],
+                        "sent_messages": snapshot_meta["sent_messages"],
+                        "occupancy": occupancy,
+                        "history_summary": snapshot_meta.get("history_summary"),
+                        "dialogue_state": snapshot_meta.get("dialogue_state"),
+                        "truncation": {
+                            "applied": snapshot_meta["truncated"],
+                            "policy": "fold_turns" if snapshot_meta["truncated"] else "none",
+                            "dropped_message_ids": snapshot_meta["dropped_message_ids"],
+                        },
+                    },
+                }
+
+                think_budget = thinking_budget_for(
+                    effort,
+                    low=s.thinking_budget_low,
+                    medium=s.thinking_budget_medium,
+                    xhigh=s.thinking_budget_xhigh,
+                )
+                # Soft-cap remaining completion budget across hops (≤12288 immersive).
+                hop_max = max_tokens
+                pin_hop = pin_repair_pending
+                if pin_repair_pending:
+                    hop_max = min(hop_max, pin_repair_budget)
+                    pin_repair_pending = False
+                if completion_soft_cap > 0:
+                    remaining = completion_soft_cap - completion_tokens_acc
+                    hop_max = max(1, min(hop_max, max(0, remaining) or 1))
+                fill_hop = False
+                hop_logit_bias = {}
+                visible_now = count_output_chars(content_buf or "")
+                if immersive_turn and auto_count > 0 and not pin_hop and 0 < visible_now < min_output_chars:
+                    lookup = getattr(self.tokenizer, "special_token_ids", None)
+                    banned = lookup(FILL_HOP_BANNED_TOKENS) if lookup else []
+                    if banned:
+                        fill_hop = True
+                        fill_hop_count += 1
+                        hop_logit_bias = {str(t): -100.0 for t in [*banned, *sorted(deflect_ids)]}
+                        hop_max = fill_hop_tokens(
+                            visible_chars=visible_now,
+                            visible_tokens=self.tokenizer.count_text(content_buf or ""),
+                            min_output_chars=min_output_chars,
+                            cap=hop_max,
+                        )
+                deflect_ids.clear()
+                think_max, leftover_min = thinking_token_split(hop_max, think_budget)
+                req = make_req(sent, hop_max)
+                tail_stripper = TailStripper(continue_tail)
+
+                if not stream:
+                    first_max = hop_max
+                    if use_think_cut and think_budget and enable_thinking:
+                        first_max = think_max
+                    first_req = make_req(sent, first_max)
+                    if (first_req.extra or {}).get("raw_prompt"):
+                        self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
+                    elif not resume_assistant:
+                        self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
+                    try:
+                        result = await active_provider.complete(first_req)
+                    except DzmmQuotaError:
+                        fallback_used = True
+                        yield {"event": "status", "data": {"stage": "云端额度用尽，已改用本机"}}
+                        result = await self.provider.complete(first_req)
+                    extra_content = result.content or ""
+                    if resume_assistant:
+                        extra_content = strip_regenerated_tail(extra_content, continue_tail)
+                    content_buf = (resume_content + extra_content) if resume_assistant else extra_content
+                    extra_reason = result.reasoning or ""
+                    reasoning_buf = (
+                        (resume_reasoning + extra_reason) if resume_assistant and extra_reason else (extra_reason or resume_reasoning)
+                    )
+                    if not reasoning_buf and content_buf:
+                        content_buf, reasoning_buf = split_thinking(content_buf)
+                    if (
+                        use_think_cut
+                        and think_budget
+                        and enable_thinking
+                        and not result.content
+                        and hasattr(self.provider, "complete_after_think")
                     ):
-                        yield event
-                    think_prompt = (req.extra or {}).get("raw_prompt") or ""
-                    if think_prompt:
-                        self._remember_continue_prompt(cid, think_prompt)
-                if not reasoning_buf and content_buf:
-                    visible, hidden = split_thinking(content_buf)
-                    if hidden:
-                        content_buf, reasoning_buf = visible, hidden
-            if not completion_tokens:
-                completion_tokens = self.tokenizer.count_text(
+                        leftover = max(leftover_min, hop_max - self.tokenizer.count_text(reasoning_buf))
+                        extra = await self.provider.complete_after_think(
+                            first_req, reasoning_buf, leftover
+                        )
+                        think_prompt = (first_req.extra or {}).get("raw_prompt") or ""
+                        if think_prompt:
+                            self._remember_continue_prompt(cid, think_prompt)
+                        extra_visible = extra.content or ""
+                        if resume_assistant:
+                            extra_visible = strip_regenerated_tail(extra_visible, continue_tail)
+                        content_buf = (resume_content + extra_visible) if resume_assistant else extra_visible
+                        result = extra
+                    ledger.observe_finish(result.finish_reason)
+                    ledger.observe_done_wire()
+                    ledger.had_output = bool(content_buf or reasoning_buf)
+                    if result.prompt_tokens is not None:
+                        prompt_tokens = result.prompt_tokens
+                        usage_source = result.usage_source
+                    if result.completion_tokens:
+                        completion_tokens = result.completion_tokens
+                    cached_tokens = result.cached_tokens
+                    if content_buf:
+                        safe = stream_filter.feed(content_buf) + stream_filter.flush()
+                        if safe:
+                            yield {"event": "delta", "data": {"content": safe}}
+                    if reasoning_buf:
+                        yield {"event": "delta", "data": {"reasoning": reasoning_buf}}
+                else:
+                    if (req.extra or {}).get("raw_prompt"):
+                        self._remember_continue_prompt(cid, req.extra["raw_prompt"])
+                    elif not resume_assistant:
+                        self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
+                    try:
+                        async for event in consume_stream(active_provider.stream(req)):
+                            yield event
+                    except DzmmQuotaError:
+                        fallback_used = True
+                        yield {"event": "status", "data": {"stage": "云端额度用尽，已改用本机"}}
+                        async for event in consume_stream(self.provider.stream(req)):
+                            yield event
+                    if (
+                        think_cut
+                        and not content_buf
+                        and hasattr(self.provider, "stream_after_think")
+                    ):
+                        leftover = max(leftover_min, hop_max - self.tokenizer.count_text(reasoning_buf))
+                        async for event in consume_stream(
+                            self.provider.stream_after_think(req, reasoning_buf, leftover)
+                        ):
+                            yield event
+                        think_prompt = (req.extra or {}).get("raw_prompt") or ""
+                        if think_prompt:
+                            self._remember_continue_prompt(cid, think_prompt)
+                    if not reasoning_buf and content_buf:
+                        visible, hidden = split_thinking(content_buf)
+                        if hidden:
+                            content_buf, reasoning_buf = visible, hidden
+                if not completion_tokens:
+                    completion_tokens = self.tokenizer.count_text(
+                        (reasoning_buf or "") + (content_buf or "")
+                    )
+                # Monotonic soft-cap meter: total visible+reasoning tokens this turn.
+                completion_tokens_acc = self.tokenizer.count_text(
                     (reasoning_buf or "") + (content_buf or "")
                 )
-            ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
-            ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
-            if not stream and not ledger.http_eof and not ledger.saw_done_wire:
-                ledger.http_eof = True
-        except (asyncio.CancelledError, GeneratorExit):
-            ledger.cancelled = True
-            status = "cancelled"
-            error = "cancelled"
-            raise
-        except TimeoutError as exc:
-            ledger.exception = exc
-            error = str(exc)
-            self.note_inference_timeout(error)
-        except ConnectionError as exc:
-            ledger.exception = exc
-            error = str(exc)
-            self.note_inference_timeout(error)
-        except Exception as exc:  # noqa: BLE001
-            ledger.exception = exc
-            error = str(exc)
-        finally:
-            ledger.ended_ms = now_ms()
-            terminal = ledger.classify()
-            if terminal in COMPLETE_STATES:
-                self.note_inference_success()
-            elif (
-                resume_assistant
-                and ledger.exception is None
-                and terminal is TerminalState.INTERRUPTED_TRANSPORT
-                and not ledger.had_output
-            ):
-                self.note_inference_timeout(
-                    "continue completions ended without a terminal"
-                )
-            status = ledger.message_status(terminal)
-            finish = ledger.stored_finish_reason(terminal)
-            if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
-                error = "upstream stream ended before a reliable terminal"
-            try:
-                if assistant_id:
-                    if not snapshot_id:
-                        snapshot_id = self._save_snapshot(
-                            cid,
-                            {
-                                "sent_messages": [],
-                                "effective_system_prompt": system_prompt,
-                                "occupancy": occupancy
-                                or {
-                                    "prompt_tokens": 0,
-                                    "effective_window_tokens": s.practical_prompt_budget,
-                                },
-                                "truncated": False,
-                                "dropped_message_ids": [],
-                                "memory_ids": [],
-                            },
-                            params,
-                        )
-                    self._finalize_assistant(
-                        conversation_id=cid,
-                        assistant_id=assistant_id,
-                        user_id=user_id,
-                        content=content_buf,
-                        reasoning=reasoning_buf,
-                        status=status,
-                        finish_reason=finish,
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens
-                        or self.tokenizer.count_text(reasoning_buf + content_buf),
-                        cached_tokens=cached_tokens,
-                        snapshot_id=snapshot_id,
-                        model=s.model_name,
-                        params=params,
-                        error=error,
-                        started_ms=started,
-                        user_preview=text,
-                        is_new=created,
-                    )
+                ledger.thinking_tokens = self.tokenizer.count_text(reasoning_buf or "")
+                ledger.visible_tokens = self.tokenizer.count_text(content_buf or "")
+                if not stream and not ledger.http_eof and not ledger.saw_done_wire:
+                    ledger.http_eof = True
+            except (asyncio.CancelledError, GeneratorExit):
+                ledger.cancelled = True
+                status = "cancelled"
+                error = "cancelled"
+                user_cancelled = True
+                do_auto = False
+                # Do not re-raise: finalize the assistant row, then return.
+            except TimeoutError as exc:
+                ledger.exception = exc
+                error = str(exc)
+                self.note_inference_timeout(error)
+            except ConnectionError as exc:
+                ledger.exception = exc
+                error = str(exc)
+                self.note_inference_timeout(error)
+            except Exception as exc:  # noqa: BLE001
+                ledger.exception = exc
+                error = str(exc)
+                if "exceeds practical context" not in error:
+                    self.note_inference_failure(error)
             finally:
-                self._busy.discard(cid)
+                ledger.ended_ms = now_ms()
+                terminal = ledger.classify()
+                if terminal in COMPLETE_STATES:
+                    self.note_inference_success()
+                elif (
+                    resume_assistant
+                    and ledger.exception is None
+                    and terminal is TerminalState.INTERRUPTED_TRANSPORT
+                    and not ledger.had_output
+                ):
+                    self.note_inference_timeout(
+                        "continue completions ended without a terminal"
+                    )
+                status = ledger.message_status(terminal)
+                finish = ledger.stored_finish_reason(terminal)
+                if ledger.cancelled or user_cancelled:
+                    status = "cancelled"
+                    error = error or "cancelled"
+                    do_auto = False
+                if terminal is TerminalState.INTERRUPTED_TRANSPORT and not error:
+                    error = "upstream stream ended before a reliable terminal"
+                error = user_generation_error(error, had_output=ledger.had_output or bool(content_buf))
+                if evidence and content_buf:
+                    checked = verify_answer(
+                        question=text,
+                        evidence=evidence,
+                        model_output=content_buf,
+                    )
+                    answer_check = {
+                        "original": content_buf,
+                        "reason": checked.source,
+                        "applied": False,
+                    }
+                    reliable = checked.source in {
+                        "evidence",
+                        "evidence_difference",
+                        "evidence_quote",
+                    }
+                    should_apply = reliable and bool(checked.answer) and (
+                        checked.model_number_ok is False
+                        or checked.unit_restored
+                        or checked.extra_context
+                    )
+                    if should_apply:
+                        content_buf = checked.answer
+                        answer_check["applied"] = True
+                # Same-hop StyleBank intercept: strip offstage names before the bubble is final.
+                try:
+                    record = SceneStateStore().get(cid)
+                    bank = StyleBank.from_dict(record.style if record else None)
+                    if not bank.is_empty() and content_buf:
+                        scrubbed = bank.scrub_prose(
+                            content_buf, live_texts=turn_live_texts or [text or ""]
+                        )
+                        if scrubbed != content_buf:
+                            content_buf = scrubbed
+                            prefix_mutated = True
+                except Exception:
+                    pass
+                # Finalize deferred until auto-continue loop exits.
+
+                if fill_hop and not error and ledger.finish_reason == "length":
+                    trimmed = trim_to_sentence(content_buf or "", min_chars=min_output_chars)
+                    prefix_mutated = prefix_mutated or trimmed != (content_buf or "")
+                    content_buf = trimmed
+                stalled = False
+                backed_up = False
+                if auto_count > 0 and not pin_hop and len(content_buf or "") <= hop_start_len:
+                    # Resending this prompt minus one token can land on a key mlx-lm
+                    # cached for the last hop; an exact hit kills its generate thread.
+                    stall_count += 1
+                    backed = drop_last_sentence(content_buf or "")
+                    if stall_count == 1 and backed != (content_buf or ""):
+                        content_buf = backed
+                        prefix_mutated = True
+                        backed_up = True
+                    else:
+                        stalled = True
+                new_text = (content_buf or "")[hop_start_len:]
+                unique_hop_chars = count_output_chars(new_text)
+                guard_aborted = guard_hits > hop_guard_start
+                if (
+                    immersive_turn
+                    and turn_graph is not None
+                    and auto_count > 0
+                    and not pin_hop
+                    and new_text.strip()
+                    and not (
+                        guard_aborted and not counts_against_continue_budget(unique_hop_chars)
+                    )
+                ):
+                    # A Continue hop is a next beat only if it moves verb, contact or clothes.
+                    # Guard-aborted hops with almost no unique text must not burn stub_streak.
+                    before = turn_graph.copy().merge((content_buf or "")[:hop_start_len], role="assistant")
+                    if beat_advanced(before, new_text):
+                        beat_hops += 1
+                        stub_streak = 0
+                    else:
+                        stub_hops += 1
+                        stub_streak += 1
+                visible_n = count_output_chars(content_buf or "")
+                rep_guard = terminal == TerminalState.REPETITION_GUARD or finish == "repetition_guard"
+                do_auto = (
+                    enable_auto
+                    and not error
+                    and not user_cancelled
+                    and not loop_stop
+                    and provider_calls < provider_call_cap
+                    and should_auto_continue(
+                        visible_chars=visible_n,
+                        finish_reason=finish,
+                        min_output_chars=min_output_chars,
+                        auto_continue_count=auto_count,
+                        auto_continue_max=auto_max,
+                        user_text=text,
+                        repetition_guard=rep_guard,
+                        completion_tokens_used=completion_tokens_acc,
+                        completion_soft_cap=completion_soft_cap,
+                    )
+                    and (
+                        # Below the immersive floor, sensory deepening often fails
+                        # beat_advanced and would burn stub_streak before 5000 chars.
+                        visible_n < min_output_chars or stub_streak < 2
+                    )
+                )
+                if (
+                    do_auto
+                    and immersive_turn
+                    and not pin_hop
+                    and not backed_up
+                    and (finish in {"stop", "completed_stop"} or guard_aborted)
+                ):
+                    # The 9B rewrites a closed last sentence; resume before it instead.
+                    backed = drop_last_sentence(content_buf or "")
+                    if backed != (content_buf or "") and len(backed) > hop_start_len:
+                        content_buf = backed
+                        prefix_mutated = True
+                        unique_hop_chars = count_output_chars((content_buf or "")[hop_start_len:])
+
+            if user_cancelled:
+                break
+            if do_auto:
+                # Refund only guard-aborted hops that add <80 unique chars.
+                if not (
+                    guard_aborted and not counts_against_continue_budget(unique_hop_chars)
+                ):
+                    auto_count += 1
+                # Keep same assistant message streaming for the next segment.
+                if assistant_id:
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
+                        (content_buf or "", reasoning_buf or "", now_ms(), assistant_id),
+                    )
+                    self._conn().commit()
+                continue
+            # Pin / slot check: if must_keep nouns or scene slots are dropped, one ≤512 repair hop.
+            if (
+                pin_repair_count == 0
+                and preset.get("keep_pins")
+                and not error
+                and not user_cancelled
+                and turn_keep_pins
+            ):
+                repair_slots = pins_absent_from_prose(turn_keep_pins, content_buf or "")
+            else:
+                repair_slots = []
+            if repair_slots:
+                pin_repair_count = 1
+                pin_repair_pending = True
+                cut = violation_start(turn_graph, content_buf or "") if turn_graph else None
+                if cut:
+                    # A re-dress or teleport cannot be un-said; resume before that sentence.
+                    content_buf = (content_buf or "")[:cut].rstrip()
+                    prefix_mutated = True
+                if assistant_id:
+                    self._conn().execute(
+                        "UPDATE messages SET status='streaming', content=?, reasoning=?, updated_at=? WHERE id=?",
+                        (content_buf or "", reasoning_buf or "", now_ms(), assistant_id),
+                    )
+                    self._conn().commit()
+                continue
+            break
+
+        try:
+            if assistant_id:
+                if not snapshot_id:
+                    snapshot_id = self._save_snapshot(
+                        cid,
+                        {
+                            "sent_messages": [],
+                            "effective_system_prompt": system_prompt,
+                            "occupancy": occupancy
+                            or {
+                                "prompt_tokens": 0,
+                                "effective_window_tokens": s.practical_prompt_budget,
+                            },
+                            "truncated": False,
+                            "dropped_message_ids": [],
+                            "memory_ids": [],
+                        },
+                        params,
+                    )
+                self._finalize_assistant(
+                    conversation_id=cid,
+                    assistant_id=assistant_id,
+                    user_id=user_id,
+                    content=content_buf,
+                    reasoning=reasoning_buf,
+                    status=status,
+                    finish_reason=finish,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens
+                    or self.tokenizer.count_text((reasoning_buf or "") + (content_buf or "")),
+                    cached_tokens=cached_tokens,
+                    snapshot_id=snapshot_id,
+                    model=s.model_name if fallback_used else model_id,
+                    params=params,
+                    error=error,
+                    started_ms=started,
+                    user_preview=text,
+                    is_new=conversation_created,
+                    answer_check=answer_check,
+                )
+                # Persist extracted facts / scene after a successful turn.
+                try:
+                    if status != "cancelled":
+                        store = SceneStateStore()
+                        said = split_style_corpus(text or "").live
+                        joined = said + "\n" + (content_buf or "")
+                        extracted = extract_facts(joined)
+                        store.upsert_from_turn(cid, joined)
+                        for prop in extracted.to_proposals():
+                            if float(prop.get("confidence") or 0) >= 0.85:
+                                self.memory.save(
+                                    MemoryRecord(
+                                        id="",
+                                        memory_type=prop["memory_type"],
+                                        key=prop.get("key"),
+                                        content=prop["content"],
+                                        importance=float(prop.get("importance") or 0.5),
+                                        confidence=float(prop.get("confidence") or 0.5),
+                                        user_id=owner_id,
+                                        conversation_id=cid,
+                                    )
+                                )
+                except Exception:
+                    pass
+        finally:
+            self._busy.discard(cid)
+
+        if user_cancelled or status == "cancelled":
+            return
 
         hard_fail = (
             error
@@ -1478,14 +2607,35 @@ class ChatService:
             "effective_output_tokens_per_sec": metrics["effective_output_tokens_per_sec"],
             "decode_tokens_per_sec": metrics["decode_tokens_per_sec"],
         }
+        trailing = stream_filter.flush()
+        if trailing:
+            yield {"event": "delta", "data": {"content": trailing}}
         yield {"event": "usage", "data": usage}
         yield {
             "event": "done",
             "data": {
                 "finish_reason": finish,
+                "model_finish_reason": ledger.model_finish_reason,
+                "transport_integrity": ledger.transport_integrity,
                 "terminal_state": terminal.value,
                 "incomplete": ledger.incomplete(terminal),
                 "metrics": metrics,
+                "length_trace": {
+                    "requested_max_tokens": max_tokens,
+                    "effective_max_tokens": max_tokens,
+                    "generated_tokens": completion_tokens,
+                    "visible_char_count": count_output_chars(content_buf or ""),
+                    "finish_reason": finish,
+                    "terminal_state": terminal.value,
+                    "model_finish_reason": ledger.model_finish_reason,
+                },
+                "visible_chars": count_output_chars(content_buf or ""),
+                "auto_continue_count": auto_count,
+                "pin_repair_count": pin_repair_count,
+                "beat_hops": beat_hops,
+                "stub_hops": stub_hops,
+                "fill_hop_count": fill_hop_count,
+                "guard_trim": guard_trim,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
@@ -1499,6 +2649,7 @@ class ChatService:
                     "content": content_buf,
                     "reasoning_content": reasoning_buf or None,
                     "status": status,
+                    **({"answer_check": answer_check} if answer_check else {}),
                 },
             },
         }

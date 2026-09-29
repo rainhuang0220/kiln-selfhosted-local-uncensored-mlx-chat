@@ -1,0 +1,62 @@
+# A15 git snapshot (read-only). No checkout, commit, or push.
+
+## status -sb
+## ui/account-menu-placement...public/ui/account-menu-placement
+?? engineering/
+
+HEAD 0a4322de9a506b54411af2ed10f8c081e73ba003
+short 0a4322d
+tracking public/ui/account-menu-placement (no ahead/behind shown)
+
+## log -15 --oneline
+0a4322d Place the account menu above the sidebar footer.
+a409fca Merge pull request #4 from rainhuang0220/ui/sidebar-footer
+94286f5 Redesign sidebar footer and account controls.
+e3aceb0 Merge pull request #3 from rainhuang0220/ui/login-visibility
+ba19d58 Fix login form visibility and auth UX.
+99f7c6a Merge pull request #2 from rainhuang0220/security/explicit-exposure
+66ff5a7 Make exposure an explicit config and add local password recovery.
+99e7930 Merge pull request #1 from rainhuang0220/security/private-mode
+658f509 Run verify from the repository root.
+da2aac8 Run frontend tests from the repo root in CI.
+7aae70a Keep Ubuntu CI from parking injected TestClient chat.
+3f45b7e Tighten local-open to loopback and cut the public tunnel over to a dedicated SSH user.
+dd8244a Close public fail-open and stop serving Vite on the internet.
+cbbaa6e fix(chat): harden continuation and long-dialogue cache for RC2
+a6a4d2e feat(inference): improve streaming integrity and dialogue continuity
+
+## branch -vv (abbrev)
+* ui/account-menu-placement 0a4322d [public/ui/account-menu-placement]
+  main e3aceb0 [public/main: behind 4]
+  feat/conversational-reliability cbbaa6e
+  public-main a143369 [public/main: behind 28]
+  release/kiln-generation-0.5 493e97a [public/release/kiln-generation-0.5: ahead 3]
+
+public/main = cdc69655ed04e00c08697e6765e7e7f75daa7e43
+  cdc6965 Merge pull request #5 from rainhuang0220/ui/account-menu-placement
+local main..public/main = cdc6965, 0a4322d, a409fca, 94286f5
+
+## cat-file
+cbbaa6e commit (ancestor of HEAD)
+a6a4d2e commit (ancestor of HEAD)
+
+cbbaa6eab76d42b02025b0ba58b824f3e3bc2dad
+fix(chat): harden continuation and long-dialogue cache for RC2
+2026-09-11 17:36:17 +0800
+rainhuang0220
+no Co-authored-by trailer
+
+a6a4d2e4d1596e94a0b65401797401c8be6bce7c
+feat(inference): improve streaming integrity and dialogue continuity
+2026-09-11 14:18:29 +0800
+rainhuang0220
+Co-authored-by: Cursor <cursoragent@cursor.com>
+This is the only such trailer in a6a4d2e^..HEAD.
+
+## start-mlx.sh blame (committed tree)
+--temp 0.6          1d2d688 2026-09-10
+--prompt-cache-size 4 / --prompt-cache-bytes 4G   fc876de
+--chat-template-args enable_thinking false        a6a4d2e
+
+No Makefile. engineering/ is not gitignored.
+Ignored and must not be force-added: scripts/com.kiln.*.plist, data/, benchmarks/**/runs/, media binaries.

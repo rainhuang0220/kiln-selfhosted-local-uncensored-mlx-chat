@@ -1,0 +1,40 @@
+=== refs to Qwen2.5-1.5B ===
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/04-hf-cache-ls.json:1:[{"id": "model/Qwen/Qwen2.5-1.5B-Instruct", "repo_id": "Qwen/Qwen2.5-1.5B-Instruct", "repo_type": "model", "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "snapshot_path": "/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "size": "3.1G", "last_modified": "5 weeks ago", "refs": ["main"]}]
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/06-hf-cache-tree.txt:30:drwxr-xr-x@  6 rainhuang  staff  192  8月 20 22:46 models--Qwen--Qwen2.5-1.5B-Instruct
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/06-hf-cache-tree.txt:42:2.9G	/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/04-hf-cache-ids.txt:1:model/Qwen/Qwen2.5-1.5B-Instruct
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/05-hf-cache-warnings.txt:2:[{"id": "model/Qwen/Qwen2.5-1.5B-Instruct", "repo_id": "Qwen/Qwen2.5-1.5B-Instruct", "repo_type": "model", "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "snapshot_path": "/Users/rainhuang/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "size": "3.1G", "last_modified": "5 weeks ago", "refs": ["main"]}]
+/Users/rainhuang/Desktop/models/kiln/engineering/2026-09-24/raw/A13/05-hf-cache-warnings.txt:15:model/Qwen/Qwen2.5-1.5B-Instruct 989aa7980e4cf806f80c7fef2b1adb7bc71aa306 3.1G 5 weeks ago   main
+
+=== name search 3B / qwen3 under models (depth 3) ===
+/Users/rainhuang/Desktop/models/qwen3.8-27b
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-nsfw-src
+/Users/rainhuang/Desktop/models/video-wan21-t2v-1.3b-aux
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b-mlx
+/Users/rainhuang/Desktop/models/qwen3.5-9b-hauhau-aggressive-mxfp4
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b
+/Users/rainhuang/Desktop/models/video-nsfw-wan-1.3b/wan_1.3B_exp_e14.safetensors
+
+=== home candidate dirs ===
+EXISTS /Users/rainhuang/.mtplx
+ 11G	/Users/rainhuang/.mtplx
+EXISTS /Users/rainhuang/.mtplx/models
+ 10G	/Users/rainhuang/.mtplx/models
+ABSENT /Users/rainhuang/.ollama
+ABSENT /Users/rainhuang/.ollama/models
+ABSENT /Users/rainhuang/.cache/lm-studio
+ABSENT /Users/rainhuang/.lmstudio
+EXISTS /Users/rainhuang/.cache/huggingface
+2.9G	/Users/rainhuang/.cache/huggingface
+ABSENT /Users/rainhuang/Library/Caches/huggingface
+EXISTS /Users/rainhuang/Documents
+538M	/Users/rainhuang/Documents
+ABSENT /Users/rainhuang/Library/Application Support/LM Studio
+EXISTS /opt/homebrew/var
+225M	/opt/homebrew/var
+
+=== Documents top REDACTED ===
+# Filenames omitted. Measured: du -sh ~/Documents = 538M.
+# find -maxdepth 2 name hints (qwen|flux|wan|model|mlx|huggingface|z-image|zimage): no matches.
+=== Documents name hints depth 2 ===
+(no matches)

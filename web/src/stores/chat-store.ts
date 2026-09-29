@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { apiFetch } from "../api/http";
+import { createAssembly, observeFrame } from "../api/sse-assembly";
 import { readSse } from "../api/stream";
 import { heuristicTitle } from "../lib/markdown";
 import { applyTheme } from "../lib/theme";
-import { PROFILE_PRESETS } from "../lib/profiles";
+import { DRAFT_MAX_CHARS, PROFILE_PRESETS } from "../lib/profiles";
 import type {
   ContextSnapshot,
   ConversationSummary,
@@ -17,7 +18,52 @@ import type {
   TokenUsage,
 } from "../types/chat";
 
-const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.interactive_dialogue };
+const DEFAULT_PARAMS: GenerationParams = { ...PROFILE_PRESETS.immersive };
+const CONTEXT_PRESET_SESSION_KEY = "kiln.contextPresetSelection.v1";
+
+type SavedPresetSelection = { owner: string; id: string };
+
+function presetOwner(state: Pick<ChatState, "authRequired" | "authOk" | "username">): string | null {
+  if (!state.authRequired) return "local";
+  return state.authOk && state.username ? `user:${state.username}` : null;
+}
+
+function readSavedPreset(): SavedPresetSelection | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem(CONTEXT_PRESET_SESSION_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const record = value as Record<string, unknown>;
+      if (typeof record.owner === "string" && typeof record.id === "string" && record.owner && record.id) {
+        return { owner: record.owner, id: record.id };
+      }
+    }
+    sessionStorage.removeItem(CONTEXT_PRESET_SESSION_KEY);
+  } catch {
+    // Storage may be disabled or contain an older incompatible value.
+  }
+  return null;
+}
+
+function savePresetSelection(selection: SavedPresetSelection): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(CONTEXT_PRESET_SESSION_KEY, JSON.stringify(selection));
+    }
+  } catch {
+    // Session-only selection still works in memory if browser storage is unavailable.
+  }
+}
+
+function clearSavedPreset(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(CONTEXT_PRESET_SESSION_KEY);
+  } catch {
+    // In-memory selection is cleared independently.
+  }
+}
 
 interface ChatState {
   health: Health | null;
@@ -26,6 +72,10 @@ interface ChatState {
   messages: Message[];
   draft: string;
   params: GenerationParams;
+  characterCardId: string | null;
+  contextPresetId: string | null;
+  contextPresetTitle: string | null;
+  contextPresetOwner: string | null;
   inspectorOpen: boolean;
   snapshot: ContextSnapshot | null;
   streaming: boolean;
@@ -45,6 +95,8 @@ interface ChatState {
   activeModelId: string | null;
   modelCatalog: HubModel[];
   modelJobs: ModelDownloadJob[];
+  selectedChatModel: string;
+  setSelectedChatModel: (id: string) => void;
   loadHealth: () => Promise<void>;
   loadModels: () => Promise<void>;
   searchModelCatalog: (query: string, mlxOnly?: boolean) => Promise<void>;
@@ -64,6 +116,9 @@ interface ChatState {
   attachFiles: (files: FileList | File[]) => Promise<void>;
   setParams: (p: Partial<GenerationParams>) => void;
   setProfile: (profile: GenerationProfile) => void;
+  setCharacterCardId: (id: string | null) => void;
+  setContextPreset: (id: string | null, title?: string | null) => void;
+  restoreContextPresetSelection: () => Promise<void>;
   toggleInspector: () => void;
   send: (mode?: "regenerate" | "continue") => Promise<void>;
   stop: () => void;
@@ -81,6 +136,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   draft: "",
   params: DEFAULT_PARAMS,
+  characterCardId: null,
+  contextPresetId: null,
+  contextPresetTitle: null,
+  contextPresetOwner: null,
   inspectorOpen: true,
   searchQuery: "",
   theme: "light",
@@ -102,6 +161,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeModelId: null,
   modelCatalog: [],
   modelJobs: [],
+  selectedChatModel: "local:9b",
+  setSelectedChatModel: (id) => set({ selectedChatModel: id }),
 
   loadModels: async () => {
     if (get().authRequired && !get().authOk) return;
@@ -165,11 +226,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [],
       snapshot: null,
       draft: "",
+      characterCardId: null,
+      contextPresetId: null,
+      contextPresetTitle: null,
+      contextPresetOwner: null,
       searchQuery: "",
       error: null,
       localModels: [],
       modelCatalog: [],
       modelJobs: [],
+      selectedChatModel: "local:9b",
     });
   },
 
@@ -233,6 +299,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   logout: async () => {
+    clearSavedPreset();
     await apiFetch("/auth/logout", { method: "POST" });
     get().wipePrivateState();
     set({
@@ -249,6 +316,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Retained primitive: same session revoke as logout, but keeps username for the lock screen.
     // Not shown in the default sidebar; the machine lock is the product control.
     const who = get().username;
+    clearSavedPreset();
     await apiFetch("/auth/lock", { method: "POST" });
     get().wipePrivateState();
     set({
@@ -276,12 +344,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           username: s.username || null,
           role: s.role || null,
         });
-        if (s.required && !s.ok) return;
+        if (s.required && !s.ok) {
+          get().wipePrivateState();
+          return;
+        }
+        await get().restoreContextPresetSelection();
       } else {
         set({ authChecked: true, authRequired: true, authOk: false });
         return;
       }
-      const r = await apiFetch("/health");
+      const r = await apiFetch("/auth/runtime");
       if (!r.ok) throw new Error("health failed");
       const health = await r.json();
       set({ health });
@@ -290,13 +362,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         health: {
           status: "down",
           provider: { name: "mlx", reachable: false, base_url: "" },
+          gateway: {
+            state: "API_UNREACHABLE",
+            transport_status: "unreachable",
+            model_status: "unknown",
+            inference_status: "unknown",
+            suspension_reason: null,
+            last_verified_at: null,
+          },
           model: "qwen3.5-9b-hauhau-aggressive-mxfp4",
           context_window: 262144,
           practical_prompt_budget: 32768,
-          default_max_tokens: 1536,
+          default_max_tokens: 6144,
           max_tokens_cap: 32768,
           enable_thinking: false,
-          default_profile: "interactive_dialogue",
+          default_profile: "immersive",
         },
       });
     }
@@ -407,7 +487,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages, snapshot, error: null });
   },
 
-  setDraft: (v) => set({ draft: v }),
+  setDraft: (v) => set({ draft: v.length > DRAFT_MAX_CHARS ? v.slice(0, DRAFT_MAX_CHARS) : v }),
 
   attachFiles: async (files) => {
     const list = Array.from(files);
@@ -427,10 +507,64 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     if (!chunks.length) return;
     const draft = get().draft;
-    set({ draft: (draft ? draft.replace(/\s*$/, "") : "") + chunks.join(""), error: null });
+    const next = (draft ? draft.replace(/\s*$/, "") : "") + chunks.join("");
+    set({
+      draft: next.length > DRAFT_MAX_CHARS ? next.slice(0, DRAFT_MAX_CHARS) : next,
+      error: null,
+    });
   },
   setParams: (p) => set({ params: { ...get().params, ...p } }),
   setProfile: (profile) => set({ params: { ...PROFILE_PRESETS[profile] } }),
+  setCharacterCardId: (id) => {
+    if (id) {
+      clearSavedPreset();
+      set({ characterCardId: id, contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    } else {
+      set({ characterCardId: null });
+    }
+  },
+  setContextPreset: (id, title = null) => {
+    if (id) {
+      const owner = presetOwner(get());
+      if (owner) savePresetSelection({ owner, id });
+      set({ contextPresetId: id, contextPresetTitle: title, contextPresetOwner: owner, characterCardId: null });
+    } else {
+      clearSavedPreset();
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    }
+  },
+  restoreContextPresetSelection: async () => {
+    const owner = presetOwner(get());
+    if (!owner) return;
+    if (get().contextPresetId && get().contextPresetOwner !== owner) {
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    }
+    const saved = readSavedPreset();
+    if (!saved) return;
+    if (saved.owner !== owner) {
+      clearSavedPreset();
+      set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+      return;
+    }
+    if (get().contextPresetId === saved.id) return;
+    set({ contextPresetId: null, contextPresetTitle: null, contextPresetOwner: null });
+    try {
+      const response = await apiFetch("/context/presets");
+      if (!response.ok) return;
+      const body = await response.json();
+      if (presetOwner(get()) !== owner || readSavedPreset()?.id !== saved.id) return;
+      const item = Array.isArray(body.data)
+        ? body.data.find((entry: { id?: string }) => entry.id === saved.id)
+        : null;
+      if (item) {
+        set({ contextPresetId: saved.id, contextPresetTitle: typeof item.title === "string" ? item.title : null, contextPresetOwner: owner, characterCardId: null });
+      } else {
+        clearSavedPreset();
+      }
+    } catch {
+      // Retry on the next authenticated health refresh.
+    }
+  },
   toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
 
   stop: () => {
@@ -478,7 +612,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (get().streaming) return;
     if ((regen || cont) && !get().activeId) return;
     if (!cont && !text) return;
+    if (!get().activeId && !regen && !cont && !get().contextPresetId) {
+      const saved = readSavedPreset();
+      if (saved && saved.owner === presetOwner(get())) {
+        await get().restoreContextPresetSelection();
+        if (get().streaming) return;
+      }
+    }
     const params = get().params;
+    const contextPresetId = !get().activeId && !regen && !cont ? get().contextPresetId : null;
     const controller = new AbortController();
     const userMsg: Message = {
       id: lastUser?.id || `local-user-${Date.now()}`,
@@ -522,10 +664,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
         body: JSON.stringify({
           message: regen || cont ? "" : text,
+          model: get().selectedChatModel,
           conversation_id: get().activeId,
           regenerate: regen,
           continue_generation: cont,
-          profile: params.profile,
+          // long_form aliases the immersive chat path; never start NarrativeOrchestrator from the UI.
+          profile: params.profile === "fast" ? "interactive_dialogue" : params.profile,
+          auto_continue: params.profile === "immersive" ? true : undefined,
+          character_card_id: contextPresetId ? undefined : get().characterCardId || undefined,
+          context_preset_id: contextPresetId || undefined,
           stream: true,
           temperature: params.temperature,
           top_p: params.topP,
@@ -557,17 +704,76 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let content = assistantMsg.content || "";
       let reasoning = assistantMsg.reasoning || "";
       let usage: TokenUsage | undefined;
+      const assembly = createAssembly(content);
+      const streamStartedAt = Date.now();
+      let sawToken = false;
+      let waitHint: ReturnType<typeof setTimeout> | undefined;
+      let failHint: ReturnType<typeof setTimeout> | undefined;
+      const clearHangTimers = () => {
+        if (waitHint) clearTimeout(waitHint);
+        if (failHint) clearTimeout(failHint);
+        waitHint = undefined;
+        failHint = undefined;
+      };
+      waitHint = setTimeout(() => {
+        if (sawToken) return;
+        const elapsed = Math.round((Date.now() - streamStartedAt) / 1000);
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === asstId
+              ? { ...m, content: m.content || `正在写…（已等待 ${elapsed}s）` }
+              : m,
+          ),
+        }));
+      }, 8000);
+      failHint = setTimeout(() => {
+        if (sawToken) return;
+        clearHangTimers();
+        controller.abort();
+        set((s) => ({
+          streaming: false,
+          controller: null,
+          error: "生成无响应（90s 无输出）",
+          messages: s.messages.map((m) =>
+            m.id === asstId
+              ? { ...m, status: "error", error: "生成无响应（90s 无输出）", content: m.content || "生成无响应" }
+              : m,
+          ),
+        }));
+      }, 90000);
+      try {
       for await (const ev of readSse(res, controller.signal)) {
+        const decision = observeFrame(assembly, ev.data, ev.event === "delta");
+        if (ev.event === "delta" && decision !== "accept") continue;
+        if (ev.event === "status") {
+          const data = ev.data as { stage?: string; eta_s?: number };
+          const stage = data.stage || "准备中";
+          const eta = typeof data.eta_s === "number" ? `（约 ${data.eta_s}s）` : "";
+          if (stage.includes("云端额度用尽")) set({ error: stage });
+          if (!sawToken) {
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === asstId ? { ...m, content: m.content || `${stage}${eta}` } : m,
+              ),
+            }));
+          }
+          continue;
+        }
         if (ev.event === "meta") {
           const data = ev.data as {
             conversation_id: string;
-            message_id: string;
+            message_id?: string;
+            assistant_message_id?: string;
             user_message_id: string;
             created: boolean;
+            job_id?: string;
+            mode?: string;
+            target_visible_chars?: number;
+            model?: string;
           };
           accepted = true;
           userId = data.user_message_id;
-          asstId = data.message_id;
+          asstId = data.message_id || data.assistant_message_id || asstId;
           set((s) => ({
             activeId: data.conversation_id,
             draft: "",
@@ -581,7 +787,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const summary: ConversationSummary = {
               id: data.conversation_id,
               title: heuristicTitle(text),
-              model: get().health?.model || "qwen3.5-9b-hauhau-aggressive-mxfp4",
+              model: data.model || get().selectedChatModel,
               created_at: Date.now(),
               updated_at: Date.now(),
               message_count: 2,
@@ -597,7 +803,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         } else if (ev.event === "delta") {
           const data = ev.data as { content?: string; reasoning?: string };
           if (data.reasoning) reasoning += data.reasoning;
-          if (data.content) content += data.content;
+          content = assembly.text;
+          if (data.content || data.reasoning) {
+            sawToken = true;
+            clearHangTimers();
+          }
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
@@ -639,6 +849,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               m.id === asstId ? { ...m, usage } : m,
             ),
           }));
+        } else if (ev.event === "narrative_segment") {
+          // Progress only — body grows via delta events on the same assistant message.
+          continue;
         } else if (ev.event === "ping") {
           continue;
         } else if (ev.event === "transport_eof") {
@@ -693,18 +906,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
             u.effectiveOutputTokensPerSec = data.metrics.effective_output_tokens_per_sec;
             u.decodeTokensPerSec = data.metrics.decode_tokens_per_sec;
           }
-          const incomplete = Boolean(data.incomplete);
+          const damaged = assembly.defects.length > 0;
+          const incomplete = damaged || Boolean(data.incomplete);
+          const terminalState = damaged ? "completed_with_transport_error" : data.terminal_state;
+          const finishReason = damaged ? "completed_with_transport_error" : data.finish_reason;
           const status: Message["status"] = incomplete
-            ? data.terminal_state === "interrupted_user"
+            ? terminalState === "interrupted_user"
               ? "interrupted"
               : "error"
             : "complete";
+          const shown = damaged ? assembly.text : (data.message?.content ?? content);
           set((s) => ({
             messages: s.messages.map((m) =>
               m.id === asstId
                 ? {
                     ...m,
-                    content: data.message?.content ?? content,
+                    content: shown,
                     reasoning: data.message?.reasoning_content ?? reasoning,
                     status,
                     incomplete,
@@ -712,20 +929,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     prompt_tokens: u.input,
                     completion_tokens: u.output,
                     total_tokens: u.total,
-                    finish_reason: data.finish_reason,
-                    terminal_state: data.terminal_state,
+                    finish_reason: finishReason,
+                    terminal_state: terminalState,
                   }
                 : m,
             ),
           }));
         }
       }
+      clearHangTimers();
       await get().loadConversations();
+      } finally {
+        clearHangTimers();
+      }
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         set((s) => ({
           messages: s.messages.map((m) =>
-            m.id === asstId ? { ...m, status: "interrupted" } : m,
+            m.id === asstId
+              ? {
+                  ...m,
+                  status: "interrupted",
+                  incomplete: true,
+                  terminal_state: "interrupted_user",
+                  finish_reason: "abort",
+                }
+              : m,
           ),
         }));
       } else {

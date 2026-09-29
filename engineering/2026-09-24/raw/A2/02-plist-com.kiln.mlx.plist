@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.kiln.mlx</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/rainhuang/Library/Application Support/kiln/start-mlx.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/rainhuang/Desktop/models/kiln</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/rainhuang</string>
+    <key>TOKENIZERS_PARALLELISM</key>
+    <string>false</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>/tmp/kiln-mlx.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/kiln-mlx.err</string>
+</dict>
+</plist>

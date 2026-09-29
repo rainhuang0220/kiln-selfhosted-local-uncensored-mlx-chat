@@ -1,0 +1,18 @@
+{"id": "lc-en-start-01", "output": "INV-7K2-Q9"}
+{"id": "lc-zh-start-02", "output": "釉 - 丙午 -318"}
+{"id": "lc-en-end-01", "output": "41-08-73"}
+{"id": "lc-zh-end-02", "output": "验 - 庚 -9041"}
+{"id": "lc-en-mid-01", "output": "146.520"}
+{"id": "lc-zh-mid-02", "output": "18.6 米"}
+{"id": "lc-en-distract-01", "output": "Q-17"}
+{"id": "lc-zh-distract-02", "output": "林薇 K-204"}
+{"id": "lc-en-num-01", "output": "Based on the contract packet details provided:\n\n1.  **Identify the addendum in force**: The text explicitly states, \"Only addendum C remains in force.\"\n2.  **Find the signature date**: Addendum C was signed on `2024-11-07`.\n"}
+{"id": "lc-zh-num-02", "output": "2023-04-18|2764|36.5"}
+{"id": "lc-en-cross-01", "output": "remains at dock 7, marked HOLD at 09:10"}
+{"id": "lc-zh-cross-02", "output": "C-9 在 18:00 留在**维修台**。\n\n使它留下的标记原词是：**在修**。\n\n**推导过程：**\n1.  **初始状态**：C-9 于上午借出。\n2.  **午前标记**：C-9"}
+{"id": "lc-en-code-01", "output": "fold_batch_tag"}
+{"id": "lc-zh-code-02", "output": "clamp_soak"}
+{"id": "lc-en-dialog-01", "output": "Moss|7"}
+{"id": "lc-zh-dialog-02", "output": "周晚|3 月 9 日"}
+{"id": "lc-en-order-01", "output": "E1 > E2 > E3 > E4"}
+{"id": "lc-zh-order-02", "output": "> 记录窑号 > 称釉 > 封窑 > 取样"}

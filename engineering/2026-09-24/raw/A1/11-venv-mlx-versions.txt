@@ -1,0 +1,16 @@
+=== venv import clean env ===
+executable /Users/rainhuang/Desktop/models/kiln/.venv/bin/python
+prefix /Users/rainhuang/Desktop/models/kiln/.venv
+mlx NO_VERSION
+mlx_file None
+mlx_lm 0.31.3
+mlx_lm_file /Users/rainhuang/Desktop/models/kiln/.venv/lib/python3.12/site-packages/mlx_lm/__init__.py
+=== venv pip show ===
+/Users/rainhuang/Desktop/models/kiln/.venv/bin/python: No module named pip
+=== venv importlib.metadata ===
+mlx 0.32.1
+mlx-lm 0.31.3
+mlx-metal 0.32.1
+transformers 5.15.1
+tokenizers 0.22.2
+huggingface_hub 1.28.0
