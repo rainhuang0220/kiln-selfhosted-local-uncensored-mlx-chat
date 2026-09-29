@@ -128,7 +128,7 @@ async def test_naming_one_offstage_retrieves_only_that_one(chat_service, fake_pr
     ]
     assert not [event for event in second if event.get("event") == "error"]
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-    assert "reference_context" in sent and "只在参考里出现的前任" in sent
+    assert "参考人物：顾遥" in sent and "只在参考里出现的前任" in sent
     assert "顾遥" in sent
     others = [n for n in OFFSTAGE if n != "顾遥"]
     assert sum(1 for n in others if n in sent) == 0

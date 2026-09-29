@@ -68,7 +68,7 @@ IMMERSIVE = {
     "segment_max_tokens": 3072,
     "target_visible_chars": 10000,
     "min_accept_chars": 5000,
-    "min_output_chars": 5000,
+    "min_output_chars": 0,
     "target_output_chars": 10000,
     "segment_chars": 2800,
     "auto_continue_max": 5,

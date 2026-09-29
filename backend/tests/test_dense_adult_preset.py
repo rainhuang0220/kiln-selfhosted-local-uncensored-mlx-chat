@@ -78,15 +78,14 @@ async def test_direct_dense_paste_binds_compiled_context_for_followup(chat_servi
     assert frame and frame["context_ir"]["version"] == 2
     assert len(frame["context_ir"]["entities"]) >= 12
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[0].messages)
-    assert "<active_context>" in sent
+    assert "此刻现场：" in sent
     assert "旧书修复工作室" in sent
     assert "沈知夏" not in sent
-    assert "先从当前已知的物件或动作推进" in sent
+    assert "先接上一句用户输入" in sent
     assert "最后一个身体动作" not in sent
     system = next(m["content"] for m in fake_provider.calls[0].messages if m["role"] == "system")
-    assert "未给出的外貌特征、身份关系和过去经历" in system
-    assert "没有写明的物件内容和检查结果不能先断言" in system
-    assert "不要增加未写明的在场物件" in system
+    assert "此刻现场" in system
+    assert "角色演员" not in system
     assert "正常一拍至少 1500 字" not in system
 
     followup = [event async for event in chat_service.chat(
@@ -99,7 +98,7 @@ async def test_direct_dense_paste_binds_compiled_context_for_followup(chat_servi
     )]
     assert not [event for event in followup if event.get("event") == "error"]
     recall = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-    assert "<reference_context>" in recall
+    assert "参考人物：沈知夏" in recall
     assert "沈知夏" in recall
 
 

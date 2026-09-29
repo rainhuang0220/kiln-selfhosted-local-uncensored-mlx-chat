@@ -108,14 +108,6 @@ IMMERSIVE_AUTHOR_NOTE = (
     "4. must_keep 里的每一项都必须落进正文。\n"
     "</author_note>"
 )
-CONTEXT_IR_AUTHOR_NOTE = (
-    "<author_note>\n"
-    "1. 当前事实以 active_context 和 scene_state 为准；参考人物与往事只在点名召回时使用。\n"
-    "2. 先从当前已知的物件或动作推进一拍，用具体动作或对话回应用户。\n"
-    "3. 不补写未经提供的身份、关系、前史或物件细节；没有实际检查就不要宣称发现线索，也不要复述资料。\n"
-    "4. must_keep 里的每一项都必须落进正文。\n"
-    "</author_note>"
-)
 STYLE_AUTHOR_LINE = (
     "5. 括号/风格参考里的人名事件不要写进当前场面。\n"
     "6. 背景和幻想参考只提供已确认事实、偏好或写法；当前角色与场景仍以 active_context 和 scene_state 为准。\n"
@@ -1147,7 +1139,7 @@ class ChatService:
             budget_chars=1200,
         )
         note = IMMERSIVE_AUTHOR_NOTE
-        # When Context IR is bound, route_context owns preferences — never dump StyleBank corpus.
+        # Bound IR supplies its own short live-scene pin.
         has_ir = False
         try:
             frame = self._conversation_settings(conversation_id).get("context_preset_snapshot")
@@ -1155,12 +1147,13 @@ class ChatService:
         except Exception:
             has_ir = False
         if has_ir:
-            note = CONTEXT_IR_AUTHOR_NOTE
+            note = ""
         style_fence = None if has_ir else (style.fence() if style is not None else None)
         if style_fence:
             fence = f"{fence}\n\n{style_fence}" if fence else style_fence
             note = note.replace("</author_note>", f"{STYLE_AUTHOR_LINE}</author_note>")
-        fence = f"{fence}\n\n{note}" if fence else note
+        if note:
+            fence = f"{fence}\n\n{note}" if fence else note
         lines = describe_repair(repair or [])
         if lines:
             fence += "\n\n<repair>\n上一段漏掉或写错了，接着往下写时补上：\n"

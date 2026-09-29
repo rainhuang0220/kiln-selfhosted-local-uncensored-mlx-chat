@@ -186,6 +186,10 @@ def test_f4_new_tokens_must_change_verb_contact_or_clothes():
 async def test_f4_continue_drops_closed_beat_and_counts_stub_hops(
     chat_service, fake_provider, monkeypatch
 ):
+    import app.services.chat as chat_module
+
+    original_profile = chat_module.resolve_profile
+    monkeypatch.setattr(chat_module, "resolve_profile", lambda name: {**original_profile(name), "min_output_chars": 5000})
     closed = "沈川的手指揉着林夏的腰。"
     opening = "林夏靠在更衣镜前，呼吸有点乱。"
     prefixes: list[str] = []
@@ -398,6 +402,10 @@ def test_named_subject_removing_unworn_garment_owns_it():
 async def test_f7_next_beat_strip_marks_unshortened_prefix_used(
     chat_service, fake_provider, monkeypatch, require_chat_template
 ):
+    import app.services.chat as chat_module
+
+    original_profile = chat_module.resolve_profile
+    monkeypatch.setattr(chat_module, "resolve_profile", lambda name: {**original_profile(name), "min_output_chars": 5000})
     import app.services.continuation as cont
 
     real = cont.shorten_until_unused

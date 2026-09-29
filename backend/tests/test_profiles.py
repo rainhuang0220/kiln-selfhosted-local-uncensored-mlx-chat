@@ -17,7 +17,7 @@ def test_immersive_budget_and_min_output():
     profile = resolve_profile("immersive")
     assert profile["profile"] == "immersive"
     assert profile["max_tokens"] >= 4096
-    assert profile["min_output_chars"] >= 5000
+    assert profile["min_output_chars"] <= 800
     assert profile["target_output_chars"] >= 10000
     assert profile["auto_continue_max"] >= 1
     assert profile["presence_penalty"] <= 0.25
@@ -35,7 +35,7 @@ def test_long_form_and_narrative_alias_immersive():
     assert normalize_profile("narrative") == "immersive"
     assert normalize_profile("multi_scenario") == "immersive"
     long_form = resolve_profile("long_form")
-    assert long_form["min_output_chars"] >= 5000
+    assert long_form["min_output_chars"] <= 800
     assert long_form["target_visible_chars"] == 10000
 
 

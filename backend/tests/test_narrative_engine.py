@@ -89,7 +89,7 @@ def test_long_form_profile_aliases_immersive_chat_path():
     assert p["profile"] == "long_form"
     assert p["mode"] == "chat"
     assert p["target_visible_chars"] >= 10000
-    assert p["min_output_chars"] >= 5000
+    assert p["min_output_chars"] <= 800
     assert p["max_tokens"] >= 4096
     assert resolve_profile("interactive_dialogue")["max_tokens"] == 3072
     assert resolve_profile("immersive")["max_tokens"] == 6144

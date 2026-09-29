@@ -87,19 +87,18 @@ def _parlor_ir() -> dict:
     return chat_frame_from_simple(preview_preset(source), source_text=source)["context_ir"]
 
 
-def test_default_hop_carries_nameless_style_digest():
+def test_default_hop_keeps_only_explicit_short_bracket_preferences():
     from app.services.context_compiler import route_context
 
     for message in ("你好", "你靠近一点"):
         fence = route_context(_parlor_ir(), message).fence
         assert "技师" in fence and "接待室" in fence
-        assert fence.index("<active_context>") < fence.index("<style_digest")
-        digest = fence.split("<style_digest", 1)[1].split("</style_digest>", 1)[0]
-        assert 'do_not_literalize="true"' in digest
-        assert len(digest) >= 160
-        assert "客人" in digest and "呼吸" in digest
-        assert "以下内容" not in digest
-        assert len(fence) <= 900
+        assert fence.splitlines()[-1].startswith("此刻现场：")
+        assert "称呼：叫我“客人”" in fence
+        assert "不要做：不介绍房间陈设" in fence
+        assert "<style_digest" not in fence and "<service_requirements" not in fence
+        assert "呼吸、指尖温度" not in fence
+        assert len(fence) <= 281
         assert "陆遥" not in fence
 
 
@@ -124,13 +123,12 @@ def test_style_digest_drops_named_and_memory_lines_and_skips_recall():
     assert "<style_digest" not in recall.fence
 
 
-def test_grounded_contract_allows_present_beat_senses_and_forbids_menus():
+def test_grounded_contract_uses_the_short_scene_instruction():
     from app.services.literary_system import GROUNDED_CONTEXT_SYSTEM
 
-    assert "衣着变化属于这一拍" in GROUNDED_CONTEXT_SYSTEM
-    assert "未给出的光线、气味、衣着" not in GROUNDED_CONTEXT_SYSTEM
-    assert "不要列选项" in GROUNDED_CONTEXT_SYSTEM
-    assert "请用户选择先看哪里" not in GROUNDED_CONTEXT_SYSTEM
+    assert "先接上一句用户输入" in GROUNDED_CONTEXT_SYSTEM
+    assert "此刻现场" in GROUNDED_CONTEXT_SYSTEM
+    assert "角色演员" not in GROUNDED_CONTEXT_SYSTEM
 
 
 def test_next_beat_hint_moves_scene_and_forbids_reasking():
@@ -240,7 +238,7 @@ def _noise(n: int, tag: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_fill_hop_cannot_retype_previous_reply(chat_service, fake_provider, monkeypatch):
+async def test_short_immersive_reply_does_not_force_fill_hops(chat_service, fake_provider, monkeypatch):
     from app.providers.base import ChatChunk, ChatRequest
 
     copied = "（手臂微微用力，将整个手臂的重量轻轻靠在你的肩膀上，感受你的反应）"
@@ -280,6 +278,5 @@ async def test_fill_hop_cannot_retype_previous_reply(chat_service, fake_provider
         auto_continue=True, max_tokens=6144,
     )]
     done = next(e for e in events if e.get("event") == "done")["data"]
-    assert calls["n"] >= 4
+    assert calls["n"] == 2
     assert copied not in done["message"]["content"]
-    assert done["guard_trim"] == "loop"

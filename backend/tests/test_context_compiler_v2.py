@@ -74,7 +74,7 @@ def test_router_compiles_roleplay_recall_and_identity_differently():
     assert roleplay.intent == "roleplay"
     assert "风俗店的技师" in roleplay.fence
     assert "我是你的顾客" in roleplay.fence
-    assert "慢节奏" in roleplay.fence
+    assert "慢节奏" not in roleplay.fence
     assert "橙花披肩" not in roleplay.fence
     assert "顾遥" not in roleplay.fence
 
@@ -175,7 +175,7 @@ def test_model_segment_labels_require_exact_source_and_cannot_promote_reference(
     segments = {item["id"]: item for item in result["context_ir"]["segments"]}
     assert segments[pending["id"]]["type"] == "USER_PREFERENCE"
     assert segments[bad["id"]]["type"] != "ROLE_DEFINITION"
-    assert "温柔的语气" in route_context(result["context_ir"], "开始聊天").fence
+    assert "温柔的语气" not in route_context(result["context_ir"], "开始聊天").fence
 
 
 async def test_chat_prompt_routes_history_only_after_named_recall(chat_service, fake_provider):
@@ -191,7 +191,7 @@ async def test_chat_prompt_routes_history_only_after_named_recall(chat_service, 
     cid = next(event for event in first if event.get("event") == "meta")["data"]["conversation_id"]
     first_prompt = "\n".join(message.get("content") or "" for message in fake_provider.calls[-1].messages)
     assert "风俗店的技师" in first_prompt
-    assert "慢节奏" in first_prompt
+    assert "慢节奏" not in first_prompt
     assert "橙花披肩" not in first_prompt
     assert "顾遥那天把钥匙" not in first_prompt
 

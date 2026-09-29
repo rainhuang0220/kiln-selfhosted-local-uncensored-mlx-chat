@@ -109,7 +109,7 @@ async def test_selected_preset_freezes_active_frame_and_seeds_offstage_bank(chat
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[0].messages)
     assert "包间" in sent and "我是来店里的客人林夏" in sent
     # V16: preference hint packs on default hop; confirmed_background is asked-only.
-    assert "短句慢节奏" in sent
+    assert "短句慢节奏" not in sent
     assert "confirmed_background" not in sent
     assert all(name not in sent for name in OFFSTAGE)
     assert SceneStateStore().get(cid).style.get("names")
@@ -189,7 +189,7 @@ async def test_active_cast_and_named_reference_are_retrieved_with_scope(chat_ser
     )]
     assert not [event for event in second if event.get("event") == "error"]
     sent = "\n".join(m.get("content") or "" for m in fake_provider.calls[-1].messages)
-    assert "reference_context" in sent
+    assert "参考人物：顾遥" in sent
     assert "顾遥" not in {m.name for m in SceneGraph.from_dict(SceneStateStore().get(cid).graph).cast}
 
 

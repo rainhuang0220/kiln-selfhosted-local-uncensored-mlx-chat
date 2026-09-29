@@ -68,26 +68,11 @@ def test_a3_attention_budget_default_hop():
     for name in ("顾遥", "祁律", "褚衡"):
         assert name not in fence
     assert "以下内容仅作为参考" not in fence
-    assert len(fence) <= 720
-    assert "<service_requirements" in fence
-    assert fence.index("<active_context>") < fence.index("<service_requirements")
+    assert len(fence) <= 281
+    assert fence.splitlines()[-1].startswith("此刻现场：")
+    assert "<service_requirements" not in fence
     assert "confirmed_background" not in fence
-    pref_lines = [
-        line for line in fence.splitlines()
-        if line and not line.startswith("<") and "偏好只影响" not in line
-        and "active_context" not in line and "assistant_persona" not in line
-        and "current_scene" not in line and "user_avatar" not in line
-        and "重点现实场景" not in line and "现实设定" not in line
-        and "参考" not in line
-    ]
-    # At most one short preference hint inside the bank.
-    bank = ""
-    if "<preference_bank" in fence:
-        bank = fence.split("<preference_bank", 1)[1].split("</preference_bank>", 1)[0]
-        blobs = [ln.strip() for ln in bank.splitlines() if ln.strip() and "偏好只影响" not in ln]
-        assert len(blobs) <= 1
-        if blobs:
-            assert len(blobs[0]) <= 80
+    assert "<preference_bank" not in fence
 
 
 def test_a4_multi_who_public_preview():

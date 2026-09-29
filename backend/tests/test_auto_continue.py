@@ -10,6 +10,20 @@ from app.providers.base import ChatChunk, ChatRequest
 from app.services.auto_continue import count_output_chars, drop_last_sentence, should_auto_continue
 
 
+@pytest.fixture(autouse=True)
+def _exercise_optional_long_floor(monkeypatch):
+    """Keep legacy continuation mechanics covered without restoring V27's default quota."""
+    import app.services.chat as chat_module
+
+    original = chat_module.resolve_profile
+
+    def with_long_floor(name):
+        profile = original(name)
+        return {**profile, "min_output_chars": 5000} if profile["profile"] == "immersive" else profile
+
+    monkeypatch.setattr(chat_module, "resolve_profile", with_long_floor)
+
+
 def test_should_auto_continue_on_length_under_min():
     assert should_auto_continue(
         visible_chars=1800,

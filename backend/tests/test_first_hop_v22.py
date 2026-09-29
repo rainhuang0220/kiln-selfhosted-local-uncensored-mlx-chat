@@ -30,40 +30,35 @@ def _bound_jiaozhi_ir() -> dict:
     return ir
 
 
-def _service_block(fence: str) -> str:
-    assert "<service_requirements" in fence
-    return fence.split("<service_requirements", 1)[1].split("</service_requirements>", 1)[0]
-
-
-def test_h1_bare_hello_parlor_plus_service_requirements():
+def test_h1_bare_hello_parlor_pin_only():
     from app.services.context_compiler import route_context
 
     hop = route_context(_bound_jiaozhi_ir(), "你好")
     assert hop.intent == "roleplay"
     fence = hop.fence
-    assert fence.index("<active_context>") < fence.index("<service_requirements")
+    assert fence.splitlines()[-1].startswith("此刻现场：")
     assert "技师" in fence
     assert "接待室" in fence
-    assert 'do_not_literalize="true"' in fence
-    assert "被注视的紧张" in _service_block(fence)
+    assert "do_not_literalize" not in fence
+    assert "<service_requirements" not in fence
     for token in OFFSTAGE:
         assert token not in fence
     assert "以下内容仅作为参考" not in fence
     assert "参考事件" not in fence
 
 
-def test_h1b_shared_scene_explicit_pref_survives():
+def test_h1b_shared_scene_does_not_invent_bracket_preferences():
     from app.services.context_compiler import route_context
     from app.services.context_presets import preview_preset
 
     hop = route_context(preview_preset(SHARED)["context_ir"], "你好")
-    block = _service_block(hop.fence)
-    assert "慢节奏" in block
+    assert hop.fence.splitlines()[-1].startswith("此刻现场：")
+    assert "慢节奏" not in hop.fence
     for name in ("顾遥", "祁律", "褚衡"):
         assert name not in hop.fence
 
 
-def test_h1c_service_requirements_drop_cue_and_offstage_names():
+def test_h1c_nonbracket_preferences_do_not_become_rules():
     from app.services.context_compiler import route_context
 
     ir = {
@@ -85,24 +80,24 @@ def test_h1c_service_requirements_drop_cue_and_offstage_names():
         "events": [{"order": 1, "actors": ["陆遥"], "description": "阁楼里谈了一夜"}],
         "preference_field_at_compile": "暂无",
     }
-    block = _service_block(route_context(ir, "你好").fence)
-    assert "先确认力度" in block
-    assert block.count("说话慢一点") == 1
+    block = route_context(ir, "你好").fence
+    assert "先确认力度" not in block
+    assert "说话慢一点" not in block
     for token in ("陆遥", "顾遥", "小学", "阁楼", "以下内容"):
         assert token not in block
 
 
-def test_h2_fence_budget_720():
+def test_h2_fence_budget_281():
     from app.services.context_compiler import route_context
 
     ir = _bound_jiaozhi_ir()
-    assert len(route_context(ir, "你好").fence) <= 720
+    assert len(route_context(ir, "你好").fence) <= 281
     ir["persona"]["rules"] = [f"服务要求第{i}条：先问清楚再继续，语气放慢，不要跳过确认。" for i in range(40)]
     ir["preference_field_at_compile"] = "；".join(f"偏好{i}：短句、慢节奏、写呼吸" for i in range(40))
     fence = route_context(ir, "你好").fence
-    assert len(fence) <= 720
-    assert "<active_context>" in fence and "接待室" in fence
-    assert len(_service_block(fence)) <= 340
+    assert len(fence) <= 281
+    assert fence.splitlines()[-1].startswith("此刻现场：") and "接待室" in fence
+    assert "服务要求第" not in fence
 
 
 def test_h3_named_recall_isolated_bare_hello_clean():
