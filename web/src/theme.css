@@ -85,6 +85,16 @@ a { color: var(--copper-2); }
 .mobile-only { display: none; }
 .nav-scrim { display: none; }
 .head-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.dzmm-settings { position: relative; font-size: 12px; }
+.dzmm-settings > label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.dzmm-settings select, .dzmm-settings input { max-width: 100%; color: var(--bone); background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
+.dzmm-settings details { position: absolute; top: 33px; right: 0; z-index: 30; width: min(680px, calc(100vw - 28px)); max-height: min(75vh, 680px); overflow: auto; padding: 10px; background: var(--raised); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 12px 36px #0005; }
+.dzmm-settings summary { cursor: pointer; }
+.dzmm-settings details label { display: block; margin: 8px 0; }
+.dzmm-settings details button { margin: 4px; }
+.dzmm-table-wrap { overflow-x: auto; }
+.dzmm-table-wrap table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.dzmm-table-wrap th, .dzmm-table-wrap td { text-align: left; border-bottom: 1px solid var(--line); padding: 5px; min-width: 52px; }
 .ctx-chip { display: none; }
 .icon-btn {
   width: 36px;

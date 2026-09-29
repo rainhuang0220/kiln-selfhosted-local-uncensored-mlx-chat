@@ -6,6 +6,7 @@ import { SidebarFooter } from "./components/SidebarFooter";
 import { GenerateStudio } from "./generate";
 import { Markdown } from "./components/Markdown";
 import { ModelWorkbench } from "./components/ModelWorkbench";
+import { DzmmSettings } from "./components/DzmmSettings";
 import { ContextPresetStudio } from "./components/ContextPresetStudio";
 import { apiFetch } from "./api/http";
 import { groupConversations } from "./lib/groups";
@@ -316,6 +317,7 @@ export function App() {
             <Menu size={18} />
           </button>
           <h2>{title}</h2>
+          {(store.role === "owner" || !store.authRequired) ? <DzmmSettings /> : null}
           <div className="head-actions">
             {store.activeId ? (
               <button

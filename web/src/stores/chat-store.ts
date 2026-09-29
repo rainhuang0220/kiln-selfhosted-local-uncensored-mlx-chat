@@ -95,6 +95,8 @@ interface ChatState {
   activeModelId: string | null;
   modelCatalog: HubModel[];
   modelJobs: ModelDownloadJob[];
+  selectedChatModel: string;
+  setSelectedChatModel: (id: string) => void;
   loadHealth: () => Promise<void>;
   loadModels: () => Promise<void>;
   searchModelCatalog: (query: string, mlxOnly?: boolean) => Promise<void>;
@@ -159,6 +161,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeModelId: null,
   modelCatalog: [],
   modelJobs: [],
+  selectedChatModel: "local:9b",
+  setSelectedChatModel: (id) => set({ selectedChatModel: id }),
 
   loadModels: async () => {
     if (get().authRequired && !get().authOk) return;
@@ -231,6 +235,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       localModels: [],
       modelCatalog: [],
       modelJobs: [],
+      selectedChatModel: "local:9b",
     });
   },
 
@@ -659,6 +664,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
         body: JSON.stringify({
           message: regen || cont ? "" : text,
+          model: get().selectedChatModel,
           conversation_id: get().activeId,
           regenerate: regen,
           continue_generation: cont,
@@ -743,6 +749,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const data = ev.data as { stage?: string; eta_s?: number };
           const stage = data.stage || "准备中";
           const eta = typeof data.eta_s === "number" ? `（约 ${data.eta_s}s）` : "";
+          if (stage.includes("云端额度用尽")) set({ error: stage });
           if (!sawToken) {
             set((s) => ({
               messages: s.messages.map((m) =>
@@ -762,6 +769,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             job_id?: string;
             mode?: string;
             target_visible_chars?: number;
+            model?: string;
           };
           accepted = true;
           userId = data.user_message_id;
@@ -779,7 +787,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const summary: ConversationSummary = {
               id: data.conversation_id,
               title: heuristicTitle(text),
-              model: get().health?.model || "qwen3.5-9b-hauhau-aggressive-mxfp4",
+              model: data.model || get().selectedChatModel,
               created_at: Date.now(),
               updated_at: Date.now(),
               message_count: 2,

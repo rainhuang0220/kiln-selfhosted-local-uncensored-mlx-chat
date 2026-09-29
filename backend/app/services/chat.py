@@ -88,6 +88,7 @@ from app.services.repetition import (
 )
 from app.services.sampling import THINKING, resolve_sampling
 from app.services.stream_protocol import COMPLETE_STATES, StreamLedger, TerminalState
+from app.services.providers.dzmm import DzmmQuotaError, card_from_context
 from app.services.thinking import (
     normalize_effort,
     remap_assistant_for_history,
@@ -1375,8 +1376,14 @@ class ChatService:
         auto_continue: bool | None = None,
         character_card_id: str | None = None,
         context_preset_id: str | None = None,
+        selected_model: str | None = None,
+        provider_override: Any | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         s = self.settings
+        active_provider = provider_override or self.provider
+        cloud_mode = provider_override is not None
+        model_id = selected_model or s.model_name
+        fallback_used = False
         text = (message or "").strip()
         skip_user_insert = False
         resume_assistant = False
@@ -1601,7 +1608,8 @@ class ChatService:
                 selected_preset["payload"],
                 source_text=selected_preset.get("source_text") or "",
             )
-            card = {**frame.get("active_character", {}), "scenario": frame.get("active_scene") or ""}
+            card = {**frame.get("active_character", {}), **(card or {}),
+                    "scenario": frame.get("active_scene") or ""}
         elif inline_frame is not None:
             card = {**inline_frame.get("active_character", {}), "scenario": inline_frame.get("active_scene") or ""}
         if system is not None:
@@ -1628,6 +1636,8 @@ class ChatService:
             enable_auto = auto_max > 0 and min_output_chars > 0
         else:
             enable_auto = bool(auto_continue) and auto_max > 0
+        if cloud_mode:
+            enable_auto = False
         auto_count = 0
         pin_repair_count = 0
         pin_repair_budget = 512
@@ -1674,7 +1684,7 @@ class ChatService:
             "min_output_chars": min_output_chars,
             "auto_continue_max": auto_max,
             "completion_soft_cap": completion_soft_cap or None,
-            "character_card_id": None if selected_preset is not None else character_card_id,
+            "character_card_id": character_card_id,
             "context_preset_id": context_preset_id if selected_preset is not None else None,
             "context_preset_snapshot": (
                 chat_frame_from_simple(
@@ -1684,6 +1694,7 @@ class ChatService:
                 if selected_preset is not None
                 else inline_frame
             ),
+            "selected_model": model_id,
         }
 
         created = False
@@ -1715,9 +1726,11 @@ class ChatService:
             params["context_preset_id"] = bound.get("context_preset_id")
             params["context_preset_snapshot"] = bound.get("context_preset_snapshot")
             params["character_card_id"] = bound.get("character_card_id")
+            if cloud_mode and bound.get("character_card_id"):
+                card = get_card(bound["character_card_id"], owner_id=owner_id)
         else:
             cid = self._create_conversation(
-                system_prompt, s.model_name, json.dumps(params), owner_id=owner_id
+                system_prompt, model_id, json.dumps(params), owner_id=owner_id
             )
             created = True
             conversation_created = True
@@ -1797,6 +1810,18 @@ class ChatService:
             }
             if hop_logit_bias:
                 extra["logit_bias"] = dict(hop_logit_bias)
+            if cloud_mode:
+                frame = params.get("context_preset_snapshot") or {}
+                source = (selected_preset or {}).get("source_text") or ""
+                if not source and params.get("context_preset_id"):
+                    bound_preset = get_preset(params["context_preset_id"], owner_id=owner_id)
+                    source = (bound_preset or {}).get("source_text") or ""
+                if frame or card:
+                    if card:
+                        frame = {**frame, "active_character": {**(frame.get("active_character") or {}), **card}}
+                    extra["dzmm_card"] = card_from_context(
+                        frame or {"active_character": card or {}}, source, text
+                    )
             if resume_assistant and (resume_content or resume_reasoning):
                 if resume_content:
                     asst = continue_assistant_message(resume_content, resume_reasoning)
@@ -2105,7 +2130,7 @@ class ChatService:
                         "created": created,
                         "user_message_id": user_id,
                         "message_id": assistant_id,
-                        "model": s.model_name,
+                        "model": model_id,
                     },
                 }
                 yield {
@@ -2113,7 +2138,7 @@ class ChatService:
                     "data": {
                         "request_id": snapshot_id,
                         "conversation_id": cid,
-                        "model": s.model_name,
+                        "model": model_id,
                         "params": params,
                         "effective_system_prompt": snapshot_meta["effective_system_prompt"],
                         "sent_messages": snapshot_meta["sent_messages"],
@@ -2173,7 +2198,12 @@ class ChatService:
                         self._remember_continue_prompt(cid, first_req.extra["raw_prompt"])
                     elif not resume_assistant:
                         self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
-                    result = await self.provider.complete(first_req)
+                    try:
+                        result = await active_provider.complete(first_req)
+                    except DzmmQuotaError:
+                        fallback_used = True
+                        yield {"event": "status", "data": {"stage": "云端额度用尽，已改用本机"}}
+                        result = await self.provider.complete(first_req)
                     extra_content = result.content or ""
                     if resume_assistant:
                         extra_content = strip_regenerated_tail(extra_content, continue_tail)
@@ -2223,8 +2253,14 @@ class ChatService:
                         self._remember_continue_prompt(cid, req.extra["raw_prompt"])
                     elif not resume_assistant:
                         self._remember_turn_prompt(cid, sent, enable_thinking=enable_thinking)
-                    async for event in consume_stream(self.provider.stream(req)):
-                        yield event
+                    try:
+                        async for event in consume_stream(active_provider.stream(req)):
+                            yield event
+                    except DzmmQuotaError:
+                        fallback_used = True
+                        yield {"event": "status", "data": {"stage": "云端额度用尽，已改用本机"}}
+                        async for event in consume_stream(self.provider.stream(req)):
+                            yield event
                     if (
                         think_cut
                         and not content_buf
@@ -2490,7 +2526,7 @@ class ChatService:
                     or self.tokenizer.count_text((reasoning_buf or "") + (content_buf or "")),
                     cached_tokens=cached_tokens,
                     snapshot_id=snapshot_id,
-                    model=s.model_name,
+                    model=s.model_name if fallback_used else model_id,
                     params=params,
                     error=error,
                     started_ms=started,

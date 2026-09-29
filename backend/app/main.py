@@ -3,12 +3,16 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import os
 import logging
 import re
 import sqlite3
 import subprocess
 import time
 import uuid
+import httpx
+from pathlib import Path
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -40,6 +44,9 @@ from app.services.heartbeat import iterate_with_heartbeats
 from app.services.sampling import resolve_sampling
 from app.services.stream_protocol import StreamLedger
 from app.services.models import ModelManager
+from app.services.providers.dzmm import (
+    DzmmProvider, MODELS_URL, model_catalog, parse_character_card, preferred_model, read_token, write_token,
+)
 from app.services.tokens import TokenEstimator
 from app.services.narrative import NarrativeOrchestrator, resume_events
 from app.services.narrative_prompt import export_config, import_config
@@ -51,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 class ChatBody(BaseModel):
     message: str = ""
+    model: str | None = None
     conversation_id: str | None = None
     regenerate: bool = False
     continue_generation: bool = False
@@ -198,6 +206,14 @@ class ModelDownloadBody(BaseModel):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*", value):
             raise ValueError("repo_id must be an owner/name Hugging Face repository")
         return value
+
+
+class DzmmTokenBody(BaseModel):
+    api_token: str = Field(default="", max_length=4096)
+
+
+class CardUrlBody(BaseModel):
+    url: str = Field(min_length=20, max_length=300)
 
 
 class GenerateBody(BaseModel):
@@ -661,6 +677,55 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
     async def global_context(request: Request):
         return request.app.state.chat.global_context()
 
+    @app.get("/models/dzmm/settings")
+    async def dzmm_settings(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        configured = bool(read_token(cfg.sqlite_path))
+        return {"token_configured": configured, "default_model": preferred_model(configured),
+                "wallet": "已配置 Token，余额请看官网" if configured else "未配置 Token"}
+
+    @app.put("/models/dzmm/settings")
+    async def update_dzmm_settings(body: DzmmTokenBody, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        write_token(cfg.sqlite_path, body.api_token)
+        return {"token_configured": bool(body.api_token.strip()),
+                "default_model": preferred_model(bool(body.api_token.strip()))}
+
+    @app.get("/models/dzmm")
+    async def dzmm_models(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        token = read_token(cfg.sqlite_path)
+        prices: dict[str, str] = {}
+        extra_ids: list[str] = []
+        reachable = False
+        if token:
+            try:
+                async with httpx.AsyncClient(timeout=8, trust_env=False) as client:
+                    response = await client.get(MODELS_URL, headers={"Authorization": f"Bearer {token}"})
+                if response.is_success:
+                    reachable = True
+                    for item in response.json().get("data", []):
+                        if not isinstance(item, dict):
+                            continue
+                        model_id = item.get("id")
+                        if isinstance(model_id, str) and model_id.startswith("nalang-apex"):
+                            extra_ids.append(model_id)
+                        # Only show a price when the endpoint explicitly provides one.
+                        price = item.get("price") or item.get("pricing")
+                        if isinstance(model_id, str) and price is not None:
+                            prices[model_id] = str(price)
+            except (httpx.HTTPError, ValueError, TypeError):
+                pass
+        return {"data": model_catalog(prices, extra_ids), "reachable": reachable,
+                "token_configured": bool(token), "default_model": preferred_model(bool(token)),
+                "pricing_note": "估价，以钱包为准"}
+
     @app.get("/models/local")
     async def list_local_models(request: Request):
         denied = _require_owner_role(request)
@@ -790,6 +855,63 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         from app.services import character_cards as cards_mod
 
         return cards_mod.save_card(body.model_dump(), owner_id=_owner(request))
+
+    def _save_imported_card(payload: dict[str, Any], owner_id: str | None):
+        from app.services import character_cards as cards_mod
+
+        saved = cards_mod.save_card(payload, owner_id=owner_id)
+        directory = Path(cfg.sqlite_path).expanduser().parent / "character-cards"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{saved['id']}.json"
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+        return saved
+
+    @app.post("/context/cards/import")
+    async def import_card(request: Request, filename: str = Query(..., max_length=200)):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        try:
+            payload = parse_character_card(await request.body(), filename)
+            return _save_imported_card(payload, _owner(request))
+        except (ValueError, OSError) as exc:
+            return error_body(str(exc), "invalid_request_error", "invalid_card", status=400)
+
+    @app.post("/context/cards/import-url")
+    async def import_card_url(body: CardUrlBody, request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        parsed = urlparse(body.url)
+        if parsed.scheme != "https" or parsed.netloc != "www.dzmm.ai" or not re.fullmatch(r"/character/\d+", parsed.path):
+            return error_body("请提供 DZMM 角色页链接", "invalid_request_error", "invalid_card_url", status=400)
+        try:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=False, trust_env=False) as client:
+                response = await client.get(body.url, headers={"Accept": "application/json"})
+            if response.is_success and "json" in response.headers.get("content-type", ""):
+                return _save_imported_card(parse_character_card(response.content, "card.json"), _owner(request))
+        except (httpx.HTTPError, ValueError, OSError):
+            pass
+        return error_body("请导出 JSON/PNG 后导入", "invalid_request_error", "card_export_required", status=400)
+
+    @app.get("/context/cards/library")
+    async def list_imported_cards(request: Request):
+        denied = _require_owner_role(request)
+        if denied is not None:
+            return denied
+        from app.services import character_cards as cards_mod
+
+        directory = Path(cfg.sqlite_path).expanduser().parent / "character-cards"
+        rows = cards_mod.list_cards(owner_id=_owner(request))
+        for row in rows:
+            try:
+                saved = json.loads((directory / f"{row['id']}.json").read_text())
+                row["tags"] = saved.get("tags") or []
+            except (OSError, ValueError):
+                row["tags"] = []
+        return {"data": rows}
 
     @app.patch("/context/cards/{card_id}")
     @app.patch("/cards/{card_id}")
@@ -969,6 +1091,14 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
         if parked is not None:
             return parked
         svc: ChatService = request.app.state.chat
+        token = read_token(cfg.sqlite_path) if _is_owner_role(request) else ""
+        selected_model = body.model or preferred_model(bool(token))
+        allowed_models = {row["id"] for row in model_catalog()}
+        if selected_model not in allowed_models and not selected_model.startswith("nalang-apex"):
+            return error_body("unknown chat model", "invalid_request_error", "invalid_model", status=400)
+        if selected_model.startswith("nalang-") and not token:
+            return error_body("DZMM Token required", "invalid_request_error", "missing_token", status=400)
+        cloud_provider = DzmmProvider(token, selected_model) if selected_model.startswith("nalang-") else None
         profile_key = normalize_profile(body.profile)
         mode = (body.mode or "").strip().lower()
         # Immersive / long_form use chat auto-continue + lore/scene fences.
@@ -994,14 +1124,16 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 "repetition_penalty": body.repetition_penalty,
                 "repetition_context_size": body.repetition_context_size,
                 "max_tokens": body.max_tokens,
-                "enable_thinking": body.enable_thinking,
+                "enable_thinking": False if cloud_provider else body.enable_thinking,
                 "reasoning_effort": body.reasoning_effort,
                 "thinking_continuation": body.thinking_continuation,
                 "evidence": body.evidence,
                 "owner_id": _owner(request),
                 "character_card_id": body.character_card_id,
                 "context_preset_id": body.context_preset_id,
-                "auto_continue": body.auto_continue,
+                "auto_continue": False if cloud_provider else body.auto_continue,
+                "selected_model": selected_model,
+                "provider_override": cloud_provider,
                 **extra,
             }
 
@@ -1040,8 +1172,12 @@ def create_app(settings: Settings | None = None, chat: ChatService | None = None
                 finally:
                     cancelled["v"] = True
                 return
-            async for event in svc.chat(**_chat_kwargs(stream=True)):
-                yield event
+            try:
+                async for event in svc.chat(**_chat_kwargs(stream=True)):
+                    yield event
+            finally:
+                if cloud_provider:
+                    await cloud_provider.aclose()
 
         async def event_stream() -> AsyncIterator[bytes]:
             request_id = uuid.uuid4().hex
