@@ -6,7 +6,7 @@
 - Default model in UI: `local:9b` without a Token; `nalang-turbo-0826` after a Token is saved. XL is labeled `推荐付费 / 文爱更好` and is never selected automatically.
 - Preset → card: the bundled parlor fixture is 270 characters. It maps to a 275-character card description, 52-character scene, and empty first message. A 3,000-character source test clips description to 2,400 and excludes `EVENT_LEDGER` and school memories. Named recall includes only events for the requested person.
 - Card import: Tavern V2 JSON and PNG `chara` metadata passed tests; local search and tag filtering are available. The probed DZMM character page returned HTML, so URL import asks for JSON/PNG export.
-- Backend tests: 628 passed, 5 skipped (full suite); the final V30-focused run passed 10 tests. Frontend: 77 passed; TypeScript and Vite build passed. The final build was published assets first, then `index.html`.
+- Backend tests: 628 passed, 5 skipped (full suite before the quota-body follow-up); the final V30-focused run passed 11 tests, and 34 affected tests passed. Frontend: 77 passed; TypeScript and Vite build passed. The final build was published assets first, then `index.html`.
 - Runtime: API-only kickstart produced PID `46869`; `/health` reports `immersive / 6144`. `:8081` still serves `qwen3.5-9b-hauhau-aggressive-mxfp4`, and a direct 8-token `好` returned 8 completion tokens. Public `/readyz` returned 200 after the existing reverse tunnel reconnected.
 - Limitation: cloud response quality, actual wallet balance, and live card acceptance cannot be verified without the owner's DZMM Token. If the owner switches the single local MLX server to 27B, it must be switched back to 9B to preserve the stated 9B quota fallback.
 
@@ -14,4 +14,4 @@ recharge URL shown in Settings? yes — `https://www.dzmm.ai/` with the official
 
 turbo is free-tier default when token present? yes — API and UI tests cover the default; daily quota is labeled `以官网当日配额为准`.
 
-402 falls back to local 9B? yes — same-send stream tests cover 402 and 429 while 9B is the active local model; live cloud quota response remains untested without a Token.
+402 falls back to local 9B? yes — same-send stream tests cover 402 and 429, plus an HTTP 400 quota body, while 9B is the active local model; live cloud quota response remains untested without a Token.

@@ -5,6 +5,7 @@ from app.services.providers.dzmm import read_token, write_token
 from app.services.providers.dzmm import parse_character_card
 from app.services.providers.dzmm import DzmmProvider
 from app.providers.base import ChatRequest
+import httpx
 
 
 def test_free_tier_is_default_only_with_token():
@@ -51,6 +52,17 @@ def test_named_recall_only_adds_matching_person():
     named = card_from_context(frame, recall_query="陆遥是谁")["description"]
     assert "陆遥的旧事" in named
     assert "沈乔的旧事" not in named
+
+
+@pytest.mark.asyncio
+async def test_http_400_quota_message_requests_local_fallback():
+    def respond(request):
+        return httpx.Response(400, json={"error": {"code": "insufficient_quota", "message": "额度用尽"}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        provider = DzmmProvider("test-token", client=client)
+        with pytest.raises(DzmmQuotaError):
+            await provider.complete(ChatRequest(messages=[{"role": "user", "content": "好"}]))
 
 
 def test_quota_error_identifies_both_statuses():

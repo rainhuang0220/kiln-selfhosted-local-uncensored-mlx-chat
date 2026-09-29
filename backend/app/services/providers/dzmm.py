@@ -29,6 +29,17 @@ class DzmmQuotaError(RuntimeError):
         self.status = status
 
 
+def _quota_exhausted(payload: dict[str, Any]) -> bool:
+    error = payload.get("error") or {}
+    if not isinstance(error, dict):
+        return False
+    code = str(error.get("code") or error.get("status") or "").lower()
+    message = str(error.get("message") or "").lower()
+    return code in {"402", "429", "insufficient_quota", "rate_limit", "quota_exceeded"} or any(
+        phrase in message for phrase in ("额度用尽", "余额不足", "quota exhausted", "insufficient credits")
+    )
+
+
 def token_path(sqlite_path: str) -> Path:
     return Path(sqlite_path).expanduser().parent / "dzmm-settings.json"
 
@@ -226,6 +237,14 @@ class DzmmProvider:
                 raise DzmmQuotaError(status)
             if response.status_code >= 400:
                 status = response.status_code
+                if status == 400:
+                    try:
+                        await response.aread()
+                        if _quota_exhausted(response.json()):
+                            await response.aclose()
+                            raise DzmmQuotaError(status)
+                    except (ValueError, TypeError):
+                        pass
                 await response.aclose()
                 raise RuntimeError(f"DZMM request failed ({status})")
             return response
@@ -262,9 +281,8 @@ class DzmmProvider:
                 if frame.kind != "json" or frame.payload is None:
                     continue
                 data = frame.payload
-                error = data.get("error")
-                if isinstance(error, dict) and (error.get("status") in (402, 429) or error.get("code") in (402, 429, "insufficient_quota", "rate_limit")):
-                    raise DzmmQuotaError(int(error.get("status") or 402))
+                if _quota_exhausted(data):
+                    raise DzmmQuotaError(402)
                 choice = (data.get("choices") or [{}])[0]
                 delta = choice.get("delta") or {}
                 usage = data.get("usage") or {}
